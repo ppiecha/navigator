@@ -142,6 +142,8 @@ class Browser(wx.ListCtrl, ListCtrlAutoWidthMixin):
             index = self.FindItem(-1, item)
             if index >= 0:
                 self.Select(index, on=1)
+                if len(selected) == 1:
+                    self.Focus(index)
 
     def on_menu(self, event):
         if wx.GetKeyState(wx.WXK_CONTROL):
@@ -221,6 +223,7 @@ class Browser(wx.ListCtrl, ListCtrlAutoWidthMixin):
         pattern = pattern if pattern.startswith("*") else "*{p}*".format(p=pattern)
         self.conf.pattern = pattern
         self.open_dir(self.path, sel_dir=cn.CN_GO_BACK)
+        self.select_first_one()
 
     def sort_by_column(self, sort_key, desc, reread=True):
 
@@ -229,20 +232,12 @@ class Browser(wx.ListCtrl, ListCtrlAutoWidthMixin):
                 if index != sort_key:
                     self.ClearColumnImage(index)
 
-        col = self.GetColumn(sort_key)
         img_idx = self.frame.img_arrow_up if desc else self.frame.img_arrow_down
         clear_all_others()
         self.SetColumnImage(sort_key, img_idx)
-        # self.conf.sort_key = sort_key
-        # self.conf.sort_desc = col.GetImage() == self.frame.img_arrow_down
-
-        selected = ""
-        index = self.GetFirstSelected()
-        if index >= 0:
-            selected = self.GetItem(self.GetFirstSelected()).GetText()
 
         if reread:
-            self.open_dir(dir_name=self.path, sel_dir=selected)
+            self.open_dir(dir_name=self.path)
 
     def on_col_click(self, event):
         col_index = event.GetColumn()
@@ -289,11 +284,23 @@ class Browser(wx.ListCtrl, ListCtrlAutoWidthMixin):
         self.open_directory(dir_name, sel_dir, self.conf)
 
     def open_directory(self, dir_name, sel_dir, conf):
-        if not sel_dir and self.GetFirstSelected() >= 0:
-            sel_dir = self.GetItemText(self.GetFirstSelected())
+        if self.path is not None:
+            if self.path.samefile(dir_name):
+                to_select = self.get_selected()
+            else:
+                self.filter_pnl.disable_filter(clear_search=True)
+                if sel_dir:
+                    to_select = [sel_dir]
+                else:
+                    to_select = [cn.CN_GO_BACK]
+        else:
+            if sel_dir:
+                to_select = [sel_dir]
+            else:
+                to_select = [cn.CN_GO_BACK]
         temp = self.path
         try:
-            # self.filter_pnl.disable_filter(clear_search=True)
+            # print(conf.use_pattern, conf.pattern)
             p = Path(dir_name)
             pattern = conf.pattern if conf.use_pattern else "*"
             dir_list = [[x.name.lower(), x.stat().st_mtime, "", x.name]
@@ -320,7 +327,8 @@ class Browser(wx.ListCtrl, ListCtrlAutoWidthMixin):
                 img_id = self.get_image_id(extension)
                 self.SetItemImage(index, img_id)
             self.update_summary_lbl()
-            self.set_selection([sel_dir])
+            self.set_selection(to_select)
+            # print(self.GetFirstSelected(), self.GetFocusedItem())
         except OSError as err:
             self.frame.log_error(str(err))
             self.open_dir(temp)
