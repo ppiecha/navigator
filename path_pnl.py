@@ -6,6 +6,41 @@ from pathlib import Path
 import util
 
 
+class PathPanel(wx.Panel):
+    def __init__(self, parent, frame):
+        super().__init__(parent=parent)
+        self.parent = parent
+        self.frame = frame
+        self.drive_combo = DriveCombo(self, self.frame)
+        self.path_lbl = PathLabel(self, self.frame)
+        self.sep = wx.Panel(self)
+        self.fav_btn = PathBtn(self, cn.CN_IM_FAV)
+        self.hist_btn = PathBtn(self, cn.CN_IM_HIST)
+        self.hist_menu = HistMenu()
+        self.sizer_h = wx.BoxSizer(wx.HORIZONTAL)
+        self.sizer_v = wx.BoxSizer(wx.VERTICAL)
+        self.sizer_h.Add(self.drive_combo)
+        self.sizer_h.Add(self.sep, flag=wx.EXPAND, proportion=1)
+        self.sizer_h.Add(self.fav_btn)
+        self.sizer_h.Add(self.hist_btn)
+        self.sizer_v.Add(self.path_lbl, flag=wx.EXPAND, proportion=1)
+        self.sizer_v.Add(self.sizer_h, flag=wx.EXPAND, proportion=1)
+        self.SetSizerAndFit(self.sizer_v)
+
+        self.hist_btn.Bind(wx.EVT_BUTTON, self.on_history)
+        self.fav_btn.Bind(wx.EVT_BUTTON, self.on_favorite)
+
+    def AcceptsFocusFromKeyboard(self):
+        return False
+
+    def on_favorite(self, e):
+        self.parent.browser.select_first_one()
+
+    def on_history(self, event):
+        self.hist_menu.update()
+        self.frame.PopupMenu(self.hist_menu)
+
+
 class PathLabel(wx.TextCtrl):
     def __init__(self, parent, frame):
         super().__init__(parent=parent, style=wx.TE_PROCESS_ENTER)
@@ -202,40 +237,6 @@ class HistMenu(wx.Menu):
     def on_click(self, event):
         operation = self.sorted_items_id[event.GetId()]
         self.browser.open_dir(operation)
-
-
-class PathPanel(wx.Panel):
-    def __init__(self, parent, frame):
-        super().__init__(parent=parent)
-        self.parent = parent
-        self.frame = frame
-        self.drive_combo = DriveCombo(self, self.frame)
-        self.path_lbl = PathLabel(self, self.frame)
-        self.fav_btn = PathBtn(self, cn.CN_IM_FAV)
-        self.hist_btn = PathBtn(self, cn.CN_IM_HIST)
-        self.hist_menu = HistMenu()
-        self.sizer_h = wx.BoxSizer(wx.HORIZONTAL)
-        self.sizer_v = wx.BoxSizer(wx.VERTICAL)
-        self.sizer_h.Add(self.drive_combo)
-        self.sizer_h.Add(self.fav_btn)
-        self.sizer_h.Add(self.hist_btn)
-        self.sizer_v.Add(self.path_lbl, flag=wx.EXPAND, proportion=1)
-        self.sizer_v.Add(self.sizer_h, flag=wx.EXPAND, proportion=1)
-        self.SetSizerAndFit(self.sizer_v)
-
-        self.hist_btn.Bind(wx.EVT_BUTTON, self.on_history)
-        self.fav_btn.Bind(wx.EVT_BUTTON, self.on_favorite)
-
-    def AcceptsFocusFromKeyboard(self):
-        return False
-
-    def on_favorite(self, e):
-        self.parent.browser.select_first_one()
-
-    def on_history(self, event):
-        self.hist_menu.update()
-        self.frame.PopupMenu(self.hist_menu)
-
 
 class DriveCombo(wx.ComboBox):
     def __init__(self, parent, frame):

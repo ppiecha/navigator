@@ -91,7 +91,6 @@ class Browser(wx.ListCtrl, ListCtrlAutoWidthMixin):
         self.frame.PopupMenu(menu)
         del menu
 
-
     def __del__(self):
         self.release_watchers()
 
