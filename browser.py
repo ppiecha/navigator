@@ -3,7 +3,6 @@ import os
 from pathlib import Path
 import util
 import constants as cn
-from operator import itemgetter
 import path_pnl
 import win32gui
 from win32com.shell import shell, shellcon
@@ -11,10 +10,48 @@ import win32api
 import win32con
 from wx.lib.mixins.listctrl import ListCtrlAutoWidthMixin
 import filter_pnl
-import dir_watcher
+import time
+# import wx.lib.agw.aui as aui
+import wx.aui as aui
 
 
 CN_MAX_HIST_COUNT = 20
+
+
+class Tit:
+    def __init__(self, text):
+        print(text)
+        self.start = time.time()
+
+    def __del__(self):
+        print("Elapsed: ", time.time() - self.start)
+
+# class BrowserCtrlPnl(wx.Panel):
+#     def __init__(self, parent, frame, im_list, conf):
+#         super().__init__(parent=parent)
+#         self.browse_ctrl = BrowseCtrl(self, frame, im_list, conf)
+#         self.sizer = wx.BoxSizer(wx.VERTICAL)
+#         self.sizer.Add(self.browse_ctrl, flag=wx.EXPAND, proportion=1)
+#
+#         self.SetSizerAndFit(self.sizer)
+
+
+class BrowserCtrl(aui.AuiNotebook):
+    def __init__(self, parent, frame, im_list, conf):
+        super().__init__(parent=parent)#, style=aui.AUI_NB_TAB_MOVE | aui.AUI_NB_TAB_FIXED_WIDTH |
+                                        #      aui.AUI_NB_SCROLL_BUTTONS | aui.AUI_NB_TOP)
+        self.SetArtProvider(aui.AuiDefaultTabArt())
+        self.parent = parent
+        self.frame = frame
+        self.im_list = im_list
+        self.conf = conf
+        wx.CallAfter(self.SendSizeEvent)
+        self.add_tab("C:\\temp")
+
+    def add_tab(self, dir_name):
+        tab = BrowserPnl(self, self.frame, self.im_list, self.conf)
+        folder = Path(dir_name).name
+        self.AddPage(tab, folder)
 
 
 class BrowserPnl(wx.Panel):
@@ -37,7 +74,7 @@ class BrowserPnl(wx.Panel):
 
 class Browser(wx.ListCtrl, ListCtrlAutoWidthMixin):
     def __init__(self, parent, frame, im_list, conf):
-        super().__init__(parent=parent, style=wx.LC_REPORT)
+        super().__init__(parent=parent, style=wx.LC_REPORT | wx.LC_VIRTUAL)
         ListCtrlAutoWidthMixin.__init__(self)
         self.setResizeColumn(0)
         self.parent = parent
@@ -45,7 +82,8 @@ class Browser(wx.ListCtrl, ListCtrlAutoWidthMixin):
         self.path_pnl = None
         self.filter_pnl = None
         self._path = None
-        self.watchers = []
+        self.root = None
+        self.dir_cache = []
         self.conf = conf
         self.conf.pattern = ""
         self.conf.use_pattern = False
@@ -61,8 +99,45 @@ class Browser(wx.ListCtrl, ListCtrlAutoWidthMixin):
         self.Bind(wx.EVT_LIST_COL_CLICK, self.on_col_click)
         self.Bind(wx.EVT_LIST_COL_RIGHT_CLICK, self.on_col_right_click)
         self.Bind(wx.EVT_CONTEXT_MENU, self.on_menu)
-        self.Bind(wx.EVT_LIST_ITEM_SELECTED, self.on_select)
-        self.Bind(wx.EVT_LIST_KEY_DOWN, self.on_key_down)
+        # self.Bind(wx.EVT_LIST_ITEM_SELECTED, self.on_select)
+        # self.Bind(wx.EVT_LIST_KEY_DOWN, self.on_key_down)
+
+    def OnGetItemText(self, item, col):
+
+        def gci(item, col):
+            if col == 1:
+                return util.format_date(self.dir_cache[item][col])
+            elif col == 2:
+                return util.format_size(self.dir_cache[item][col])
+            else:
+                return self.dir_cache[item][col]
+
+        if item == 0:
+            if not self.root:
+                return cn.CN_GO_BACK if col == 0 else ""
+            else:
+                return gci(0, 3 if col == 0 else col)
+        else:
+            return gci(item-1 if not self.root else item, 3 if col == 0 else col)
+
+    def OnGetItemImage(self, item):
+        if item == 0 and not self.root:
+            return self.frame.img_go_up
+        if self.dir_cache[item-1 if not self.root else item][4]:
+            return self.frame.img_folder
+        else:
+            extension = self.dir_cache[item-1 if not self.root else item][5]
+            if not extension:
+                extension = "~$!"
+            return self.get_image_id(extension)
+
+    def OnGetItemAttr(self, item):
+        # if item % 3 == 1:
+        #     return self.attr1
+        # elif item % 3 == 2:
+        #     return self.attr2
+        # else:
+        return None
 
     def init_ui(self, conf):
         for index, name in enumerate(self.columns):
@@ -71,7 +146,7 @@ class Browser(wx.ListCtrl, ListCtrlAutoWidthMixin):
         self.sort_by_column(conf.sort_key, conf.sort_desc, reread=False)
 
     def on_key_down(self, e):
-        e.Skip()
+        # e.Skip()
         if e.GetKeyCode() == wx.WXK_RETURN:
             index = self.GetFocusedItem()
             if index >= 0:
@@ -92,7 +167,8 @@ class Browser(wx.ListCtrl, ListCtrlAutoWidthMixin):
         del menu
 
     def __del__(self):
-        self.release_watchers()
+        # self.release_watchers()
+        pass
 
     def add_hist_item(self, path):
         if path not in self.history:
@@ -105,6 +181,7 @@ class Browser(wx.ListCtrl, ListCtrlAutoWidthMixin):
         if index >= 0:
             self.Select(index, on=0)
         self.update_summary_lbl()
+        event.Skip()
 
     def clear_selection(self):
         if self.GetSelectedItemCount() > 0:
@@ -161,13 +238,11 @@ class Browser(wx.ListCtrl, ListCtrlAutoWidthMixin):
     def update_summary_lbl(self):
         files = 0
         folders = 0
-        for index in range(self.GetItemCount()):
-            img_idx = self.GetItem(index).GetImage()
-            if img_idx != self.frame.img_go_up:
-                if img_idx:
-                    files += 1
-                else:
-                    folders += 1
+        for item in self.dir_cache:
+            if item[4]:
+                folders += 1
+            else:
+                files += 1
         selected = self.GetSelectedItemCount()
         self.parent.filter_pnl.sum_lbl.SetLabel("F " + str(folders) + " f " + str(files) + " S " + str(selected))
 
@@ -186,18 +261,18 @@ class Browser(wx.ListCtrl, ListCtrlAutoWidthMixin):
             self.SetItemImage(index, img_id)
             self.update_summary_lbl()
 
-    def change_watcher(self, dir):
-        if not self.path or (self.path and not self.path.samefile(dir)):
-            if self.watchers:
-                self.watchers[len(self.watchers) - 1].terminate()
-            self.watchers.append(dir_watcher.DirWatcher(dir, self))
-            self.watchers[len(self.watchers) - 1].start()
-
-    def release_watchers(self):
-        for th in self.watchers:
-            if th.is_alive():
-                th.terminate()
-                th.join()
+    # def change_watcher(self, dir):
+    #     if not self.path or (self.path and not self.path.samefile(dir)):
+    #         # if self.watchers:
+    #         #     self.watchers[len(self.watchers) - 1].terminate()
+    #         self.watchers.append(dir_watcher.DirWatcher(dir, self))
+    #         self.watchers[len(self.watchers) - 1].start()
+    #
+    # def release_watchers(self):
+    #     for th in self.watchers:
+    #         if th.is_alive():
+    #             th.terminate()
+    #             th.join()
 
     @property
     def path(self):
@@ -213,8 +288,9 @@ class Browser(wx.ListCtrl, ListCtrlAutoWidthMixin):
         os.chdir(str(value))
         self.conf.last_path = str(value)
         self.add_hist_item(str(value))
-        self.change_watcher(str(value))
+        # self.change_watcher(str(value))
         self.path_pnl.path_lbl.SetInsertionPointEnd()
+        self.root = value.samefile(value.anchor)
         self._path = value
 
     def do_search_folder(self, pattern):
@@ -246,6 +322,7 @@ class Browser(wx.ListCtrl, ListCtrlAutoWidthMixin):
         self.sort_by_column(self.conf.sort_key, self.conf.sort_desc)
 
     def on_item_activated(self, item_name):
+        t = Tit("on_item_activated")
         if item_name == cn.CN_GO_BACK:
             if self.path.samefile(self.path.anchor):
                 return
@@ -259,6 +336,7 @@ class Browser(wx.ListCtrl, ListCtrlAutoWidthMixin):
                 self.open_file(new_path)
             elif new_path.is_dir():
                 self.open_dir(dir_name=new_path)
+        del t
 
     def on_db_click(self, event):
         self.on_item_activated(event.GetText())
@@ -299,35 +377,68 @@ class Browser(wx.ListCtrl, ListCtrlAutoWidthMixin):
                 to_select = [cn.CN_GO_BACK]
         temp = self.path
         try:
-            # print(conf.use_pattern, conf.pattern)
-            p = Path(dir_name)
-            pattern = conf.pattern if conf.use_pattern else "*"
-            dir_list = [[x.name.lower(), x.stat().st_mtime, "", x.name]
-                        for x in p.glob(pattern) if x.is_dir() and not util.is_hidden(x)]
-            file_list = [[x.name.lower(), x.stat().st_mtime, x.stat().st_size, x.name]
-                         for x in p.glob(pattern) if x.is_file() and not util.is_hidden(x)]
-            dir_list = sorted(dir_list, key=itemgetter(conf.sort_key), reverse=conf.sort_desc)
-            file_list = sorted(file_list, key=itemgetter(conf.sort_key), reverse=conf.sort_desc)
-            self.path = p
-            self.DeleteAllItems()
-            if not self.path.samefile(self.path.anchor):
-                index = self.Append([cn.CN_GO_BACK, "", ""])
-                self.SetItemImage(index, self.frame.img_go_up)
-            for entry in dir_list:
-                index = self.Append([entry[3], util.format_date(entry[1]), entry[2]])
-                self.SetItemImage(index, self.frame.img_folder)
-            for entry in file_list:
-                index = self.Append([entry[3], util.format_date(entry[1]), util.format_size(entry[2])])
-                file_name = os.path.join(self.path.parent, entry[0])
-                file_name = Path(file_name)
-                extension = file_name.suffix
-                if not extension:
-                    extension = "~$!"
-                img_id = self.get_image_id(extension)
-                self.SetItemImage(index, img_id)
-            self.update_summary_lbl()
+            # p = Path(dir_name)
+            # if str(p) in self.dir_cache.keys() and str(p) in self.file_cache.keys():
+            #     dir_list = self.dir_cache[str(p)]
+            #     file_list = self.file_cache[str(p)]
+            # else:
+            #     t = Tit("READ")
+            #     pattern = conf.pattern if conf.use_pattern else "*"
+            #     dir_list = [[x.name.lower(), x.stat().st_mtime, "", x.name]
+            #                 for x in p.glob(pattern) if x.is_dir() and not util.is_hidden(x)]
+            #     file_list = [[x.name.lower(), x.stat().st_mtime, x.stat().st_size, x.name]
+            #                  for x in p.glob(pattern) if x.is_file() and not util.is_hidden(x)]
+            #
+            #     self.dir_cache[str(p)] = dir_list
+            #     self.file_cache[str(p)] = file_list
+            #     del t
+            # t = Tit("List processing")
+            # t1 = Tit("sorting")
+            # dir_list = sorted(dir_list, key=itemgetter(conf.sort_key), reverse=conf.sort_desc)
+            # file_list = sorted(file_list, key=itemgetter(conf.sort_key), reverse=conf.sort_desc)
+            # del t1
+            # self.path = p
+            self.dir_cache = self.frame.dir_cache.get_dir(dir_name=dir_name, conf=conf)
+            self.path = Path(dir_name)
+            count = len(self.dir_cache)
+            if not self.root:
+                count += 1
+            self.SetItemCount(count)
             self.set_selection(to_select)
-            # print(self.GetFirstSelected(), self.GetFocusedItem())
+            # self.RefreshItems(self.GetTopItem(), self.GetTopItem() + self.GetCountPerPage())
+            wx.CallAfter(self.Refresh)
+            wx.CallAfter(self.update_summary_lbl)
+            # t1 = Tit("deleting")
+            # self.DeleteAllItems()
+            # del t1
+            # if not self.path.samefile(self.path.anchor):
+            #     index = self.Append([cn.CN_GO_BACK, "", ""])
+            #     self.SetItemImage(index, self.frame.img_go_up)
+            # t1 = Tit("dirs")
+            # for entry in dir_list:
+            #     # self.Freeze()
+            #     index = self.Append([entry[3], util.format_date(entry[1]), entry[2]])
+            #     self.SetItemImage(index, self.frame.img_folder)
+            #     # self.Thaw()
+            # del t1
+            # t1 = Tit("files")
+            # for entry in file_list:
+            #     # self.Freeze()
+            #     index = self.Append([entry[3], util.format_date(entry[1]), util.format_size(entry[2])])
+            #     file_name = os.path.join(self.path.parent, entry[0])
+            #     file_name = Path(file_name)
+            #     extension = file_name.suffix
+            #     if not extension:
+            #         extension = "~$!"
+            #     img_id = self.get_image_id(extension)
+            #     self.SetItemImage(index, img_id)
+            #     # self.Thaw()
+            # del t1
+            # t1 = Tit("rest")
+
+
+            # del t1
+            # del t
         except OSError as err:
             self.frame.log_error(str(err))
             self.open_dir(temp)

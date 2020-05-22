@@ -29,10 +29,9 @@ class FilterPnl(wx.Panel):
         self.filter_btn.SetValue(False)
         self.browser.conf.use_pattern = False
         if clear_search:
-            self.filter.Clear()
+            self.filter.ChangeValue("")
         else:
             self.browser.do_search_folder(self.filter.GetValue())
-
 
     def enable_filter(self):
         self.filter.SetFocus()

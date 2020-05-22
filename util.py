@@ -25,7 +25,7 @@ def format_size(size):
             num /= 1024.0
         return "%.1f %s%s" % (num, 'Y', suffix)
 
-    return sizeof_fmt(size)
+    return sizeof_fmt(size) if size != "" else ""
 
 
 def is_hidden(x):

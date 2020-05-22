@@ -110,6 +110,7 @@ class MainPanel(wx.Panel):
         search_result = res_frame.MainFrame(self.frame, self.frame.search_params)
         self.frame.Hide()
         search_result.Show()
+        search_result.SetFocus()
 
     def on_add_dir(self, e):
         dlg = wx.DirDialog(None, "Select directory", "",

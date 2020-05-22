@@ -12,3 +12,5 @@ OPT_REG_EXP = 3
 OPT_NOT_CONTAINS = 4
 OPT_SUB_DIRS = 5
 OPT_FILE_NAMES = 6
+
+print(hash("C:\Piotr"))

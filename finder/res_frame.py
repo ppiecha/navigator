@@ -32,50 +32,47 @@ class MainFrame(wx.MiniFrame):
 
 
 class Results(pg.PropertyGridManager):
-    def __init__(self, parent):
+    def __init__(self, parent, frame):
         super().__init__(parent=parent, style=pg.PG_TOOLBAR | pg.PGMAN_DEFAULT_STYLE)
-        # self.SetFont(wx.SystemSettings.GetFont(wx.SYS_DEFAULT_GUI_FONT))
+        self.parent = parent
+        self.frame = frame
+        self.SetForegroundColour(wx.BLUE)
+        self.SetBackgroundColour(wx.BLACK)
         self.pg_files = self.AddPage("Found in files", wx.Bitmap(cn.CN_IM_FILES, wx.BITMAP_TYPE_PNG))
-        self.SetSplitterPosition(0, 0)
-        # page.Append(pg.PropertyCategory("Category A1"))
-        # page.Append(pg.StringProperty(label="test1", value="test2"))
-        # page.Append(pg.LongStringProperty("LongString",
-        #                                   value="This is a\nmulti-line string\nwith\ttabs\nmixed\tin."))
-        #
-        # page.Append(FileNameProperty("Category B2"))
-        # page.Append(pg.StringProperty(label="test2", value="test3"))
-        # page.Append(pg.ColourProperty("Colour", pg.PG_LABEL, wx.WHITE))
         self.pg_dirs = self.AddPage("Found in folder and file names", wx.Bitmap(cn.CN_IM_FOLDERS, wx.BITMAP_TYPE_PNG))
-        # page.Append(pg.PropertyCategory("Category A1"))
-        # page.Append(pg.StringProperty(label="test1", value="test2"))
-        # page.Append(pg.LongStringProperty("LongString",
-        #                                   value="This is a\nmulti-line string\nwith\ttabs\nmixed\tin."))
-        #
-        # page.Append(FileNameProperty("Category B2"))
-        # page.Append(pg.StringProperty(label="test2", value="test3"))
-        # page.Append(pg.ColourProperty("Colour", pg.PG_LABEL, wx.WHITE))
+        self.SetSplitterPosition(0, 0)
+        # self.GetGrid().SetCaptionBackgroundColour(parent.GetBackgroundColour())
+        self.GetGrid().SetCaptionTextColour(wx.BLACK)
+        self.GetGrid().SetCaptionBackgroundColour(wx.Colour(192, 192, 192))
 
-        self.pg_files.Bind(pg.EVT_PG_LABEL_EDIT_BEGIN, self.on_edit)
+        self.Bind(pg.EVT_PG_COL_BEGIN_DRAG, self.on_resize)
 
-    def on_edit(self, e):
-        print("On edit")
+    def on_resize(self, e):
+        print("resize")
         e.Veto()
 
     def add_file_output(self, file_output):
         file = Path(file_output.full_file_name)
-        cat = self.add_file_section(file.name, str(file), file_output.matches_count)
+        cat = self.add_category_section(file.name, str(file), file_output.matches_count)
+        self.frame.Freeze()
         for line in file_output.lines:
-            self.add_file_item(line_number=line.line_number, line_text=line.line_text)
-        self.pg_files.Collapse(cat.GetLabel())
+            prop = self.add_line_item(full_file_name=file_output.full_file_name, line_number=line.line_number,
+                                      line_text=line.line_text)
+            self.Collapse(cat.GetLabel())
+            self.pg_files.LimitPropertyEditing(prop.GetLabel(), True)
+        self.frame.Thaw()
 
-    def add_file_section(self, file_name, full_file_name, matches_count):
-        prop = FileNameProperty(label=file_name, full_file_name=full_file_name, matches_count=matches_count)
+    def add_category_section(self, file_name, full_file_name, matches_count):
+        prop = CategoryProperty(label=file_name, full_file_name=full_file_name, matches_count=matches_count)
         self.pg_files.Append(prop)
         return prop
 
-    def add_file_item(self, line_number, line_text):
-        prop = LineProperty(line_number=line_number, text=line_text)
+    def add_line_item(self, full_file_name, line_number, line_text):
+        prop = LineProperty(full_file_name=full_file_name, line_number=line_number, text=line_text)
         self.pg_files.Append(prop)
+        # self.GetGrid().SelectProperty(prop.GetLabel(), focus=True)
+        # ed = self.GetGrid().GetEditorTextCtrl()
+        # ed.SetSelection(1, 5)
         return prop
 
 
@@ -95,17 +92,26 @@ class ResultItem:
         self.lines.append(Line(line_number, line_text))
 
 
-class FileNameProperty(pg.PropertyCategory):
+class CategoryProperty(pg.PropertyCategory):
     def __init__(self, label, full_file_name, matches_count):
         super().__init__(label=label + " - " + str(matches_count) + " matches")
         self.full_file_name = full_file_name
 
 
 class LineProperty(pg.LongStringProperty):
-    def __init__(self, line_number, text):
+    def __init__(self, full_file_name, line_number, text):
         # super().__init__(label=str(line_number), value=text)
-        super().__init__(label="", value=str(line_number) + " " + text)
+        self.full_file_name = full_file_name
+        space = "".join(" " for i in range(100))
+        super().__init__(label=str(line_number) + space + str(hash(full_file_name + text)), value=text)
 
+    def OnEvent(self, propgrid, wnd_primary, event):
+        # print("on event")
+        # print(type(event))
+        if event.GetEventType() == wx.EVT_BUTTON:
+            print("button")
+        #event.Skip()
+        return False # wx.propgrid.PGTextCtrlEditor.OnEvent(propgrid, wnd_primary, event)
 
     def OnButtonClick(self, propGrid, value):
         dlgSize = wx.Size()
@@ -124,7 +130,7 @@ class MainPanel(wx.Panel):
     def __init__(self, parent, frame):
         super().__init__(parent=parent)
         self.frame = frame
-        self.output = Results(self)
+        self.output = Results(parent=self, frame=self)
         sizer = wx.BoxSizer(wx.VERTICAL)
         sizer.Add(self.output, flag=wx.EXPAND, proportion=1)
         self.SetSizerAndFit(sizer)
