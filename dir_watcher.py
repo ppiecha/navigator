@@ -1,24 +1,46 @@
 import os
+import wx
 from threading import Thread
-import util
-
-
+import constants as cn
+from pubsub import pub
 import win32file
 import win32event
 import win32con
 from pathlib import Path
 
+ACTIONS = {
+  1: "Created",
+  2: "Deleted",
+  3: "Updated",
+  4: "Renamed from something",
+  5: "Renamed to something"
+}
+
+FILE_LIST_DIRECTORY = 0x0001
+
 
 class DirWatcher(Thread):
-    def __init__(self, dir_name, dir_items, file_items):
+    def __init__(self, frame, dir_name, dir_items, file_items):
         super().__init__()
+        self.frame = frame
         self.exit = False
         self.dir_name = str(dir_name)
         self.dir_items = dir_items
         self.file_items = file_items
+        # self.change_handle = None
         try:
+            # win32file.ReadDirectoryChangesW
+            # hDir = win32file.CreateFile(
+            #     self.dir_name,
+            #     FILE_LIST_DIRECTORY,
+            #     win32con.FILE_SHARE_READ | win32con.FILE_SHARE_WRITE | win32con.FILE_SHARE_DELETE,
+            #     None,
+            #     win32con.OPEN_EXISTING,
+            #     win32con.FILE_FLAG_BACKUP_SEMANTICS,
+            #     None
+            # )
             self.change_handle = win32file.FindFirstChangeNotification(
-                                            dir_name,
+                                            self.dir_name,
                                             0,
                                             win32con.FILE_NOTIFY_CHANGE_FILE_NAME | win32con.FILE_NOTIFY_CHANGE_DIR_NAME
                                             )
@@ -51,20 +73,33 @@ class DirWatcher(Thread):
 
     def add_remove(self, added, deleted):
         for item in deleted:
-            for d in self.dir_items:
-                if item == d[3]:
-                    self.dir_items.remove(item)
-            for f in self.file_items:
-                if item == f[3]:
-                    self.file_items.remove(item)
+            try:
+                index = [x[cn.CN_COL_NAME] for x in self.dir_items].index(item)
+                del self.dir_items[index]
+            except ValueError as e:
+                pass
+            try:
+                index = [x[cn.CN_COL_NAME] for x in self.file_items].index(item)
+                del self.file_items[index]
+            except ValueError as e:
+                pass
 
         for item in added:
             new_one = [item.name.lower(),
                        item.stat().st_mtime,
                        item.stat().st_size if item.is_file() else "",
-                       item.name]
+                       item.name,
+                       item.is_dir(),
+                       item.suffix]
             if item.is_dir():
                 self.dir_items.append(new_one)
             else:
                 self.file_items.append(new_one)
-            # reload list
+
+        # print(added, deleted, self.dir_items)
+        # Create the event
+        # evt = cn.DirChangedCommandEvent(cn.ID_CMD1, dir_name="dir from thread", added=added, deleted=deleted)
+        # Post the event
+        # wx.CallAfter(wx.PostEvent, self.frame, evt)
+        added = [item.name for item in added]
+        pub.sendMessage(cn.CN_TOPIC_DIR_CHG, dir_name=Path(self.dir_name), added=added, deleted=deleted)

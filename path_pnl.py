@@ -1,9 +1,10 @@
 import wx
 import os
 import constants as cn
-import subprocess
 from pathlib import Path
 import util
+import dir_label
+import subprocess
 
 
 class PathPanel(wx.Panel):
@@ -11,8 +12,19 @@ class PathPanel(wx.Panel):
         super().__init__(parent=parent)
         self.parent = parent
         self.frame = frame
+        self._read_only = True
         self.drive_combo = DriveCombo(self, self.frame)
-        self.path_lbl = PathLabel(self, self.frame)
+        self.path_lbl = dir_label.DirLabel(self, self.frame)
+        self.path_edit = PathEdit(self, self.frame)
+        self.path_edit.Show(False)
+        # self.rename = PathBtn(self, cn.CN_IM_RENAME)
+        # self.rename.SetToolTip("Rename F2")
+        # self.viewer = PathBtn(self, cn.CN_IM_VIEWER)
+        # self.edit = PathBtn(self, cn.CN_IM_EDIT)
+        # self.copy = PathBtn(self, cn.CN_IM_COPY)
+        # self.move = PathBtn(self, cn.CN_IM_MOVE)
+        # self.new_folder = PathBtn(self, cn.CN_IM_NEW_FOLDER)
+        # self.delete = PathBtn(self, cn.CN_IM_DELETE)
         self.sep = wx.Panel(self)
         self.fav_btn = PathBtn(self, cn.CN_IM_FAV)
         self.hist_btn = PathBtn(self, cn.CN_IM_HIST)
@@ -20,54 +32,86 @@ class PathPanel(wx.Panel):
         self.sizer_h = wx.BoxSizer(wx.HORIZONTAL)
         self.sizer_v = wx.BoxSizer(wx.VERTICAL)
         self.sizer_h.Add(self.drive_combo)
+        # self.sizer_h.Add(self.rename)
+        # self.sizer_h.Add(self.viewer)
+        # self.sizer_h.Add(self.edit)
+        # self.sizer_h.Add(self.copy)
+        # self.sizer_h.Add(self.move)
+        # self.sizer_h.Add(self.new_folder)
+        # self.sizer_h.Add(self.delete)
         self.sizer_h.Add(self.sep, flag=wx.EXPAND, proportion=1)
         self.sizer_h.Add(self.fav_btn)
         self.sizer_h.Add(self.hist_btn)
         self.sizer_v.Add(self.path_lbl, flag=wx.EXPAND, proportion=1)
+        self.sizer_v.Add(self.path_edit, flag=wx.EXPAND, proportion=1)
         self.sizer_v.Add(self.sizer_h, flag=wx.EXPAND, proportion=1)
         self.SetSizerAndFit(self.sizer_v)
 
         self.hist_btn.Bind(wx.EVT_BUTTON, self.on_history)
         self.fav_btn.Bind(wx.EVT_BUTTON, self.on_favorite)
 
-    def AcceptsFocusFromKeyboard(self):
+        wx.CallAfter(self.set_read_only, True)
+
+    def set_read_only(self, value):
+        self.read_only = value
+
+    def set_value(self, value):
+        self.path_lbl.set_value(value)
+        self.path_edit.SetValue(value)
+
+    @property
+    def read_only(self):
+        return self._read_only
+
+    @read_only.setter
+    def read_only(self, value):
+        self.path_lbl.Show(value)
+        self.path_edit.Show(not value)
+        if self.path_edit.IsShown():
+            self.Layout()
+            self.path_edit.SetFocus()
+            self.path_edit.SetInsertionPointEnd()
+        self._read_only = value
+
+    def AcceptsFocus(self):
         return False
 
     def on_favorite(self, e):
-        self.parent.browser.select_first_one()
+        p = subprocess.Popen(["python", cn.CN_VIEWER_APP], shell=False, cwd=cn.CN_VIEWER_APP.parent)
+
+        # out, _ = p.communicate("Navigator test".encode())
+        # self.parent.browser.shell_copy("C:\\Temp\\Back lab", "c:\\Temp\\py\\temp2", auto_rename=True)
 
     def on_history(self, event):
         self.hist_menu.update()
         self.frame.PopupMenu(self.hist_menu)
 
 
-class PathLabel(wx.TextCtrl):
+class PathEdit(wx.TextCtrl):
     def __init__(self, parent, frame):
         super().__init__(parent=parent, style=wx.TE_PROCESS_ENTER)
         self.parent = parent
         self.frame = frame
-        self._read_only = True
-        self.read_only = True
 
         self.AutoCompleteDirectories()
         self.AutoCompleteFileNames()
 
-        self.Bind(wx.EVT_MOTION, self.on_mouse_move)
-        self.Bind(wx.EVT_KILL_FOCUS, self.on_kill_focus)
-        self.Bind(wx.EVT_LEFT_DOWN, self.on_left_down)
-        self.Bind(wx.EVT_KEY_DOWN, self.on_key_down)
-        self.Bind(wx.EVT_SIZE, self.on_size)
+        # self.Bind(wx.EVT_MOTION, self.on_mouse_move)
+        # self.Bind(wx.EVT_KILL_FOCUS, self.on_kill_focus)
+        # self.Bind(wx.EVT_LEFT_DOWN, self.on_left_down)
+        # self.Bind(wx.EVT_KEY_DOWN, self.on_key_down)
+        # self.Bind(wx.EVT_SIZE, self.on_size)
 
-    def on_size(self, e):
-        e.Skip()
-        self.SetValue(self.get_shortcut(self.get_current_dir()))
+    # def on_size(self, e):
+    #     e.Skip()
+    #     self.SetValue(self.get_shortcut(self.get_current_dir()))
 
-    def get_shortcut(self, text):
-        path = Path(text)
-        anchor = path.anchor
-        rest = self.Ellipsize(str(path)[len(anchor):], wx.ClientDC(self), wx.ELLIPSIZE_START,
-                              self.GetSize().GetWidth() - 30)
-        return os.path.join(anchor, rest)
+    # def get_shortcut(self, text):
+    #     path = Path(text)
+    #     anchor = path.anchor
+    #     rest = self.Ellipsize(str(path)[len(anchor):], wx.ClientDC(self), wx.ELLIPSIZE_START,
+    #                           self.GetSize().GetWidth() - 30)
+    #     return os.path.join(anchor, rest)
 
     def on_key_down(self, event):
         if self.read_only:
@@ -110,10 +154,11 @@ class PathLabel(wx.TextCtrl):
         else:
             return ""
 
-    def on_menu(self, event):
-        # self.SelectAll()
-        menu = PathMenu(self.frame, self)
-        self.frame.PopupMenu(menu)
+    # def on_menu(self, event):
+    #     # self.SelectAll()
+    #     menu = PathMenu(self.frame, self)
+    #     self.frame.PopupMenu(menu)
+    #     del menu
 
     def on_left_down(self, event):
         if self.read_only and self.GetStringSelection():
@@ -121,13 +166,9 @@ class PathLabel(wx.TextCtrl):
             self.open_dir(self.get_current_dir()[:end+1])
         event.Skip()
 
-    def on_enter_window(self, event):
-        # self.SetFocus()
-        pass
-
-    def on_kill_focus(self, event):
-        self.read_only = True
-        event.Skip()
+    # def on_kill_focus(self, event):
+    #     self.read_only = True
+    #     event.Skip()
 
     def on_mouse_move(self, event):
 
@@ -154,63 +195,27 @@ class PathLabel(wx.TextCtrl):
         event.Skip()
 
 
-    @property
-    def read_only(self):
-        return self._read_only
-
-    @read_only.setter
-    def read_only(self, value):
-        self.SetEditable(not value)
-        if value:
-            self.HideNativeCaret()
-            self.SetCursor(wx.Cursor(wx.CURSOR_ARROW))
-            self.Bind(wx.EVT_CONTEXT_MENU, self.on_menu)
-            if self.get_current_dir():
-                self.SetValue(self.get_shortcut(self.get_current_dir()))
-            self.SelectNone()
-        else:
-            self.ShowNativeCaret()
-            self.SetCursor(wx.Cursor(wx.CURSOR_IBEAM))
-            res = self.Unbind(wx.EVT_CONTEXT_MENU)
-            print(res)
-            self.SelectAll()
-        self._read_only = value
-
-
-CN_EDIT = "Edit"
-CN_COPY = "Copy path to clipboard"
-CN_CMD = "Run command prompt"
-CN_MENU = "Show context menu"
-
-
-class PathMenu(wx.Menu):
-    def __init__(self, frame, path_label):
-        super().__init__()
-        self.frame = frame
-        self.path_label = path_label
-        self.menu_items = [CN_EDIT, CN_MENU, CN_COPY, CN_CMD]
-        self.menu_items_id = {}
-        for item in self.menu_items:
-            self.menu_items_id[wx.NewId()] = item
-        for id in self.menu_items_id.keys():
-            self.Append(id, item=self.menu_items_id[id])
-            self.Bind(wx.EVT_MENU, self.on_click, id=id)
-
-    def on_click(self, event):
-        operation = self.menu_items_id[event.GetId()]
-        if operation == CN_EDIT:
-            self.path_label.read_only = False
-        elif operation == CN_COPY:
-            self.path_label.Copy()
-        elif operation == CN_CMD:
-            subprocess.Popen(["start", "cmd"], shell=True)
-        elif operation == CN_MENU:
-            path = Path(self.path_label.GetValue())
-            print(path.parent)
-            self.path_label.context_menu("C:", [])
-            # path = Path(self.path_label.GetValue())
-            # if path.exists():
-            #     self.path_label.context_menu(path.parent, [path.name])
+    # @property
+    # def read_only(self):
+    #     return self._read_only
+    #
+    # @read_only.setter
+    # def read_only(self, value):
+    #     self.SetEditable(not value)
+    #     if value:
+    #         self.HideNativeCaret()
+    #         self.SetCursor(wx.Cursor(wx.CURSOR_ARROW))
+    #         self.Bind(wx.EVT_CONTEXT_MENU, self.on_menu)
+    #         if self.get_current_dir():
+    #             self.SetValue(self.get_shortcut(self.get_current_dir()))
+    #         self.SelectNone()
+    #     else:
+    #         self.ShowNativeCaret()
+    #         self.SetCursor(wx.Cursor(wx.CURSOR_IBEAM))
+    #         res = self.Unbind(wx.EVT_CONTEXT_MENU)
+    #         print(res)
+    #         self.SelectAll()
+    #     self._read_only = value
 
 
 class HistMenu(wx.Menu):
@@ -238,12 +243,16 @@ class HistMenu(wx.Menu):
         operation = self.sorted_items_id[event.GetId()]
         self.browser.open_dir(operation)
 
+
 class DriveCombo(wx.ComboBox):
     def __init__(self, parent, frame):
         super().__init__(parent=parent, choices=util.get_drives(), style=wx.CB_READONLY | wx.CB_SORT, size=(40, 23))
         self.parent = parent
 
         self.Bind(wx.EVT_COMBOBOX, self.on_select)
+
+    def AcceptsFocus(self):
+        return False
 
     def on_select(self, event):
         self.parent.path_lbl.open_dir(event.GetString())
@@ -252,5 +261,8 @@ class DriveCombo(wx.ComboBox):
 class PathBtn(wx.BitmapButton):
     def __init__(self, parent, image):
         super().__init__(parent=parent, bitmap=wx.Bitmap(image, wx.BITMAP_TYPE_PNG), size=(23, 23))
+
+    def AcceptsFocus(self):
+        return False
 
 

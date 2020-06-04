@@ -8,11 +8,15 @@ import win32gui
 from win32com.shell import shell, shellcon
 import win32api
 import win32con
+import win32event
 from wx.lib.mixins.listctrl import ListCtrlAutoWidthMixin
 import filter_pnl
 import time
-# import wx.lib.agw.aui as aui
 import wx.aui as aui
+import win32file
+import config
+from pubsub import pub
+import subprocess
 
 
 CN_MAX_HIST_COUNT = 20
@@ -26,39 +30,89 @@ class Tit:
     def __del__(self):
         print("Elapsed: ", time.time() - self.start)
 
-# class BrowserCtrlPnl(wx.Panel):
-#     def __init__(self, parent, frame, im_list, conf):
-#         super().__init__(parent=parent)
-#         self.browse_ctrl = BrowseCtrl(self, frame, im_list, conf)
-#         self.sizer = wx.BoxSizer(wx.VERTICAL)
-#         self.sizer.Add(self.browse_ctrl, flag=wx.EXPAND, proportion=1)
-#
-#         self.SetSizerAndFit(self.sizer)
-
 
 class BrowserCtrl(aui.AuiNotebook):
-    def __init__(self, parent, frame, im_list, conf):
-        super().__init__(parent=parent)#, style=aui.AUI_NB_TAB_MOVE | aui.AUI_NB_TAB_FIXED_WIDTH |
-                                        #      aui.AUI_NB_SCROLL_BUTTONS | aui.AUI_NB_TOP)
+    def __init__(self, parent, frame, im_list, conf, is_left):
+        super().__init__(parent=parent, style=aui.AUI_NB_TAB_MOVE | aui.AUI_NB_TAB_SPLIT |
+                                              aui.AUI_NB_SCROLL_BUTTONS | aui.AUI_NB_TOP)
         self.SetArtProvider(aui.AuiDefaultTabArt())
         self.parent = parent
         self.frame = frame
+        self.is_left = is_left
         self.im_list = im_list
         self.conf = conf
-        wx.CallAfter(self.SendSizeEvent)
-        self.add_tab("C:\\temp")
+        if not conf:
+            self.add_new_tab(dir_name="")
+        else:
+            for tab in conf:
+                self.add_tab(tab)
 
-    def add_tab(self, dir_name):
-        tab = BrowserPnl(self, self.frame, self.im_list, self.conf)
-        folder = Path(dir_name).name
-        self.AddPage(tab, folder)
+        if self.is_left:
+            if self.frame.app_conf.left_active_tab:
+                self.SetSelection(self.frame.app_conf.left_active_tab)
+        else:
+            if self.frame.app_conf.right_active_tab:
+                self.SetSelection(self.frame.app_conf.right_active_tab)
+
+        self.Bind(aui.EVT_AUINOTEBOOK_PAGE_CHANGED, self.on_page_changed)
+        self.Bind(wx.EVT_CHILD_FOCUS, self.on_child_focus)
+        self.Bind(aui.EVT_AUINOTEBOOK_BG_DCLICK, self.on_ctrl_db_click)
+        self.Bind(aui.EVT_AUINOTEBOOK_TAB_RIGHT_DOWN, self.on_tab_right_click)
+
+    def on_tab_right_click(self, e):
+        screen_pt = wx.GetMousePosition()
+        client_pt = self.ScreenToClient(screen_pt)
+        tab_index, _ = self.HitTest(client_pt)
+        menu = TabMenu(self.frame, self, tab_index)
+        self.frame.PopupMenu(menu)
+        del menu
+
+    def on_ctrl_db_click(self, e):
+        self.add_new_tab(self.get_active_browser().path)
+
+    def add_tab(self, tab_conf, select=False):
+        self.Freeze()
+        tab = BrowserPnl(self, self.frame, self.im_list, tab_conf)
+        self.AddPage(page=tab, caption="tab", select=select)
+        self.Thaw()
+
+    def add_new_tab(self, dir_name):
+        tab_conf = config.BrowserConf()
+        tab_conf.last_path = dir_name if dir_name else Path.home()
+        self.conf.append(tab_conf)
+        self.add_tab(tab_conf=tab_conf, select=True)
+
+    def close_tab(self, tab_index):
+        self.DeletePage(tab_index)
+        del self.conf[tab_index]
+
+    def duplicate_tab(self, tab_index):
+        self.add_new_tab(self.conf[tab_index].last_path)
+
+    def on_child_focus(self, e):
+        if isinstance(wx.Window.FindFocus(), aui.AuiTabCtrl):
+            self.frame.change_win_focus()
+        e.Skip()
+
+    def on_page_changed(self, e):
+        self.get_active_browser().SetFocus()
+        if self.is_left:
+            self.frame.app_conf.left_active_tab = self.GetSelection()
+        else:
+            self.frame.app_conf.right_active_tab = self.GetSelection()
+        e.Skip()
+
+    def get_active_browser(self):
+        return self.GetCurrentPage().browser
 
 
 class BrowserPnl(wx.Panel):
     def __init__(self, parent, frame, im_list, conf):
         super().__init__(parent=parent)
+        self.parent = parent
         self.frame = frame
         self.path_pnl = path_pnl.PathPanel(self, self.frame)
+        # self.path_pnl = dir_label.DirLabel(self, self.frame)
         self.browser = Browser(self, frame, im_list, conf)
         self.filter_pnl = filter_pnl.FilterPnl(self, self.frame, self.browser)
         self.browser.set_references(self.path_pnl, self.filter_pnl)
@@ -78,6 +132,7 @@ class Browser(wx.ListCtrl, ListCtrlAutoWidthMixin):
         ListCtrlAutoWidthMixin.__init__(self)
         self.setResizeColumn(0)
         self.parent = parent
+        self.page_ctrl = self.parent.parent
         self.frame = frame
         self.path_pnl = None
         self.filter_pnl = None
@@ -99,15 +154,55 @@ class Browser(wx.ListCtrl, ListCtrlAutoWidthMixin):
         self.Bind(wx.EVT_LIST_COL_CLICK, self.on_col_click)
         self.Bind(wx.EVT_LIST_COL_RIGHT_CLICK, self.on_col_right_click)
         self.Bind(wx.EVT_CONTEXT_MENU, self.on_menu)
-        # self.Bind(wx.EVT_LIST_ITEM_SELECTED, self.on_select)
-        # self.Bind(wx.EVT_LIST_KEY_DOWN, self.on_key_down)
+        self.Bind(wx.EVT_LIST_ITEM_SELECTED, self.on_select)
+        self.Bind(wx.EVT_LIST_ITEM_DESELECTED, self.on_deselect)
+        self.Bind(wx.EVT_LIST_KEY_DOWN, self.on_key_down)
+        self.Bind(wx.EVT_SET_FOCUS, self.on_browser_focus)
+        self.register_listener(topic=cn.CN_TOPIC_DIR_CHG)
+
+    def on_browser_focus(self, e):
+        os.chdir(str(self.path))
+        e.Skip()
+
+    def __repr__(self):
+        return str(self.path)
+
+    def register_listener(self, topic):
+        pub.subscribe(self.listen_dir_changes, topic)
+
+    def listen_dir_changes(self, dir_name, added, deleted):
+        if self.path.samefile(dir_name):
+            for item_name in deleted:
+                self.remove_item(item_name=item_name)
+            self.refresh_list(dir_name=dir_name, conf=self.conf, to_select=[])
+
+    def get_source_id_in_list(self, item_name):
+        print("cache before delete", [item[cn.CN_COL_NAME] for item in self.dir_cache])
+        index = [item[cn.CN_COL_NAME] for item in self.dir_cache].index(item_name)
+        # index = self.dir_cache.index(item_name)
+        return index if self.root else index + 1
+
+    def remove_item(self, item_name):
+        index = self.FindItem(-1, item_name)
+        if index >= 0:
+            self.DeleteItem(index)
+        else:
+            raise Exception("Cannot find item: "+item_name)
+
+    def get_tab_index(self):
+        return self.page_ctrl.GetPageIndex(self.parent)
+
+    def set_tab_name(self, name):
+        index = self.get_tab_index()
+        self.page_ctrl.SetPageText(index, name)
 
     def OnGetItemText(self, item, col):
 
         def gci(item, col):
-            if col == 1:
+            # print(item, col)
+            if col == cn.CN_COL_DATE:
                 return util.format_date(self.dir_cache[item][col])
-            elif col == 2:
+            elif col == cn.CN_COL_SIZE:
                 return util.format_size(self.dir_cache[item][col])
             else:
                 return self.dir_cache[item][col]
@@ -116,17 +211,17 @@ class Browser(wx.ListCtrl, ListCtrlAutoWidthMixin):
             if not self.root:
                 return cn.CN_GO_BACK if col == 0 else ""
             else:
-                return gci(0, 3 if col == 0 else col)
+                return gci(0, cn.CN_COL_NAME if col == 0 else col)
         else:
-            return gci(item-1 if not self.root else item, 3 if col == 0 else col)
+            return gci(item - 1 if not self.root else item, cn.CN_COL_NAME if col == 0 else col)
 
     def OnGetItemImage(self, item):
         if item == 0 and not self.root:
             return self.frame.img_go_up
-        if self.dir_cache[item-1 if not self.root else item][4]:
+        if self.dir_cache[item - 1 if not self.root else item][cn.CN_COL_ISDIR]:
             return self.frame.img_folder
         else:
-            extension = self.dir_cache[item-1 if not self.root else item][5]
+            extension = self.dir_cache[item - 1 if not self.root else item][cn.CN_COL_EXT]
             if not extension:
                 extension = "~$!"
             return self.get_image_id(extension)
@@ -147,10 +242,10 @@ class Browser(wx.ListCtrl, ListCtrlAutoWidthMixin):
 
     def on_key_down(self, e):
         # e.Skip()
-        if e.GetKeyCode() == wx.WXK_RETURN:
-            index = self.GetFocusedItem()
-            if index >= 0:
-                self.on_item_activated(self.GetItemText(index, 0))
+        # if e.GetKeyCode() == wx.WXK_RETURN:
+        #     index = self.GetFocusedItem()
+        #     if index >= 0:
+        #         self.on_item_activated(self.GetItemText(index, 0))
         if e.GetKeyCode() == wx.WXK_ESCAPE:
             self.filter_pnl.enable_filter()
 
@@ -177,11 +272,28 @@ class Browser(wx.ListCtrl, ListCtrlAutoWidthMixin):
                 self.history.pop()
 
     def on_select(self, event):
-        index = self.FindItem(-1, cn.CN_GO_BACK)
-        if index >= 0:
-            self.Select(index, on=0)
-        self.update_summary_lbl()
+        # index = self.FindItem(-1, cn.CN_GO_BACK)
+        # if index >= 0:
+        #     self.Select(index, on=0)
+        # print("selected")
+        wx.CallAfter(self.update_summary_lbl)
         event.Skip()
+
+    def on_deselect(self, e):
+        # print("deselected")
+        pass
+
+    def select_all(self):
+        for i in range(self.GetItemCount()):
+            self.Select(i)
+        if not self.root and self.GetItemCount() > 0:
+            self.Select(0, 0)
+
+    def invert_selection(self):
+        for i in range(self.GetItemCount()):
+            self.Select(i, 0 if self.IsSelected(i) else 1)
+        if not self.root and self.GetItemCount() > 0:
+            self.Select(0, 0)
 
     def clear_selection(self):
         if self.GetSelectedItemCount() > 0:
@@ -203,17 +315,38 @@ class Browser(wx.ListCtrl, ListCtrlAutoWidthMixin):
                     self.select_item(1)
 
     def get_selected(self):
+
+        def append(_lst, _item):
+            if _item != cn.CN_GO_BACK:
+                _lst.append(_item)
+
         lst = []
         if self.GetSelectedItemCount() > 0:
             item = self.GetFirstSelected()
-            lst.append(self.GetItemText(item))
+            append(lst, self.GetItemText(item))
             while self.GetNextSelected(item) >= 0:
                 item = self.GetNextSelected(item)
-                lst.append(self.GetItemText(item))
+                append(lst, self.GetItemText(item))
         return lst
 
+    def get_selected_files_folders(self):
+        lst = self.get_selected()
+        files = []
+        folders = []
+        for item in lst:
+            path = self.path.joinpath(item)
+            if path.is_dir():
+                folders.append(path)
+            elif path.is_file():
+                files.append(path)
+            else:
+                raise Exception("Unknown object type:" + path)
+        return folders, files
 
     def set_selection(self, selected):
+        if not selected:
+            return
+        self.clear_selection()
         for item in selected:
             index = self.FindItem(-1, item)
             if index >= 0:
@@ -246,50 +379,19 @@ class Browser(wx.ListCtrl, ListCtrlAutoWidthMixin):
         selected = self.GetSelectedItemCount()
         self.parent.filter_pnl.sum_lbl.SetLabel("F " + str(folders) + " f " + str(files) + " S " + str(selected))
 
-    def add_remove(self, added, deleted):
-        for item in deleted:
-            self.DeleteItem(self.FindItem(-1, item))
-        for item in added:
-            index = self.Append([item.name,
-                                 util.format_date(item.stat().st_mtime),
-                                 util.format_size(item.stat().st_size) if item.is_file() else ""])
-            if item.is_dir():
-                img_id = 0
-            else:
-                extension = item.suffix if item.suffix else "~$!"
-                img_id = self.get_image_id(extension)
-            self.SetItemImage(index, img_id)
-            self.update_summary_lbl()
-
-    # def change_watcher(self, dir):
-    #     if not self.path or (self.path and not self.path.samefile(dir)):
-    #         # if self.watchers:
-    #         #     self.watchers[len(self.watchers) - 1].terminate()
-    #         self.watchers.append(dir_watcher.DirWatcher(dir, self))
-    #         self.watchers[len(self.watchers) - 1].start()
-    #
-    # def release_watchers(self):
-    #     for th in self.watchers:
-    #         if th.is_alive():
-    #             th.terminate()
-    #             th.join()
-
     @property
     def path(self):
         return self._path
 
     @path.setter
     def path(self, value):
-        if self.path_pnl.path_lbl.read_only:
-            self.path_pnl.path_lbl.SetValue(self.path_pnl.path_lbl.get_shortcut(str(value)))
-        else:
-            self.path_pnl.path_lbl.SetValue(str(value))
         self.path_pnl.drive_combo.SetValue(value.anchor)
         os.chdir(str(value))
-        self.conf.last_path = str(value)
+        self.conf.last_path = value
+        tab_name = self.conf.tab_name
+        wx.CallAfter(self.set_tab_name, tab_name)
+        wx.CallAfter(self.path_pnl.set_value, str(value))
         self.add_hist_item(str(value))
-        # self.change_watcher(str(value))
-        self.path_pnl.path_lbl.SetInsertionPointEnd()
         self.root = value.samefile(value.anchor)
         self._path = value
 
@@ -354,18 +456,49 @@ class Browser(wx.ListCtrl, ListCtrlAutoWidthMixin):
         return index
 
     def open_file(self, file_name):
-        win32api.ShellExecute(0, "open", str(file_name), "", '', 1)
+        # hwnd = win32gui.GetForegroundWindow()
+        # desktopFolder = shell.SHGetDesktopFolder()
+        # eaten, parentPidl, attr = desktopFolder.ParseDisplayName(hwnd, None, str(self.path))
+        # parentFolder = desktopFolder.BindToObject(parentPidl, None, shell.IID_IShellFolder)
+        # eaten, pidl, attr = parentFolder.ParseDisplayName(hwnd, None, file_name.name)
+        dict = shell.ShellExecuteEx(fMask=shellcon.SEE_MASK_NOCLOSEPROCESS,
+                                    nShow=win32con.SW_NORMAL,
+                                    lpVerb="Open",
+                                    lpFile=str(file_name))
+        print(dict)
+        # hh = dict['hInstApp']
+        # ret = win32event.WaitForSingleObject(hh, -1)
+        # print(ret)
+        # pidl = shell.SHGetSpecialFolderLocation(0, shellcon.CSIDL_DESKTOP)
+        # print("The desktop is at", shell.SHGetPathFromIDList(pidl))
+        # shell.ShellExecuteEx(fMask=shellcon.SEE_MASK_NOCLOSEPROCESS,
+        #                      nShow=win32con.SW_NORMAL,
+        #                      lpClass="folder",
+        #                      lpVerb="explore",
+        #                      lpIDList=pidl)
+        # win32api.ShellExecute(0, "open", str(file_name), "", '', 1)
         # win32api.ShellExecute(0, "open", "notepad", "", '.', 1)
 
+    def get_next_dir(self, path):
+        for parent in path.parents:
+            if parent.exists():
+                return parent
+        return path.home
+
     def open_dir(self, dir_name, sel_dir=""):
-        self.open_directory(dir_name, sel_dir, self.conf)
+        path = Path(dir_name)
+        if path.exists():
+            self.open_directory(dir_name, sel_dir, self.conf)
+        else:
+            self.open_directory(str(self.get_next_dir(path)), cn.CN_GO_BACK, self.conf)
+
 
     def open_directory(self, dir_name, sel_dir, conf):
         if self.path is not None:
             if self.path.samefile(dir_name):
                 to_select = self.get_selected()
             else:
-                self.filter_pnl.disable_filter(clear_search=True)
+                self.filter_pnl.disable_filter(clear_search=False)
                 if sel_dir:
                     to_select = [sel_dir]
                 else:
@@ -377,71 +510,239 @@ class Browser(wx.ListCtrl, ListCtrlAutoWidthMixin):
                 to_select = [cn.CN_GO_BACK]
         temp = self.path
         try:
-            # p = Path(dir_name)
-            # if str(p) in self.dir_cache.keys() and str(p) in self.file_cache.keys():
-            #     dir_list = self.dir_cache[str(p)]
-            #     file_list = self.file_cache[str(p)]
-            # else:
-            #     t = Tit("READ")
-            #     pattern = conf.pattern if conf.use_pattern else "*"
-            #     dir_list = [[x.name.lower(), x.stat().st_mtime, "", x.name]
-            #                 for x in p.glob(pattern) if x.is_dir() and not util.is_hidden(x)]
-            #     file_list = [[x.name.lower(), x.stat().st_mtime, x.stat().st_size, x.name]
-            #                  for x in p.glob(pattern) if x.is_file() and not util.is_hidden(x)]
-            #
-            #     self.dir_cache[str(p)] = dir_list
-            #     self.file_cache[str(p)] = file_list
-            #     del t
-            # t = Tit("List processing")
-            # t1 = Tit("sorting")
-            # dir_list = sorted(dir_list, key=itemgetter(conf.sort_key), reverse=conf.sort_desc)
-            # file_list = sorted(file_list, key=itemgetter(conf.sort_key), reverse=conf.sort_desc)
-            # del t1
-            # self.path = p
-            self.dir_cache = self.frame.dir_cache.get_dir(dir_name=dir_name, conf=conf)
-            self.path = Path(dir_name)
-            count = len(self.dir_cache)
-            if not self.root:
-                count += 1
-            self.SetItemCount(count)
-            self.set_selection(to_select)
-            # self.RefreshItems(self.GetTopItem(), self.GetTopItem() + self.GetCountPerPage())
-            wx.CallAfter(self.Refresh)
-            wx.CallAfter(self.update_summary_lbl)
-            # t1 = Tit("deleting")
-            # self.DeleteAllItems()
-            # del t1
-            # if not self.path.samefile(self.path.anchor):
-            #     index = self.Append([cn.CN_GO_BACK, "", ""])
-            #     self.SetItemImage(index, self.frame.img_go_up)
-            # t1 = Tit("dirs")
-            # for entry in dir_list:
-            #     # self.Freeze()
-            #     index = self.Append([entry[3], util.format_date(entry[1]), entry[2]])
-            #     self.SetItemImage(index, self.frame.img_folder)
-            #     # self.Thaw()
-            # del t1
-            # t1 = Tit("files")
-            # for entry in file_list:
-            #     # self.Freeze()
-            #     index = self.Append([entry[3], util.format_date(entry[1]), util.format_size(entry[2])])
-            #     file_name = os.path.join(self.path.parent, entry[0])
-            #     file_name = Path(file_name)
-            #     extension = file_name.suffix
-            #     if not extension:
-            #         extension = "~$!"
-            #     img_id = self.get_image_id(extension)
-            #     self.SetItemImage(index, img_id)
-            #     # self.Thaw()
-            # del t1
-            # t1 = Tit("rest")
-
-
-            # del t1
-            # del t
+            self.refresh_list(dir_name=Path(dir_name), conf=conf, to_select=to_select)
         except OSError as err:
             self.frame.log_error(str(err))
+            print(temp)
             self.open_dir(temp)
+
+    def refresh_list(self, dir_name, conf, to_select):
+        self.dir_cache = self.frame.dir_cache.get_dir(dir_name=Path(dir_name), conf=conf)
+        self.path = Path(dir_name)
+        count = len(self.dir_cache)
+        if not self.root:
+            count += 1
+        self.SetItemCount(count)
+        if count:
+            wx.CallAfter(self.Refresh)
+            wx.CallAfter(self.set_selection, to_select)
+        else:
+            self.DeleteAllItems()
+        wx.CallAfter(self.update_summary_lbl)
+
+    def shell_copy(self, src, dst, auto_rename=False):
+        """
+        Copy files and directories using Windows shell.
+
+        :param src: Path or a list of paths to copy. Filename portion of a path
+                    (but not directory portion) can contain wildcards ``*`` and
+                    ``?``.
+        :param dst: destination directory.
+        :param auto_rename: if ''False'' then overwrite else auto rename
+        :returns: ``True`` if the operation completed successfully,
+                  ``False`` if it was aborted by user (completed partially).
+        :raises: ``WindowsError`` if anything went wrong. Typically, when source
+                 file was not found.
+
+        .. seealso:
+            `SHFileperation on MSDN <http://msdn.microsoft.com/en-us/library/windows/desktop/bb762164(v=vs.85).aspx>`
+        """
+        if isinstance(src, str):  # in Py3 replace basestring with str
+            src = os.path.abspath(src)
+        else:  # iterable
+            src = '\0'.join(os.path.abspath(path) for path in src)
+
+        flags = shellcon.FOF_NOCONFIRMMKDIR
+        if auto_rename:
+            flags = flags | shellcon.FOF_RENAMEONCOLLISION
+
+        result, aborted = shell.SHFileOperation((
+            0,
+            shellcon.FO_COPY,
+            src,
+            os.path.abspath(dst),
+            flags,
+            None,
+            None))
+
+        if not aborted and result != 0:
+            # Note: raising a WindowsError with correct error code is quite
+            # difficult due to SHFileOperation historical idiosyncrasies.
+            # Therefore we simply pass a message.
+            raise WindowsError('SHFileOperation failed: 0x%08x' % result)
+
+        return not aborted
+
+    def shell_move(self, src, dst, auto_rename=False):
+        """
+        Move files and directories using Windows shell.
+
+        :param src: Path or a list of paths to copy. Filename portion of a path
+                    (but not directory portion) can contain wildcards ``*`` and
+                    ``?``.
+        :param dst: destination directory.
+        :param auto_rename: if ''False'' then overwrite else auto rename
+        :returns: ``True`` if the operation completed successfully,
+                  ``False`` if it was aborted by user (completed partially).
+        :raises: ``WindowsError`` if anything went wrong. Typically, when source
+                 file was not found.
+
+        .. seealso:
+            `SHFileperation on MSDN <http://msdn.microsoft.com/en-us/library/windows/desktop/bb762164(v=vs.85).aspx>`
+        """
+        if isinstance(src, str):  # in Py3 replace basestring with str
+            src = os.path.abspath(src)
+        else:  # iterable
+            src = '\0'.join(os.path.abspath(path) for path in src)
+
+        flags = shellcon.FOF_NOCONFIRMMKDIR
+        if auto_rename:
+            flags = flags | shellcon.FOF_RENAMEONCOLLISION
+
+        result, aborted = shell.SHFileOperation((
+            0,
+            shellcon.FO_MOVE,
+            src,
+            os.path.abspath(dst),
+            flags,
+            None,
+            None))
+
+        if not aborted and result != 0:
+            # Note: raising a WindowsError with correct error code is quite
+            # difficult due to SHFileOperation historical idiosyncrasies.
+            # Therefore we simply pass a message.
+            raise WindowsError('SHFileOperation failed: 0x%08x' % result)
+
+        return not aborted
+
+    def shell_rename(self, src, dst, auto_rename=False):
+        """
+        Rename files and directories using Windows shell.
+
+        :param src: Path or a list of paths to copy. Filename portion of a path
+                    (but not directory portion) can contain wildcards ``*`` and
+                    ``?``.
+        :param dst: destination directory.
+        :param auto_rename: if ''False'' then overwrite else auto rename
+        :returns: ``True`` if the operation completed successfully,
+                  ``False`` if it was aborted by user (completed partially).
+        :raises: ``WindowsError`` if anything went wrong. Typically, when source
+                 file was not found.
+
+        .. seealso:
+            `SHFileperation on MSDN <http://msdn.microsoft.com/en-us/library/windows/desktop/bb762164(v=vs.85).aspx>`
+        """
+        if isinstance(src, str):  # in Py3 replace basestring with str
+            src = os.path.abspath(src)
+        else:  # iterable
+            src = '\0'.join(os.path.abspath(path) for path in src)
+
+        flags = shellcon.FOF_NOCONFIRMMKDIR | shellcon.FOF_SILENT
+        if auto_rename:
+            print("will replace")
+            flags = flags | shellcon.FOF_RENAMEONCOLLISION
+
+        result, aborted = shell.SHFileOperation((
+            0,
+            shellcon.FO_RENAME,
+            src,
+            os.path.abspath(dst),
+            flags,
+            None,
+            None))
+
+        if not aborted and result != 0:
+            # Note: raising a WindowsError with correct error code is quite
+            # difficult due to SHFileOperation historical idiosyncrasies.
+            # Therefore we simply pass a message.
+            raise WindowsError('SHFileOperation failed: 0x%08x' % result)
+
+        return not aborted
+
+    def shell_delete(self, src, hard_delete):
+        """
+        Move files and directories using Windows shell.
+
+        :param src: Path or a list of paths to copy. Filename portion of a path
+                    (but not directory portion) can contain wildcards ``*`` and
+                    ``?``.
+        :returns: ``True`` if the operation completed successfully,
+                  ``False`` if it was aborted by user (completed partially).
+        :raises: ``WindowsError`` if anything went wrong. Typically, when source
+                 file was not found.
+
+        .. seealso:
+            `SHFileperation on MSDN <http://msdn.microsoft.com/en-us/library/windows/desktop/bb762164(v=vs.85).aspx>`
+        """
+        for f in src:
+            if f.is_dir():
+                self.frame.dir_cache.delete_cache_item(dir_name=str(f))
+
+        if isinstance(src, str):  # in Py3 replace basestring with str
+            src = os.path.abspath(src)
+        else:  # iterable
+            src = '\0'.join(os.path.abspath(path) for path in src)
+
+        flags = 0  # shellcon.FOF_SILENT
+
+        if not hard_delete:
+            flags |= shellcon.FOF_ALLOWUNDO
+
+        result, aborted = shell.SHFileOperation((
+            0,
+            shellcon.FO_DELETE,
+            src,
+            None,
+            flags,  # Flags
+            None,
+            None))
+
+        if not aborted and result != 0:
+            # Note: raising a WindowsError with correct error code is quite
+            # difficult due to SHFileOperation historical idiosyncrasies.
+            # Therefore we simply pass a message.
+            wx.CallAfter(self.frame.show_message, "Cannot delete: " + str(result))
+            # raise WindowsError('SHFileOperation failed: 0x%08x' % result)
+
+        return not aborted
+
+    def shell_new_folder(self, folder_name):
+        try:
+            win32file.CreateDirectory(folder_name, None)
+            return True
+        except Exception as e:
+            self.frame.log_error(folder_name + " can't be created. " + str(e))
+            return False
+
+    def shell_viewer(self, folders, files):
+        args = ["python", cn.CN_VIEWER_APP, "-r"]
+        if files:
+            args.extend(files)
+            subprocess.Popen(args, shell=False, cwd=cn.CN_VIEWER_APP.parent)
+        elif folders:
+            if len(folders) == 1:
+                self.frame.show_message("Show folder properties")
+            else:
+                self.frame.show_message("Selected one folder")
+        else:
+            self.frame.show_message("No items selected")
+
+    def shell_new_file(self, file_name):
+        try:
+            handle = win32file.CreateFile(str(file_name),
+                                          win32file.GENERIC_WRITE,
+                                          win32file.FILE_SHARE_READ | win32file.FILE_SHARE_WRITE |
+                                          win32file.FILE_SHARE_DELETE,
+                                          None,
+                                          win32con.CREATE_NEW,
+                                          win32con.FILE_ATTRIBUTE_NORMAL,
+                                          None)
+            handle.Close()
+            return True
+        except Exception as e:
+            self.frame.log_error(str(file_name) + " can't be created. " + str(e))
+            return False
 
     def get_context_menu(self, path, file_names=[]):
         file_names = [str(item) for item in file_names]
@@ -487,12 +788,12 @@ class Browser(wx.ListCtrl, ListCtrlAutoWidthMixin):
 
         hMenu = win32gui.CreatePopupMenu()
         MIN_SHELL_ID = 1
-        MAX_SHELL_ID = -1# 30000
+        MAX_SHELL_ID = -1  # 30000
 
         contextMenu.QueryContextMenu(hMenu, 0, MIN_SHELL_ID, MAX_SHELL_ID, shellcon.CMF_EXPLORE |
                                      shellcon.CMF_CANRENAME)
         x, y = win32gui.GetCursorPos()
-        flags = win32gui.TPM_LEFTALIGN | win32gui.TPM_RETURNCMD #| win32gui.TPM_LEFTBUTTON | win32gui.TPM_RIGHTBUTTON
+        flags = win32gui.TPM_LEFTALIGN | win32gui.TPM_RETURNCMD  # | win32gui.TPM_LEFTBUTTON | win32gui.TPM_RIGHTBUTTON
         cmd = win32gui.TrackPopupMenu(hMenu, flags, x, y, 0, hwnd, None)
         if not cmd:
             e = win32api.GetLastError()
@@ -508,6 +809,8 @@ class Browser(wx.ListCtrl, ListCtrlAutoWidthMixin):
               0,  # HotKey
               None  # Icon
               )
+        print("cmd", cmd - MIN_SHELL_ID)
+        # contextMenu.GetCommandString
         if cmd - MIN_SHELL_ID >= 0:
             contextMenu.InvokeCommand(CI)
 
@@ -550,3 +853,41 @@ class ColumnMenu(wx.Menu):
                 self.browser.sort_by_column(0, False, reread=True)
             self.browser.resizeLastColumn(40)
         del dlg
+
+
+CN_DUPL = "Duplicate this tab"
+CN_LOCK = "Rename/Lock tab"
+CN_CLOSE_OTHERS = "Close other tabs"
+CN_CLOSE = "Close tab"
+CN_SEP = "-"
+
+
+class TabMenu(wx.Menu):
+    def __init__(self, frame, nb, tab_index):
+        super().__init__()
+        self.frame = frame
+        self.nb = nb
+        self.tab_index = tab_index
+        self.menu_items = [(CN_DUPL, wx.ITEM_NORMAL), (CN_LOCK, wx.ITEM_NORMAL), (CN_CLOSE_OTHERS, wx.ITEM_NORMAL),
+                           ("-", wx.ITEM_SEPARATOR), (CN_CLOSE, wx.ITEM_NORMAL)]
+        self.menu_items_id = {}
+        for item in self.menu_items:
+            self.menu_items_id[wx.NewId()] = item
+        for id in self.menu_items_id.keys():
+            self.Append(id, item=self.menu_items_id[id][0], kind=self.menu_items_id[id][1])
+            self.Bind(wx.EVT_MENU, self.on_click, id=id)
+
+    def on_click(self, event):
+        operation = self.menu_items_id[event.GetId()][0]
+        if operation == CN_DUPL:
+            self.nb.duplicate_tab(self.tab_index)
+        elif operation == CN_LOCK:
+            pass
+        elif operation == CN_CLOSE_OTHERS:
+            for index in range(self.nb.GetPageCount() - 1, -1, -1):
+                if index != self.tab_index:
+                    self.nb.close_tab(index)
+        elif operation == CN_CLOSE:
+            self.nb.close_tab(self.tab_index)
+
+

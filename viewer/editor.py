@@ -85,8 +85,6 @@ class Editor(stc.StyledTextCtrl):
 
         self.Bind(stc.EVT_STC_UPDATEUI, self.OnUpdateUI)
 
-        self.LoadFile("editor.py")
-
     def OnUpdateUI(self, evt):
         # check for matching braces
         braceAtCaret = -1

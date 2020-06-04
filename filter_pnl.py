@@ -69,7 +69,7 @@ class FilterPnl(wx.Panel):
 
 class Filter(wx.SearchCtrl):
     def __init__(self, parent, frame):
-        super().__init__(parent=parent, size=(60, 23), style=wx.WANTS_CHARS)
+        super().__init__(parent=parent, size=(80, 23), style=wx.WANTS_CHARS)
         self.frame = frame
         self.parent = parent
         self.ShowSearchButton(False)

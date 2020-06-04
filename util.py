@@ -12,8 +12,8 @@ def get_drives():
     return drives.split('\000')[:-1]
 
 
-def format_date(timestamp, format="%Y-%m-%d %H:%S"):
-    d = datetime.utcfromtimestamp(timestamp)
+def format_date(timestamp, format="%Y-%m-%d %H:%M"):
+    d = datetime.fromtimestamp(timestamp)
     return d.strftime(format)
 
 
