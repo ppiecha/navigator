@@ -10,13 +10,26 @@ faces = {'times': 'Times New Roman',
          'size': 8,
          'size2': 6}
 
+KEYWORDS=[
+
+]
+
 
 class Editor(stc.StyledTextCtrl):
-    def __init__(self, parent):
+    def __init__(self, parent, file_name=None, read_only=False):
         stc.StyledTextCtrl.__init__(self, parent, style=0)
+        self.file_name = None
+        if file_name:
+            self.LoadFile(file_name)
+            self.file_name = file_name
+        self.SetReadOnly(read_only)
 
-        self.SetLexer(stc.STC_LEX_PYTHON)
-        self.SetKeyWords(0, " ".join(keyword.kwlist))
+        self.Init()
+
+    def Init(self):
+
+        # self.SetLexer(stc.STC_LEX_SQL)
+        # self.SetKeyWords(0, " ".join(keyword.kwlist))
 
         self.SetProperty("tab.timmy.whinge.level", "1")
         # Indentation and tab stuff
@@ -39,7 +52,7 @@ class Editor(stc.StyledTextCtrl):
 
         # Global default styles for all languages
         self.StyleSetSpec(stc.STC_STYLE_DEFAULT,     "face:%(mono)s,size:%(size)d" % faces)
-        self.StyleSetSpec(stc.STC_STYLE_LINENUMBER,  "fore:#000000,back:#99A9C2,face:%(mono)s,size:%(size2)d" % faces)
+        self.StyleSetSpec(stc.STC_STYLE_LINENUMBER,  "fore:#000000,back:#F0F0F0,face:%(mono)s,size:%(size2)d" % faces)
         self.StyleSetSpec(stc.STC_STYLE_CONTROLCHAR, "face:%(mono)s" % faces)
         self.StyleSetSpec(stc.STC_STYLE_BRACELIGHT,  "fore:#00009D,back:#FFFF00,bold")
         self.StyleSetSpec(stc.STC_STYLE_BRACEBAD,    "fore:#000000,back:#FF0000,bold")

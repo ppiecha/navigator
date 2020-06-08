@@ -2,6 +2,9 @@ import wx
 import constants as cn
 
 
+CREATE_SHORTCUT = wx.NewId()
+COPY2SAME = wx.NewId()
+
 # FILE
 NEW_FILE = "New file"
 RENAME = "Rename"
@@ -53,7 +56,12 @@ class MainMenu(wx.MenuBar):
         self.frame = frame
         self.menu_items_id = {}
         self.entries = []
-
+        self.entries.append(wx.AcceleratorEntry(flags=wx.ACCEL_SHIFT + wx.ACCEL_CTRL,
+                                                keyCode=wx.WXK_F5,
+                                                cmd=CREATE_SHORTCUT))
+        self.entries.append(wx.AcceleratorEntry(flags=wx.ACCEL_SHIFT,
+                                                keyCode=wx.WXK_F5,
+                                                cmd=COPY2SAME))
         self.file_menu = wx.Menu()
         self.create_menu(self.file_menu, self.file_lst)
         self.edit_menu = wx.Menu()
@@ -64,9 +72,13 @@ class MainMenu(wx.MenuBar):
 
         self.frame.SetAcceleratorTable(wx.AcceleratorTable(self.entries))
 
+        self.frame.Bind(wx.EVT_MENU, self.frame.on_create_shortcut, id=CREATE_SHORTCUT)
+
     def create_menu(self, menu, lst):
         for item in lst:
-            self.menu_items_id[wx.NewId()] = item
+            new_id = wx.NewId()
+            self.menu_items_id[new_id] = item
+            self.frame.cmd_ids[item[0]] = new_id
         for id in self.menu_items_id.keys():
             if self.menu_items_id[id][0] in [i[0] for i in lst]:
                 new_menu_item = menu.Append(id, item=self.menu_items_id[id][0], kind=self.menu_items_id[id][1])
@@ -75,26 +87,30 @@ class MainMenu(wx.MenuBar):
                     new_menu_item.SetAccel(entry)
                     self.entries.append(entry)
                     self.Bind(wx.EVT_MENU, self.on_click, id=id)
-                    # if self.menu_items_id[id][4]:
-                    #     self.frame.tb.AddTool(toolId=id, label=self.menu_items_id[id][0], bitmap=self.menu_items_id[id][4])
-                    #     self.Bind(wx.EVT_TOOL, self.OnToolClick, id=id)
-                    # self.frame.tb.Realize()
 
-    def on_click(self, event):
-        operation = self.menu_items_id[event.GetId()][0]
+    def exec_cmd_id(self, id):
+        operation = self.menu_items_id[id][0]
         # File
-        if operation == NEW_FILE:
-            self.frame.new_file()
-        elif operation == RENAME:
+        if operation == RENAME:
             self.frame.rename()
-        elif operation == NEW_FOLDER:
-            self.frame.new_folder()
         elif operation == VIEW:
             self.frame.view()
+        elif operation == COPY:
+            self.frame.copy()
+        elif operation == MOVE:
+            self.frame.move()
+        elif operation == NEW_FOLDER:
+            self.frame.new_folder()
         elif operation == DELETE:
             self.frame.delete()
+        elif operation == NEW_FILE:
+            self.frame.new_file()
         # Edit
         if operation == SELECT_ALL:
             self.frame.select_all()
         if operation == INVERT_SEL:
             self.frame.invert_selection()
+
+    def on_click(self, event):
+        self.exec_cmd_id(event.GetId())
+

@@ -16,41 +16,37 @@ class PathPanel(wx.Panel):
         self.drive_combo = DriveCombo(self, self.frame)
         self.path_lbl = dir_label.DirLabel(self, self.frame)
         self.path_edit = PathEdit(self, self.frame)
+        self.edit_btn = PathBtn(self, frame, cn.CN_IM_OK)
         self.path_edit.Show(False)
-        # self.rename = PathBtn(self, cn.CN_IM_RENAME)
-        # self.rename.SetToolTip("Rename F2")
-        # self.viewer = PathBtn(self, cn.CN_IM_VIEWER)
-        # self.edit = PathBtn(self, cn.CN_IM_EDIT)
-        # self.copy = PathBtn(self, cn.CN_IM_COPY)
-        # self.move = PathBtn(self, cn.CN_IM_MOVE)
-        # self.new_folder = PathBtn(self, cn.CN_IM_NEW_FOLDER)
-        # self.delete = PathBtn(self, cn.CN_IM_DELETE)
+        self.edit_btn.Show(False)
+        self.edit_sizer = wx.BoxSizer(wx.HORIZONTAL)
+        self.edit_sizer.Add(self.path_edit, flag=wx.EXPAND, proportion=1)
+        self.edit_sizer.Add(self.edit_btn)
         self.sep = wx.Panel(self)
-        self.fav_btn = PathBtn(self, cn.CN_IM_FAV)
-        self.hist_btn = PathBtn(self, cn.CN_IM_HIST)
+        self.fav_btn = PathBtn(self, frame, cn.CN_IM_FAV)
+        self.hist_btn = PathBtn(self, frame, cn.CN_IM_HIST)
         self.hist_menu = HistMenu()
         self.sizer_h = wx.BoxSizer(wx.HORIZONTAL)
         self.sizer_v = wx.BoxSizer(wx.VERTICAL)
         self.sizer_h.Add(self.drive_combo)
-        # self.sizer_h.Add(self.rename)
-        # self.sizer_h.Add(self.viewer)
-        # self.sizer_h.Add(self.edit)
-        # self.sizer_h.Add(self.copy)
-        # self.sizer_h.Add(self.move)
-        # self.sizer_h.Add(self.new_folder)
-        # self.sizer_h.Add(self.delete)
         self.sizer_h.Add(self.sep, flag=wx.EXPAND, proportion=1)
         self.sizer_h.Add(self.fav_btn)
         self.sizer_h.Add(self.hist_btn)
         self.sizer_v.Add(self.path_lbl, flag=wx.EXPAND, proportion=1)
-        self.sizer_v.Add(self.path_edit, flag=wx.EXPAND, proportion=1)
+        self.sizer_v.Add(self.edit_sizer, flag=wx.EXPAND, proportion=1)
         self.sizer_v.Add(self.sizer_h, flag=wx.EXPAND, proportion=1)
         self.SetSizerAndFit(self.sizer_v)
 
         self.hist_btn.Bind(wx.EVT_BUTTON, self.on_history)
         self.fav_btn.Bind(wx.EVT_BUTTON, self.on_favorite)
+        self.edit_btn.Bind(wx.EVT_BUTTON, self.on_ok)
 
         wx.CallAfter(self.set_read_only, True)
+
+    def on_ok(self, e):
+        resp = self.path_edit.exec_path()
+        if resp:
+            self.read_only = True
 
     def set_read_only(self, value):
         self.read_only = value
@@ -67,13 +63,14 @@ class PathPanel(wx.Panel):
     def read_only(self, value):
         self.path_lbl.Show(value)
         self.path_edit.Show(not value)
+        self.edit_btn.Show(not value)
         if self.path_edit.IsShown():
-            self.Layout()
             self.path_edit.SetFocus()
             self.path_edit.SetInsertionPointEnd()
+        self.Layout()
         self._read_only = value
 
-    def AcceptsFocus(self):
+    def AcceptsFocusFromKeyboard(self):
         return False
 
     def on_favorite(self, e):
@@ -94,12 +91,12 @@ class PathEdit(wx.TextCtrl):
         self.frame = frame
 
         self.AutoCompleteDirectories()
-        self.AutoCompleteFileNames()
+        # self.AutoCompleteFileNames()
 
         # self.Bind(wx.EVT_MOTION, self.on_mouse_move)
         # self.Bind(wx.EVT_KILL_FOCUS, self.on_kill_focus)
         # self.Bind(wx.EVT_LEFT_DOWN, self.on_left_down)
-        # self.Bind(wx.EVT_KEY_DOWN, self.on_key_down)
+        self.Bind(wx.EVT_KEY_DOWN, self.on_enter)
         # self.Bind(wx.EVT_SIZE, self.on_size)
 
     # def on_size(self, e):
@@ -113,31 +110,34 @@ class PathEdit(wx.TextCtrl):
     #                           self.GetSize().GetWidth() - 30)
     #     return os.path.join(anchor, rest)
 
-    def on_key_down(self, event):
-        if self.read_only:
-            return
+    def exec_path(self):
+        path = Path(self.GetValue())
+        if path.exists():
+            if path.is_dir():
+                if not path.samefile(Path(self.get_current_dir())):
+                    self.open_dir(path)
+                    if not str(path).endswith(os.path.sep):
+                        self.SetValue(str(path) + os.path.sep)
+            else:
+                self.open_file(path)
         else:
-            event.Skip()
-            if event.GetKeyCode() == wx.WXK_RETURN:
-                path = Path(self.GetValue())
-                if path.exists():
-                    if path.is_dir():
-                        if not path.samefile(Path(self.get_current_dir())):
-                            self.open_dir(path)
-                            if not str(path).endswith(os.path.sep):
-                                self.SetValue(str(path) + os.path.sep)
-                    else:
-                        self.open_file(path)
-                else:
-                    # args = self.GetValue().split()
-                    # result = subprocess.Popen(args, shell=True)
-                    result = wx.Execute(self.GetValue())
-                    # if not result:
-                    #     self.frame.show_message("Cannot execute command")
-                    # output, error = result.communicate()
-                    # print(output, error)
-                self.SelectNone()
-                self.SetInsertionPointEnd()
+            # args = self.GetValue().split()
+            # args = [a.trim() for a in args]
+            # subprocess.Popen(args, shell=False)
+            # result = subprocess.Popen(args, shell=True)
+            result = wx.Execute(self.GetValue())
+            # if not result:
+            #     self.frame.show_message("Cannot execute command")
+            # output, error = result.communicate()
+            # print(output, error)
+        self.SelectNone()
+        wx.CallAfter(self.SetInsertionPointEnd)
+        return True
+
+    def on_enter(self, e):
+        e.Skip()
+        if e.GetKeyCode() == wx.WXK_RETURN:
+            self.exec_path()
 
     def open_dir(self, dir):
         self.parent.parent.browser.open_dir(dir_name=dir, sel_dir=cn.CN_GO_BACK)
@@ -160,39 +160,39 @@ class PathEdit(wx.TextCtrl):
     #     self.frame.PopupMenu(menu)
     #     del menu
 
-    def on_left_down(self, event):
-        if self.read_only and self.GetStringSelection():
-            end = self.get_current_dir().find(self.GetStringSelection()) + len(self.GetStringSelection())
-            self.open_dir(self.get_current_dir()[:end+1])
-        event.Skip()
+    # def on_left_down(self, event):
+    #     if self.read_only and self.GetStringSelection():
+    #         end = self.get_current_dir().find(self.GetStringSelection()) + len(self.GetStringSelection())
+    #         self.open_dir(self.get_current_dir()[:end+1])
+    #     event.Skip()
 
     # def on_kill_focus(self, event):
     #     self.read_only = True
     #     event.Skip()
 
-    def on_mouse_move(self, event):
-
-        def get_text_to_select(parts, pos):
-            counter = 0
-            for id, part in enumerate(parts):
-                counter += len(part) + 1
-                if counter > pos:
-                    return parts[id]
-
-        if self.read_only and not wx.GetMouseState().LeftIsDown():
-            x, y = event.GetPosition()
-            path = self.GetValue()
-            row, col = self.HitTestPos((x, y))
-            parts = path.split(os.path.sep)
-            selection = get_text_to_select(parts, col)
-            start = path.find(selection)
-            if start > -1 and not path.endswith(selection) and selection.find("...") == -1:
-                self.SetFocus()
-                self.SetSelection(start, start + len(selection))
-            else:
-                self.SelectNone()
-
-        event.Skip()
+    # def on_mouse_move(self, event):
+    #
+    #     def get_text_to_select(parts, pos):
+    #         counter = 0
+    #         for id, part in enumerate(parts):
+    #             counter += len(part) + 1
+    #             if counter > pos:
+    #                 return parts[id]
+    #
+    #     if self.read_only and not wx.GetMouseState().LeftIsDown():
+    #         x, y = event.GetPosition()
+    #         path = self.GetValue()
+    #         row, col = self.HitTestPos((x, y))
+    #         parts = path.split(os.path.sep)
+    #         selection = get_text_to_select(parts, col)
+    #         start = path.find(selection)
+    #         if start > -1 and not path.endswith(selection) and selection.find("...") == -1:
+    #             self.SetFocus()
+    #             self.SetSelection(start, start + len(selection))
+    #         else:
+    #             self.SelectNone()
+    #
+    #     event.Skip()
 
 
     # @property
@@ -248,8 +248,14 @@ class DriveCombo(wx.ComboBox):
     def __init__(self, parent, frame):
         super().__init__(parent=parent, choices=util.get_drives(), style=wx.CB_READONLY | wx.CB_SORT, size=(40, 23))
         self.parent = parent
+        self.frame = frame
+        self.SetForegroundColour(parent.GetForegroundColour())
 
         self.Bind(wx.EVT_COMBOBOX, self.on_select)
+        # self.Bind(wx.EVT_SET_FOCUS, self.on_focus)
+
+    def on_focus(self, e):
+        self.frame.return_focus()
 
     def AcceptsFocus(self):
         return False
@@ -259,8 +265,13 @@ class DriveCombo(wx.ComboBox):
 
 
 class PathBtn(wx.BitmapButton):
-    def __init__(self, parent, image):
+    def __init__(self, parent, frame, image):
         super().__init__(parent=parent, bitmap=wx.Bitmap(image, wx.BITMAP_TYPE_PNG), size=(23, 23))
+        self.Bind(wx.EVT_SET_FOCUS, self.on_focus)
+        self.frame = frame
+
+    def on_focus(self, e):
+        self.frame.return_focus()
 
     def AcceptsFocus(self):
         return False

@@ -4,9 +4,14 @@ from pathlib import Path
 import os
 import wx.html as html
 
+
 class BasicDlg(wx.Dialog):
     def __init__(self, frame, title):
         super().__init__(parent=frame, title=title)
+
+        self.SetAcceleratorTable(wx.AcceleratorTable([wx.AcceleratorEntry(flags=wx.ACCEL_NORMAL,
+                                                                          keyCode=wx.WXK_ESCAPE,
+                                                                          cmd=wx.ID_CANCEL)]))
 
         # Sizers
         self.ctrl_sizer = wx.BoxSizer(wx.VERTICAL)
@@ -28,15 +33,10 @@ class BasicDlg(wx.Dialog):
         self.main_sizer.Add(self.dlg_sizer, flag=wx.ALL | wx.EXPAND, border=10)
 
         self.SetSizer(self.main_sizer)
-        #
-        self.SetEscapeId(wx.ID_CANCEL)
-        # self.SetAffirmativeId(wx.ID_OK)
 
-        self.btn_ok.Bind(wx.EVT_BUTTON, self.on_cancel, id=wx.ID_CANCEL)
-
+        # self.btn_cancel.Bind(wx.EVT_BUTTON, self.on_cancel, id=wx.ID_CANCEL)
 
     def on_cancel(self, e):
-        print("cancel")
         self.EndModal(wx.ID_CANCEL)
         e.Skip()
 
@@ -155,6 +155,46 @@ class RenameDlg(TextEditDlg):
         self.cb_rename = wx.CheckBox(parent=self, label="Rename on collision")
         self.cb_rename.SetValue(wx.CHK_CHECKED)
         self.ctrl_sizer.Add(self.cb_rename, flag=wx.TOP, border=5)
+
+
+class CopyMoveDlg(BasicDlg):
+    def __init__(self, frame, title, opr_count, src, dst):
+        super().__init__(frame=frame, title=title)
+        self.lbl_opr_count = wx.StaticText(parent=self, label=opr_count)
+        self.lbl_from = wx.StaticText(parent=self, label=src)
+        self.ed_dst = wx.TextCtrl(parent=self, value=dst, size=(400, 23))
+        self.dir_btn = wx.Button(self, label='...', size=(23, 23))
+        self.dir_btn.Bind(wx.EVT_BUTTON, self.on_dir_btn)
+        self.dir_sizer = wx.BoxSizer(wx.HORIZONTAL)
+        self.dir_sizer.Add(self.ed_dst, wx.EXPAND)
+        self.dir_sizer.Add(self.dir_btn)
+        self.cb_rename = wx.CheckBox(parent=self, label="Rename on collision")
+        self.cb_rename.SetValue(wx.CHK_CHECKED)
+        self.ctrl_sizer.Add(self.lbl_opr_count)
+        self.ctrl_sizer.Add(self.lbl_from)
+        self.ctrl_sizer.Add(self.dir_sizer, flag=wx.TOP, border=5)
+        self.ctrl_sizer.Add(self.cb_rename, flag=wx.TOP, border=5)
+
+    def on_dir_btn(self, e):
+        dir = wx.DirSelector(message="Select directory", default_path=self.get_dst())
+        if dir:
+            self.ed_dst.SetValue(dir)
+
+    def mb(self, message):
+        wx.MessageBox(message=message, caption=cn.CN_APP_NAME)
+        self.ed_dst.SetFocus()
+        self.ed_dst.SelectAll()
+
+    def get_dst(self):
+        return self.ed_dst.GetValue()
+
+    def show_modal(self):
+        self.main_sizer.Fit(self)
+        self.CenterOnParent()
+        self.SetFocus()
+        self.ed_dst.SetFocus()
+        self.ed_dst.SelectAll()
+        return self.ShowModal()
 
 
 

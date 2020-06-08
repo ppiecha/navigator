@@ -1,5 +1,4 @@
 import wx
-import os
 from pathlib import Path
 import util
 import constants as cn
@@ -8,7 +7,6 @@ import win32gui
 from win32com.shell import shell, shellcon
 import win32api
 import win32con
-import win32event
 from wx.lib.mixins.listctrl import ListCtrlAutoWidthMixin
 import filter_pnl
 import time
@@ -17,6 +15,9 @@ import win32file
 import config
 from pubsub import pub
 import subprocess
+import pythoncom
+import os
+import winshell
 
 
 CN_MAX_HIST_COUNT = 20
@@ -126,6 +127,19 @@ class BrowserPnl(wx.Panel):
         self.SetSizerAndFit(self.top_down_sizer)
 
 
+class MyFileDropTarget(wx.FileDropTarget):
+    def __init__(self, source, target_processor):
+        super().__init__()
+        self.source = source
+        self.target_processor = target_processor
+
+    def OnDropFiles(self, x, y, filenames):
+        if not filenames:
+            return False
+        self.target_processor(self.source, x, y, filenames)
+        return True
+
+
 class Browser(wx.ListCtrl, ListCtrlAutoWidthMixin):
     def __init__(self, parent, frame, im_list, conf):
         super().__init__(parent=parent, style=wx.LC_REPORT | wx.LC_VIRTUAL)
@@ -147,6 +161,8 @@ class Browser(wx.ListCtrl, ListCtrlAutoWidthMixin):
         self.image_list = im_list
         self.SetImageList(self.image_list, wx.IMAGE_LIST_SMALL)
         self.columns = ["Name", "Date", "Size"]
+        self.drop_target = MyFileDropTarget(self, self.on_process_dropped_files)
+        self.SetDropTarget(self.drop_target)
 
         self.init_ui(self.conf)
 
@@ -158,10 +174,37 @@ class Browser(wx.ListCtrl, ListCtrlAutoWidthMixin):
         self.Bind(wx.EVT_LIST_ITEM_DESELECTED, self.on_deselect)
         self.Bind(wx.EVT_LIST_KEY_DOWN, self.on_key_down)
         self.Bind(wx.EVT_SET_FOCUS, self.on_browser_focus)
+        # self.Bind(wx.EVT_KILL_FOCUS, self.on_kill_focus)
+        self.Bind(wx.EVT_LIST_BEGIN_DRAG, self.on_start_drag)
         self.register_listener(topic=cn.CN_TOPIC_DIR_CHG)
+
+    def on_process_dropped_files(self, source, x, y, file_names):
+        if source == self:
+            print('the same')
+        else:
+            print("other")
+        for f in file_names:
+            print(f)
+
+    def on_start_drag(self, e):
+        selected = self.get_selected()
+        if not selected:
+            return
+        files = wx.FileDataObject()
+        for item in selected:
+            files.AddFile(str(self.path.joinpath(item)))
+        drag_source = wx.DropSource(self)
+        drag_source.SetData(files)
+        result = drag_source.DoDragDrop(True)
 
     def on_browser_focus(self, e):
         os.chdir(str(self.path))
+        self.path_pnl.path_lbl.Refresh()
+        self.frame.get_inactive_win().get_active_browser().path_pnl.path_lbl.Refresh()
+        e.Skip()
+
+    def on_kill_focus(self, e):
+        self.path_pnl.path_lbl.Refresh()
         e.Skip()
 
     def __repr__(self):
@@ -240,6 +283,7 @@ class Browser(wx.ListCtrl, ListCtrlAutoWidthMixin):
         self.show_hide_cols(self.conf.column_conf)
         self.sort_by_column(conf.sort_key, conf.sort_desc, reread=False)
 
+
     def on_key_down(self, e):
         # e.Skip()
         # if e.GetKeyCode() == wx.WXK_RETURN:
@@ -247,6 +291,7 @@ class Browser(wx.ListCtrl, ListCtrlAutoWidthMixin):
         #     if index >= 0:
         #         self.on_item_activated(self.GetItemText(index, 0))
         if e.GetKeyCode() == wx.WXK_ESCAPE:
+            print("escape")
             self.filter_pnl.enable_filter()
 
     def show_hide_cols(self, column_conf):
@@ -432,9 +477,12 @@ class Browser(wx.ListCtrl, ListCtrlAutoWidthMixin):
                 self.open_dir(dir_name=self.path.parent, sel_dir=self.path.name)
         else:
             new_path = Path(os.path.join(self.path, item_name))
-            if util.is_link(new_path):
-                raise Exception("Unsupported type")
-            elif new_path.is_file():
+            if new_path.suffix.lower() == ".lnk":
+                lnk = ShellShortcut()
+                res = lnk.load(str(new_path))
+                new_path = Path(res)
+                del lnk
+            if new_path.is_file():
                 self.open_file(new_path)
             elif new_path.is_dir():
                 self.open_dir(dir_name=new_path)
@@ -465,7 +513,7 @@ class Browser(wx.ListCtrl, ListCtrlAutoWidthMixin):
                                     nShow=win32con.SW_NORMAL,
                                     lpVerb="Open",
                                     lpFile=str(file_name))
-        print(dict)
+        # print(dict)
         # hh = dict['hInstApp']
         # ret = win32event.WaitForSingleObject(hh, -1)
         # print(ret)
@@ -480,6 +528,8 @@ class Browser(wx.ListCtrl, ListCtrlAutoWidthMixin):
         # win32api.ShellExecute(0, "open", "notepad", "", '.', 1)
 
     def get_next_dir(self, path):
+        if path.exists():
+            return path
         for parent in path.parents:
             if parent.exists():
                 return parent
@@ -510,7 +560,7 @@ class Browser(wx.ListCtrl, ListCtrlAutoWidthMixin):
                 to_select = [cn.CN_GO_BACK]
         temp = self.path
         try:
-            self.refresh_list(dir_name=Path(dir_name), conf=conf, to_select=to_select)
+            self.refresh_list(dir_name=self.get_next_dir(Path(dir_name)), conf=conf, to_select=to_select)
         except OSError as err:
             self.frame.log_error(str(err))
             print(temp)
@@ -569,7 +619,7 @@ class Browser(wx.ListCtrl, ListCtrlAutoWidthMixin):
             # Note: raising a WindowsError with correct error code is quite
             # difficult due to SHFileOperation historical idiosyncrasies.
             # Therefore we simply pass a message.
-            raise WindowsError('SHFileOperation failed: 0x%08x' % result)
+            wx.CallAfter(wx.LogError, "Cannot copy. Windows error - SHFileOperation failed: 0x%08x" % result)
 
         return not aborted
 
@@ -612,7 +662,7 @@ class Browser(wx.ListCtrl, ListCtrlAutoWidthMixin):
             # Note: raising a WindowsError with correct error code is quite
             # difficult due to SHFileOperation historical idiosyncrasies.
             # Therefore we simply pass a message.
-            raise WindowsError('SHFileOperation failed: 0x%08x' % result)
+            wx.CallAfter(wx.LogError, "Cannot copy. Windows error - SHFileOperation failed: 0x%08x" % result)
 
         return not aborted
 
@@ -656,7 +706,7 @@ class Browser(wx.ListCtrl, ListCtrlAutoWidthMixin):
             # Note: raising a WindowsError with correct error code is quite
             # difficult due to SHFileOperation historical idiosyncrasies.
             # Therefore we simply pass a message.
-            raise WindowsError('SHFileOperation failed: 0x%08x' % result)
+            wx.CallAfter(wx.LogError, "Cannot rename. Windows error - SHFileOperation failed: 0x%08x" % result)
 
         return not aborted
 
@@ -702,7 +752,7 @@ class Browser(wx.ListCtrl, ListCtrlAutoWidthMixin):
             # Note: raising a WindowsError with correct error code is quite
             # difficult due to SHFileOperation historical idiosyncrasies.
             # Therefore we simply pass a message.
-            wx.CallAfter(self.frame.show_message, "Cannot delete: " + str(result))
+            wx.CallAfter(wx.LogError, "Cannot delete. Windows error - SHFileOperation failed: 0x%08x" % result)
             # raise WindowsError('SHFileOperation failed: 0x%08x' % result)
 
         return not aborted
@@ -718,7 +768,7 @@ class Browser(wx.ListCtrl, ListCtrlAutoWidthMixin):
     def shell_viewer(self, folders, files):
         args = ["python", cn.CN_VIEWER_APP, "-r"]
         if files:
-            args.extend(files)
+            args.extend([str(f) for f in files])
             subprocess.Popen(args, shell=False, cwd=cn.CN_VIEWER_APP.parent)
         elif folders:
             if len(folders) == 1:
@@ -744,6 +794,13 @@ class Browser(wx.ListCtrl, ListCtrlAutoWidthMixin):
             self.frame.log_error(str(file_name) + " can't be created. " + str(e))
             return False
 
+    def shell_shortcut(self, path, lnk_name, target, args=None, desc=None, start_in=None):
+        winshell.CreateShortcut(Path=str(os.path.join(path, lnk_name)),
+                                Target=str(target),
+                                Arguments=str(args),
+                                Description=str(desc),
+                                StartIn=str(start_in))
+
     def get_context_menu(self, path, file_names=[]):
         file_names = [str(item) for item in file_names]
         path = str(path)
@@ -758,11 +815,13 @@ class Browser(wx.ListCtrl, ListCtrlAutoWidthMixin):
         parentFolder = desktopFolder.BindToObject(parentPidl, None, shell.IID_IShellFolder)
         if file_names:
             # Get a pidl for the file itself.
+            print(path)
             pidls = []
             for item in file_names:
                 eaten, pidl, attr = parentFolder.ParseDisplayName(hwnd, None, item)
                 pidls.append(pidl)
             # Get the IContextMenu for the file.
+            print(pidls)
             i, contextMenu = parentFolder.GetUIObjectOf(hwnd, pidls, shell.IID_IContextMenu, 0)
         else:
             i, contextMenu = desktopFolder.GetUIObjectOf(hwnd, [parentPidl], shell.IID_IContextMenu,
@@ -788,10 +847,10 @@ class Browser(wx.ListCtrl, ListCtrlAutoWidthMixin):
 
         hMenu = win32gui.CreatePopupMenu()
         MIN_SHELL_ID = 1
-        MAX_SHELL_ID = -1  # 30000
+        MAX_SHELL_ID = 30000
 
-        contextMenu.QueryContextMenu(hMenu, 0, MIN_SHELL_ID, MAX_SHELL_ID, shellcon.CMF_EXPLORE |
-                                     shellcon.CMF_CANRENAME)
+        contextMenu.QueryContextMenu(hMenu, 0, MIN_SHELL_ID, MAX_SHELL_ID, shellcon.CMF_EXPLORE) # |
+                                     #  shellcon.CMF_CANRENAME)
         x, y = win32gui.GetCursorPos()
         flags = win32gui.TPM_LEFTALIGN | win32gui.TPM_RETURNCMD  # | win32gui.TPM_LEFTBUTTON | win32gui.TPM_RIGHTBUTTON
         cmd = win32gui.TrackPopupMenu(hMenu, flags, x, y, 0, hwnd, None)
@@ -809,11 +868,14 @@ class Browser(wx.ListCtrl, ListCtrlAutoWidthMixin):
               0,  # HotKey
               None  # Icon
               )
-        print("cmd", cmd - MIN_SHELL_ID)
-        # contextMenu.GetCommandString
+        # print("cmd", cmd - MIN_SHELL_ID)
+        # print(contextMenu.GetCommandString(cmd - MIN_SHELL_ID, shellcon.GCS_UNICODE)) #shellcon.GCS_VERB))
         if cmd - MIN_SHELL_ID >= 0:
+            # try:
             contextMenu.InvokeCommand(CI)
-
+            # except:
+            #     e = win32api.GetLastError()
+            #     wx.LogError(win32api.FormatMessage(e))
 
 class ColumnMenu(wx.Menu):
     def __init__(self, browser, column):
@@ -889,5 +951,25 @@ class TabMenu(wx.Menu):
                     self.nb.close_tab(index)
         elif operation == CN_CLOSE:
             self.nb.close_tab(self.tab_index)
+
+
+class ShellShortcut:
+    def __init__(self):
+        self._base = pythoncom.CoCreateInstance(shell.CLSID_ShellLink,
+                                                None,
+                                                pythoncom.CLSCTX_INPROC_SERVER,
+                                                shell.IID_IShellLink)
+
+    def load(self, filename):
+        self._base.QueryInterface(pythoncom.IID_IPersistFile).Load(filename)
+        return self._base.GetPath(shell.SLGP_RAWPATH)[0]
+
+    def save(self, filename):
+        self._base.QueryInterface(pythoncom.IID_IPersistFile).Save(filename, 0)
+
+    def __getattr__(self, name):
+        if name != "_base":
+            return getattr(self._base, name)
+
 
 

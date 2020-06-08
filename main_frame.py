@@ -11,18 +11,16 @@ from pathlib import Path
 import fnmatch
 import wx.aui as aui
 import dialogs
-import sys
 import traceback
 from threading import Thread
+import wx.adv
 
 
 class MainFrame(wx.Frame):
     def __init__(self):
         super().__init__(parent=None, title=cn.CN_APP_NAME, size=(600, 500), style=wx.DEFAULT_FRAME_STYLE)
         # sys.excepthook = self.except_hook
-        # self.tb = self.CreateToolBar(style=wx.TB_HORIZONTAL | wx.NO_BORDER | wx.TB_FLAT)
-        # self.SetToolBar(self.tb)
-        # self.tb.SetToolBitmapSize((16, 16))
+        self.cmd_ids = {}
         self.menu_bar = menu.MainMenu(self)
         self.SetMenuBar(self.menu_bar)
         self.tb = None
@@ -44,16 +42,33 @@ class MainFrame(wx.Frame):
 
         self.Bind(wx.EVT_CLOSE, self.on_close)
 
+    def run_in_thread(self, target, args):
+        th = Thread(target=target, args=args)
+        th.start()
+
     def except_hook(self, type, value, tb):
         message = ''.join(traceback.format_exception(type, value, tb))
-        self.log_error(message)
+        wx.LogError(message)
 
     def get_active_win(self):
         win = self.FindFocus()
         if isinstance(win, browser.Browser):
             return win.page_ctrl
         else:
-            return None
+            raise Exception("Cannot find active page ctrl")
+
+    def get_inactive_win(self):
+        win = self.FindFocus()
+        if isinstance(win, browser.Browser):
+            if win.page_ctrl.is_left:
+                return self.right_browser
+            else:
+                return self.left_browser
+        else:
+            raise Exception("active " + str(type(win)))
+
+    def return_focus(self):
+        self.splitter.SetFocus()
 
     def change_win_focus(self):
         win = self.FindFocus()
@@ -100,16 +115,32 @@ class MainFrame(wx.Frame):
         self.right_browser = browser.BrowserCtrl(self.splitter, self, self.im_list, self.app_conf.right_browser,
                                                  is_left=False)
         self.splitter.SplitVertically(self.left_browser, self.right_browser)
-        self.left_browser.get_active_browser().SetFocus()
 
         self.Bind(wx.EVT_SIZE, self.on_size)
         self.Bind(wx.EVT_SPLITTER_DCLICK, self.on_db_click, id=cn.ID_SPLITTER)
 
+        self.btn_sizer = wx.BoxSizer(wx.HORIZONTAL)
+
+        btn_size = (60, 23)
+        buttons = [CmdBtn(self, self.cmd_ids[menu.RENAME], "F2 Rename", size=btn_size),
+                   CmdBtn(self, self.cmd_ids[menu.VIEW], "F3 View", size=btn_size),
+                   CmdBtn(self, self.cmd_ids[menu.EDIT], "F4 Edit", size=btn_size),
+                   CmdBtn(self, self.cmd_ids[menu.COPY], "F5 Copy", size=btn_size),
+                   CmdBtn(self, self.cmd_ids[menu.MOVE], "F6 Move", size=btn_size),
+                   CmdBtn(self, self.cmd_ids[menu.NEW_FOLDER], "F7 Mkdir", size=btn_size),
+                   CmdBtn(self, self.cmd_ids[menu.DELETE], "F8 Delete", size=btn_size),
+                   CmdBtn(self, self.cmd_ids[menu.NEW_FILE], "F9 Mkfile", size=btn_size)]
+
+        for btn in buttons:
+            self.btn_sizer.Add(btn, proportion=1, flag=wx.ALL | wx.EXPAND, border=0)
+            # btn.Bind(wx.EVT_BUTTON, self.menu_bar.on_click, id=btn.GetId())
+
         self.sizer = wx.BoxSizer(wx.VERTICAL)
-        self.sizer.Add(self.splitter, 1, wx.EXPAND)
+        self.sizer.Add(self.splitter, proportion=1, flag=wx.EXPAND)
+        self.sizer.Add(self.btn_sizer, proportion=0, flag=wx.EXPAND)
 
         self.SetSizer(self.sizer)
-        self.SetMinSize(self.GetEffectiveMinSize())
+        # self.SetMinSize(self.GetEffectiveMinSize())
 
         if self.app_conf.size:
             self.SetSize(self.app_conf.size)
@@ -118,7 +149,12 @@ class MainFrame(wx.Frame):
             self.SetSize((600, 500))
             self.Center()
 
+        self.SetDefaultItem(self.left_browser)
+        self.left_browser.get_active_browser().SetFocus()
         self.Thaw()
+
+    # def on_btn(self, e):
+    #     print("btn")
 
     def on_size(self, e):
         size = self.GetSize()
@@ -142,6 +178,12 @@ class MainFrame(wx.Frame):
         # dlg = dialogs.findDialog(parent=self, searchText='text to find', wholeWordsOnly=0, caseSensitive=0)
         dlg.ShowModal()
 
+    def show_info(self, message):
+        if self.task_icon.IsAvailable() and self.task_icon.IsIconInstalled() and self.task_icon.IsOk():
+            self.task_icon.ShowBalloon(title=cn.CN_APP_NAME, text=message, msec=2000, flags=wx.ICON_INFORMATION)
+        else:
+            print("problem")
+
     def get_question_feedback(self, question, caption=cn.CN_APP_NAME):
         dlg = wx.MessageDialog(self, question, style=wx.YES_NO | wx.CANCEL | wx.ICON_INFORMATION,
                                caption=caption)
@@ -157,20 +199,6 @@ class MainFrame(wx.Frame):
 
     # COMMANDS
 
-    def new_file(self):
-        win = self.get_active_win()
-        b = win.get_active_browser()
-        folders, files = b.get_selected_files_folders()
-        def_name = files[0].name if files else "new_file.txt"
-        with dialogs.NewFileDlg(self, b.path, def_name) as dlg:
-            if dlg.show_modal() == wx.ID_OK:
-                file_names = dlg.get_new_names()
-                for f in file_names:
-                    path = b.path.joinpath(f)
-                    b.shell_new_file(path)
-                    if dlg.cb_open.IsChecked():
-                        b.open_file(path)
-
     def rename(self):
         win = self.get_active_win()
         b = win.get_active_browser()
@@ -181,9 +209,53 @@ class MainFrame(wx.Frame):
             old_name = selected[0]
             with dialogs.RenameDlg(self, old_name) as dlg:
                 if dlg.show_modal() == wx.ID_OK:
-                    b.shell_rename(src=os.path.join(b.path, old_name),
-                                   dst=os.path.join(b.path, dlg.get_new_name()),
-                                   auto_rename=dlg.cb_rename.IsChecked())
+                    self.run_in_thread(target=b.shell_rename, args=(os.path.join(b.path, old_name),
+                                                                    os.path.join(b.path, dlg.get_new_names()[0]),
+                                                                    dlg.cb_rename.IsChecked()))
+
+    def view(self):
+        win = self.get_active_win()
+        b = win.get_active_browser()
+        folders, files = b.get_selected_files_folders()
+        b.shell_viewer(folders, files)
+
+    def copy(self):
+        win = self.get_active_win()
+        b = win.get_active_browser()
+        folders, files = b.get_selected_files_folders()
+        if folders or files:
+            opr_count = "Copy " + str(len(folders)) + " folder(s) and " + str(len(files)) + " file(s)"
+            src = "From: " + str(b.path) + " to"
+            inactive = self.get_inactive_win()
+            if not inactive:
+                raise Exception("Cannot determine inactive window")
+            else:
+                dst = str(inactive.get_active_browser().path)
+            with dialogs.CopyMoveDlg(self, title="Copy", opr_count=opr_count, src=src, dst=dst) as dlg:
+                if dlg.show_modal() == wx.ID_OK:
+                    self.run_in_thread(target=b.shell_copy,
+                                       args=(folders + files, dlg.get_dst(), dlg.cb_rename.IsChecked()))
+        else:
+            self.show_message("No items selected")
+
+    def move(self):
+        win = self.get_active_win()
+        b = win.get_active_browser()
+        folders, files = b.get_selected_files_folders()
+        if folders or files:
+            opr_count = "Move " + str(len(folders)) + " folder(s) and " + str(len(files)) + " file(s)"
+            src = "From: " + str(b.path) + " to"
+            inactive = self.get_inactive_win()
+            if not inactive:
+                raise Exception("Cannot determine inactive window")
+            else:
+                dst = str(inactive.get_active_browser().path)
+            with dialogs.CopyMoveDlg(self, title="Move", opr_count=opr_count, src=src, dst=dst) as dlg:
+                if dlg.show_modal() == wx.ID_OK:
+                    self.run_in_thread(target=b.shell_move,
+                                       args=(folders + files, dlg.get_dst(), dlg.cb_rename.IsChecked()))
+        else:
+            self.show_message("No items selected")
 
     def new_folder(self):
         win = self.get_active_win()
@@ -214,18 +286,49 @@ class MainFrame(wx.Frame):
                            ", ".join([f.name for f in files]) + "</b>"
             with dialogs.DeleteDlg(self, message) as dlg:
                 if dlg.show_modal() == wx.ID_OK:
-                    th = Thread(target=b.shell_delete, args=(folders + files, dlg.cb_perm.IsChecked()))
-                    th.start()
-                    #b.shell_delete(folders + files, dlg.cb_perm.IsChecked())
+                    self.run_in_thread(target=b.shell_delete, args=(folders + files, dlg.cb_perm.IsChecked()))
         else:
             self.show_message("No items selected")
 
-
-    def view(self):
+    def new_file(self):
         win = self.get_active_win()
         b = win.get_active_browser()
         folders, files = b.get_selected_files_folders()
-        b.shell_viewer(folders, files)
+        def_name = files[0].name if files else "new_file.txt"
+        with dialogs.NewFileDlg(self, b.path, def_name) as dlg:
+            if dlg.show_modal() == wx.ID_OK:
+                file_names = dlg.get_new_names()
+                for f in file_names:
+                    path = b.path.joinpath(f)
+                    b.shell_new_file(path)
+                    if dlg.cb_open.IsChecked():
+                        b.open_file(path)
+
+    def on_create_shortcut(self, e):
+        win = self.get_active_win()
+        b = win.get_active_browser()
+        folders, files = b.get_selected_files_folders()
+        if folders or files:
+            opr_count = "Create shortcut(s) for " + str(len(folders)) + " folder(s) and " + str(len(files)) + " file(s)"
+            src = "From: " + str(b.path) + " to"
+            inactive = self.get_inactive_win()
+            if not inactive:
+                raise Exception("Cannot determine inactive window")
+            else:
+                dst = str(inactive.get_active_browser().path)
+            with dialogs.CopyMoveDlg(self, title="Create shortcut(s)", opr_count=opr_count, src=src, dst=dst) as dlg:
+                if dlg.show_modal() == wx.ID_OK:
+                    for f in folders:
+                        b.shell_shortcut(path=dlg.get_dst(),
+                                         lnk_name=f.name + ".lnk",
+                                         target=os.path.join(b.path, f.name))
+                    for f in files:
+                        b.shell_shortcut(path=dlg.get_dst(),
+                                         lnk_name=f.name + ".lnk",
+                                         target=os.path.join(b.path, f.name))
+        else:
+            self.show_message("No items selected")
+
 
     def select_all(self):
         win = self.get_active_win()
@@ -236,6 +339,23 @@ class MainFrame(wx.Frame):
         win = self.get_active_win()
         b = win.get_active_browser()
         b.invert_selection()
+
+
+class CmdBtn(wx.Button):
+    def __init__(self, parent, id, label, size):
+        super().__init__(parent=parent, id=id, label=label, size=size)
+        self.frame = parent
+        self.Bind(wx.EVT_SET_FOCUS, self.on_focus)
+
+    def AcceptsFocus(self):
+        return False
+
+    def AcceptsFocusFromKeyboard(self):
+        return False
+
+    def on_focus(self, e):
+        self.frame.return_focus()
+        self.frame.menu_bar.exec_cmd_id(self.GetId())
 
 
 class DirCacheItem:

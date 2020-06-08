@@ -36,6 +36,9 @@ class DirLabel(wx.Panel):
         self.suffix = ""
         self.Refresh()
 
+    def is_active(self):
+        return self.browser_panel.browser.HasFocus()
+
     def AcceptsFocus(self):
         return False
 
@@ -145,6 +148,12 @@ class DirLabel(wx.Panel):
         # Text
         size = dc.GetTextExtent(self.dir_label)
         self.label_top = (self.GetSize().GetHeight() - size.GetHeight()) / 2
+        if self.is_active():
+            brush = wx.Brush(wx.SystemSettings.GetColour(wx.SYS_COLOUR_GRADIENTINACTIVECAPTION))
+            pen = wx.Pen(wx.SystemSettings.GetColour(wx.SYS_COLOUR_GRADIENTINACTIVECAPTION))
+            dc.SetBrush(brush)
+            dc.SetPen(pen)
+            dc.DrawRectangle(0, self.label_top, self.GetSize().GetWidth(), size.GetHeight()+1)
         start = 0
         if self.selected:
             if self.prefix:
