@@ -14,12 +14,12 @@ import dialogs
 import traceback
 from threading import Thread
 import wx.adv
+import sys
 
 
 class MainFrame(wx.Frame):
     def __init__(self):
         super().__init__(parent=None, title=cn.CN_APP_NAME, size=(600, 500), style=wx.DEFAULT_FRAME_STYLE)
-        # sys.excepthook = self.except_hook
         self.cmd_ids = {}
         self.menu_bar = menu.MainMenu(self)
         self.SetMenuBar(self.menu_bar)
@@ -39,8 +39,19 @@ class MainFrame(wx.Frame):
         self.sizer = None
 
         self.InitUI()
+        self.process_args()
 
         self.Bind(wx.EVT_CLOSE, self.on_close)
+
+    def process_args(self):
+        if len(sys.argv) > 1:
+            opts = [opt for opt in sys.argv[1:] if opt.startswith("-")]
+            args = [arg for arg in sys.argv[1:] if not arg.startswith("-")]
+            if "-w" in opts:
+                sys.excepthook = self.except_hook
+                self.show_message("Output redirected to UI")
+        else:
+            pass
 
     def run_in_thread(self, target, args):
         th = Thread(target=target, args=args)
@@ -390,7 +401,7 @@ class DirCache:
         if isinstance(dir_name, str):
             print("got str", dir_name)
         if dir_name not in self._dict.keys():
-            print("DATA READ", dir_name)
+            # print("DATA READ", dir_name)
             self._dict[dir_name] = DirCacheItem(frame=self.frame, dir_name=dir_name)
         pattern = conf.pattern if conf.use_pattern else "*"
         return sorted([d for d in self._dict[dir_name].dir_items if fnmatch.fnmatch(d[cn.CN_COL_NAME], pattern)],

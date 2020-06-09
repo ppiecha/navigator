@@ -74,7 +74,7 @@ class PathPanel(wx.Panel):
         return False
 
     def on_favorite(self, e):
-        p = subprocess.Popen(["python", cn.CN_VIEWER_APP], shell=False, cwd=cn.CN_VIEWER_APP.parent)
+        subprocess.Popen(["pythonw", str(cn.CN_VIEWER_APP)], shell=False, cwd=cn.CN_VIEWER_APP.parent)
 
         # out, _ = p.communicate("Navigator test".encode())
         # self.parent.browser.shell_copy("C:\\Temp\\Back lab", "c:\\Temp\\py\\temp2", auto_rename=True)

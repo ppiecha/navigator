@@ -95,6 +95,9 @@ class BrowserCtrl(aui.AuiNotebook):
             self.frame.change_win_focus()
         e.Skip()
 
+    def lock_tab(self, tab_index, tab_name=None):
+        pass
+
     def on_page_changed(self, e):
         self.get_active_browser().SetFocus()
         if self.is_left:
@@ -128,16 +131,23 @@ class BrowserPnl(wx.Panel):
 
 
 class MyFileDropTarget(wx.FileDropTarget):
-    def __init__(self, source, target_processor):
+    def __init__(self, win_id, target_processor):
         super().__init__()
-        self.source = source
+        self.win_id = win_id
         self.target_processor = target_processor
 
     def OnDropFiles(self, x, y, filenames):
-        if not filenames:
-            return False
-        self.target_processor(self.source, x, y, filenames)
-        return True
+        print("on drop files", filenames)
+        # if not filenames:
+        #     return False
+        self.target_processor(x, y, filenames)
+        return False
+
+
+class MyDropSource(wx.DropSource):
+    def __init__(self, win_id, data):
+        super().__init__(data=data)
+        self.win_id = win_id
 
 
 class Browser(wx.ListCtrl, ListCtrlAutoWidthMixin):
@@ -146,6 +156,7 @@ class Browser(wx.ListCtrl, ListCtrlAutoWidthMixin):
         ListCtrlAutoWidthMixin.__init__(self)
         self.setResizeColumn(0)
         self.parent = parent
+        self.win_id = wx.NewId()
         self.page_ctrl = self.parent.parent
         self.frame = frame
         self.path_pnl = None
@@ -161,8 +172,9 @@ class Browser(wx.ListCtrl, ListCtrlAutoWidthMixin):
         self.image_list = im_list
         self.SetImageList(self.image_list, wx.IMAGE_LIST_SMALL)
         self.columns = ["Name", "Date", "Size"]
-        self.drop_target = MyFileDropTarget(self, self.on_process_dropped_files)
-        self.SetDropTarget(self.drop_target)
+        self.drag_src = None
+        self.drag_tgt = MyFileDropTarget(self.win_id, self.on_process_dropped_files)
+        self.SetDropTarget(self.drag_tgt)
 
         self.init_ui(self.conf)
 
@@ -178,13 +190,13 @@ class Browser(wx.ListCtrl, ListCtrlAutoWidthMixin):
         self.Bind(wx.EVT_LIST_BEGIN_DRAG, self.on_start_drag)
         self.register_listener(topic=cn.CN_TOPIC_DIR_CHG)
 
-    def on_process_dropped_files(self, source, x, y, file_names):
-        if source == self:
-            print('the same')
+    def on_process_dropped_files(self, x, y, file_names):
+        src_id = self.drag_src.win_id if self.drag_src else -1
+        tgt_id = self.drag_tgt.win_id
+        if src_id != tgt_id:
+            print("different")
         else:
-            print("other")
-        for f in file_names:
-            print(f)
+            print("the same")
 
     def on_start_drag(self, e):
         selected = self.get_selected()
@@ -193,9 +205,14 @@ class Browser(wx.ListCtrl, ListCtrlAutoWidthMixin):
         files = wx.FileDataObject()
         for item in selected:
             files.AddFile(str(self.path.joinpath(item)))
-        drag_source = wx.DropSource(self)
-        drag_source.SetData(files)
-        result = drag_source.DoDragDrop(True)
+        self.drag_src = MyDropSource(self.win_id, files)
+        result = self.drag_src.DoDragDrop(wx.Drag_AllowMove)
+        if result == wx.DragCopy:
+            print("copy")
+        elif result == wx.DragMove:
+            print("Move")
+        else:
+            print(result)
 
     def on_browser_focus(self, e):
         os.chdir(str(self.path))
@@ -766,7 +783,7 @@ class Browser(wx.ListCtrl, ListCtrlAutoWidthMixin):
             return False
 
     def shell_viewer(self, folders, files):
-        args = ["python", cn.CN_VIEWER_APP, "-r"]
+        args = ["pythonw", str(cn.CN_VIEWER_APP), "-r"]
         if files:
             args.extend([str(f) for f in files])
             subprocess.Popen(args, shell=False, cwd=cn.CN_VIEWER_APP.parent)
@@ -802,7 +819,8 @@ class Browser(wx.ListCtrl, ListCtrlAutoWidthMixin):
                                 StartIn=str(start_in))
 
     def get_context_menu(self, path, file_names=[]):
-        file_names = [str(item) for item in file_names]
+        # pythoncom.OleInitialize()
+        # file_names = [str(item) for item in file_names]
         path = str(path)
         hwnd = win32gui.GetForegroundWindow()
         # Get an IShellFolder for the desktop.
@@ -815,17 +833,16 @@ class Browser(wx.ListCtrl, ListCtrlAutoWidthMixin):
         parentFolder = desktopFolder.BindToObject(parentPidl, None, shell.IID_IShellFolder)
         if file_names:
             # Get a pidl for the file itself.
-            print(path)
             pidls = []
+            print(path, file_names)
             for item in file_names:
                 eaten, pidl, attr = parentFolder.ParseDisplayName(hwnd, None, item)
                 pidls.append(pidl)
             # Get the IContextMenu for the file.
-            print(pidls)
             i, contextMenu = parentFolder.GetUIObjectOf(hwnd, pidls, shell.IID_IContextMenu, 0)
         else:
             i, contextMenu = desktopFolder.GetUIObjectOf(hwnd, [parentPidl], shell.IID_IContextMenu,
-                                                         1)  # <----- where i attempt to get menu for a drive.
+                                                         0)  # <----- where i attempt to get menu for a drive.
         contextMenu_plus = None
         if contextMenu:
             # try to obtain a higher level pointer, first 3 then 2
@@ -834,6 +851,7 @@ class Browser(wx.ListCtrl, ListCtrlAutoWidthMixin):
             except Exception:
                 try:
                     contextMenu_plus = contextMenu.QueryInterface(shell.IID_IContextMenu2, None)
+                    print("plus", contextMenu_plus)
                 except Exception:
                     pass
         else:
@@ -847,9 +865,9 @@ class Browser(wx.ListCtrl, ListCtrlAutoWidthMixin):
 
         hMenu = win32gui.CreatePopupMenu()
         MIN_SHELL_ID = 1
-        MAX_SHELL_ID = 30000
+        MAX_SHELL_ID = 30000  #  30000
 
-        contextMenu.QueryContextMenu(hMenu, 0, MIN_SHELL_ID, MAX_SHELL_ID, shellcon.CMF_EXPLORE) # |
+        contextMenu.QueryContextMenu(hMenu, 0, MIN_SHELL_ID, MAX_SHELL_ID, shellcon.CMF_EXPLORE)
                                      #  shellcon.CMF_CANRENAME)
         x, y = win32gui.GetCursorPos()
         flags = win32gui.TPM_LEFTALIGN | win32gui.TPM_RETURNCMD  # | win32gui.TPM_LEFTBUTTON | win32gui.TPM_RIGHTBUTTON
@@ -918,7 +936,8 @@ class ColumnMenu(wx.Menu):
 
 
 CN_DUPL = "Duplicate this tab"
-CN_LOCK = "Rename/Lock tab"
+CN_LOCK = "Lock tab"
+CN_LOCK_RENAME = "Rename/Lock tab"
 CN_CLOSE_OTHERS = "Close other tabs"
 CN_CLOSE = "Close tab"
 CN_SEP = "-"
@@ -944,6 +963,8 @@ class TabMenu(wx.Menu):
         if operation == CN_DUPL:
             self.nb.duplicate_tab(self.tab_index)
         elif operation == CN_LOCK:
+            pass
+        elif operation == CN_LOCK_RENAME:
             pass
         elif operation == CN_CLOSE_OTHERS:
             for index in range(self.nb.GetPageCount() - 1, -1, -1):
