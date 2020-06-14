@@ -18,7 +18,7 @@ import subprocess
 import pythoncom
 import os
 import winshell
-
+import dialogs
 
 CN_MAX_HIST_COUNT = 20
 
@@ -96,10 +96,17 @@ class BrowserCtrl(aui.AuiNotebook):
         e.Skip()
 
     def lock_tab(self, tab_index, tab_name=None):
-        pass
+        self.conf[tab_index].lock_tab(user_tab_name=tab_name)
+        self.SetPageText(tab_index, self.conf[tab_index].tab_name)
+
+    def unlock_tab(self, tab_index):
+        self.conf[tab_index].unlock_tab()
+        self.SetPageText(tab_index, self.conf[tab_index].tab_name)
 
     def on_page_changed(self, e):
-        self.get_active_browser().SetFocus()
+        b = self.get_active_browser()
+        b.open_dir(dir_name=self.conf[self.GetSelection()].last_path)
+        b.SetFocus()
         if self.is_left:
             self.frame.app_conf.left_active_tab = self.GetSelection()
         else:
@@ -131,17 +138,27 @@ class BrowserPnl(wx.Panel):
 
 
 class MyFileDropTarget(wx.FileDropTarget):
-    def __init__(self, win_id, target_processor):
+    def __init__(self, object, target_processor):
         super().__init__()
-        self.win_id = win_id
+        self.object = object
         self.target_processor = target_processor
 
     def OnDropFiles(self, x, y, filenames):
-        print("on drop files", filenames)
-        # if not filenames:
-        #     return False
-        self.target_processor(x, y, filenames)
-        return False
+        return self.target_processor(x, y, filenames)
+
+    def OnDragOver(self, x, y, defResult):
+        src_id = self.object.drag_src.win_id if self.object.drag_src else -1
+        tgt_id = self.object.drag_tgt.object.win_id
+        item, flags = self.object.HitTest((x, y))
+        if src_id == tgt_id:
+            if item < 0:
+                return wx.DragNone
+            else:
+                path = self.object.path.joinpath(self.object.GetItemText(item))
+                print(path)
+                return wx.DragCopy if path.is_dir() else wx.DragNone
+        else:
+            return wx.DragCopy
 
 
 class MyDropSource(wx.DropSource):
@@ -152,11 +169,11 @@ class MyDropSource(wx.DropSource):
 
 class Browser(wx.ListCtrl, ListCtrlAutoWidthMixin):
     def __init__(self, parent, frame, im_list, conf):
-        super().__init__(parent=parent, style=wx.LC_REPORT | wx.LC_VIRTUAL)
+        self.win_id = wx.NewId()
+        super().__init__(parent=parent, style=wx.LC_REPORT | wx.LC_VIRTUAL, id=self.win_id)
         ListCtrlAutoWidthMixin.__init__(self)
         self.setResizeColumn(0)
         self.parent = parent
-        self.win_id = wx.NewId()
         self.page_ctrl = self.parent.parent
         self.frame = frame
         self.path_pnl = None
@@ -173,7 +190,7 @@ class Browser(wx.ListCtrl, ListCtrlAutoWidthMixin):
         self.SetImageList(self.image_list, wx.IMAGE_LIST_SMALL)
         self.columns = ["Name", "Date", "Size"]
         self.drag_src = None
-        self.drag_tgt = MyFileDropTarget(self.win_id, self.on_process_dropped_files)
+        self.drag_tgt = MyFileDropTarget(self, self.on_process_dropped_files)
         self.SetDropTarget(self.drag_tgt)
 
         self.init_ui(self.conf)
@@ -187,16 +204,22 @@ class Browser(wx.ListCtrl, ListCtrlAutoWidthMixin):
         self.Bind(wx.EVT_LIST_KEY_DOWN, self.on_key_down)
         self.Bind(wx.EVT_SET_FOCUS, self.on_browser_focus)
         # self.Bind(wx.EVT_KILL_FOCUS, self.on_kill_focus)
-        self.Bind(wx.EVT_LIST_BEGIN_DRAG, self.on_start_drag)
+        self.Bind(wx.EVT_LIST_BEGIN_DRAG, self.on_start_drag, id=self.win_id)
         self.register_listener(topic=cn.CN_TOPIC_DIR_CHG)
 
     def on_process_dropped_files(self, x, y, file_names):
         src_id = self.drag_src.win_id if self.drag_src else -1
-        tgt_id = self.drag_tgt.win_id
-        if src_id != tgt_id:
-            print("different")
+        tgt_id = self.drag_tgt.object.win_id
+        same_win = src_id == tgt_id
+        if same_win:
+            return True
         else:
-            print("the same")
+            if src_id < 0:
+                self.SetFocus()
+            folders = [f for f in file_names if Path(f).exists() and Path(f).is_dir()]
+            files = [f for f in file_names if Path(f).exists() and Path(f).is_file()]
+            self.frame.copy(folders, files, str(self.path))
+            return True
 
     def on_start_drag(self, e):
         selected = self.get_selected()
@@ -206,13 +229,8 @@ class Browser(wx.ListCtrl, ListCtrlAutoWidthMixin):
         for item in selected:
             files.AddFile(str(self.path.joinpath(item)))
         self.drag_src = MyDropSource(self.win_id, files)
-        result = self.drag_src.DoDragDrop(wx.Drag_AllowMove)
-        if result == wx.DragCopy:
-            print("copy")
-        elif result == wx.DragMove:
-            print("Move")
-        else:
-            print(result)
+        result = self.drag_src.DoDragDrop()
+        self.drag_src = None
 
     def on_browser_focus(self, e):
         os.chdir(str(self.path))
@@ -246,8 +264,6 @@ class Browser(wx.ListCtrl, ListCtrlAutoWidthMixin):
         index = self.FindItem(-1, item_name)
         if index >= 0:
             self.DeleteItem(index)
-        else:
-            raise Exception("Cannot find item: "+item_name)
 
     def get_tab_index(self):
         return self.page_ctrl.GetPageIndex(self.parent)
@@ -421,10 +437,11 @@ class Browser(wx.ListCtrl, ListCtrlAutoWidthMixin):
             pass
         else:
             if self.GetFirstSelected() < 0:
-                self.get_context_menu(str(self.path), [])
+                self.get_context_menu2(str(self.path), [])
             else:
                 items = self.get_selected()
-                self.get_context_menu(self.path, items)
+                # items = [str(self.path.joinpath(item)) for item in self.get_selected()]
+                self.get_context_menu2(self.path, items)
 
     def set_references(self, path_pnl, filter_pnl):
         self.path_pnl = path_pnl
@@ -450,8 +467,7 @@ class Browser(wx.ListCtrl, ListCtrlAutoWidthMixin):
         self.path_pnl.drive_combo.SetValue(value.anchor)
         os.chdir(str(value))
         self.conf.last_path = value
-        tab_name = self.conf.tab_name
-        wx.CallAfter(self.set_tab_name, tab_name)
+        wx.CallAfter(self.set_tab_name, self.conf.tab_name)
         wx.CallAfter(self.path_pnl.set_value, str(value))
         self.add_hist_item(str(value))
         self.root = value.samefile(value.anchor)
@@ -895,6 +911,57 @@ class Browser(wx.ListCtrl, ListCtrlAutoWidthMixin):
             #     e = win32api.GetLastError()
             #     wx.LogError(win32api.FormatMessage(e))
 
+    def get_context_menu2(self, path, file_names=[]):
+        print(path, file_names)
+        path = r'C:\temp'
+        file_name = r'temp.txt'
+        desktop_folder = shell.SHGetDesktopFolder()
+        if not desktop_folder:
+            raise Exception("Cannot get desktop folder")
+        hwnd = win32gui.GetForegroundWindow()
+        if not hwnd:
+            raise Exception("Cannot get window handler")
+        eaten, parent_pidl, attr = desktop_folder.ParseDisplayName(hwnd, None, path)
+        if not parent_pidl:
+            raise Exception("Cannot get parent pidl")
+        parent_folder = desktop_folder.BindToObject(parent_pidl, None, shell.IID_IShellFolder)
+        if not parent_folder:
+            raise Exception("Cannot get parent folder")
+        # if file_names:
+        #     pidls = []
+        #     for item in file_names:
+        #         print(str(item))
+        eaten, pidl, attr = parent_folder.ParseDisplayName(hwnd, None, file_name+"\0")
+                # print(pidl)
+                # if not pidl:
+                #     raise Exception("Cannot get file pidl")
+                # pidls.append(pidl)
+        i, context_menu = parent_folder.GetUIObjectOf(hwnd, [pidl], shell.IID_IContextMenu, 0)
+        context_menu = context_menu.QueryInterface(shell.IID_IContextMenu, None)
+        # else:
+        #     i, context_menu = desktop_folder.GetUIObjectOf(hwnd, [parent_pidl], shell.IID_IContextMenu, 0)
+        if not context_menu:
+            raise Exception("Cannot get context menu")
+        menu = win32gui.CreatePopupMenu()
+        if not menu:
+            raise Exception("Cannot get menu")
+        context_menu.QueryContextMenu(menu, 0, 1, 30000, shellcon.CMF_EXPLORE)
+        x, y = win32gui.GetCursorPos()
+        flags = win32gui.TPM_LEFTALIGN | win32gui.TPM_RETURNCMD
+        cmd = win32gui.TrackPopupMenu(menu, flags, x, y, 0, hwnd, None)
+        if cmd:
+            ci = (0,  # Mask
+                  hwnd,  # hwnd
+                  cmd - 1,  # Verb
+                  "",  # Parameters
+                  "",  # Directory
+                  win32con.SW_SHOWNORMAL,  # Show
+                  0,  # HotKey
+                  None  # Icon
+                  )
+            context_menu.InvokeCommand(ci)
+
+
 class ColumnMenu(wx.Menu):
     def __init__(self, browser, column):
         super().__init__()
@@ -949,13 +1016,19 @@ class TabMenu(wx.Menu):
         self.frame = frame
         self.nb = nb
         self.tab_index = tab_index
-        self.menu_items = [(CN_DUPL, wx.ITEM_NORMAL), (CN_LOCK, wx.ITEM_NORMAL), (CN_CLOSE_OTHERS, wx.ITEM_NORMAL),
-                           ("-", wx.ITEM_SEPARATOR), (CN_CLOSE, wx.ITEM_NORMAL)]
+        self.menu_items = [(CN_DUPL, wx.ITEM_NORMAL), (CN_LOCK, wx.ITEM_CHECK), (CN_LOCK_RENAME, wx.ITEM_NORMAL),
+                           (CN_CLOSE_OTHERS, wx.ITEM_NORMAL), ("-", wx.ITEM_SEPARATOR), (CN_CLOSE, wx.ITEM_NORMAL)]
         self.menu_items_id = {}
         for item in self.menu_items:
             self.menu_items_id[wx.NewId()] = item
         for id in self.menu_items_id.keys():
-            self.Append(id, item=self.menu_items_id[id][0], kind=self.menu_items_id[id][1])
+            item = self.Append(id, item=self.menu_items_id[id][0], kind=self.menu_items_id[id][1])
+            if item.GetItemLabelText() == CN_LOCK and self.nb.conf[self.tab_index].locked:
+                item.Check(True)
+                if item.IsChecked():
+                    print("checked")
+                else:
+                    print("not checked")
             self.Bind(wx.EVT_MENU, self.on_click, id=id)
 
     def on_click(self, event):
@@ -963,9 +1036,17 @@ class TabMenu(wx.Menu):
         if operation == CN_DUPL:
             self.nb.duplicate_tab(self.tab_index)
         elif operation == CN_LOCK:
-            pass
+            if event.IsChecked():
+                self.nb.lock_tab(tab_index=self.tab_index, tab_name=None)
+            else:
+                self.nb.unlock_tab(tab_index=self.tab_index)
         elif operation == CN_LOCK_RENAME:
-            pass
+            tab_name=self.nb.conf[self.tab_index].tab_name
+            tab_name = tab_name[1:] if tab_name.startswith("*") else tab_name
+            with dialogs.LockTabDlg(frame=self.frame,
+                                    edit_text=tab_name) as dlg:
+                if dlg.show_modal() == wx.ID_OK:
+                    self.nb.lock_tab(tab_index=self.tab_index, tab_name=dlg.get_new_names()[0])
         elif operation == CN_CLOSE_OTHERS:
             for index in range(self.nb.GetPageCount() - 1, -1, -1):
                 if index != self.tab_index:

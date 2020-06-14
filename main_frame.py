@@ -28,14 +28,14 @@ class MainFrame(wx.Frame):
         self.dir_cache = DirCache(self)
         self.SetIcon(wx.Icon(cn.CN_ICON_FILE_NAME))
         self.im_list = wx.ImageList(16, 16)
-        self.img_folder = None
-        self.img_file = None
-        self.img_go_up = None
-        self.img_arrow_up = None
-        self.img_arrow_down = None
-        self.splitter = None
-        self.left_browser = None
-        self.right_browser = None
+        # self.img_folder = None
+        # self.img_file = None
+        # self.img_go_up = None
+        # self.img_arrow_up = None
+        # self.img_arrow_down = None
+        # self.splitter = None
+        # self.left_browser = None
+        # self.right_browser = None
         self.sizer = None
 
         self.InitUI()
@@ -117,6 +117,11 @@ class MainFrame(wx.Frame):
         self.img_go_up = self.im_list.Add(wx.Bitmap(cn.CN_IM_GO_UP, wx.BITMAP_TYPE_PNG))
         self.img_arrow_up = self.im_list.Add(wx.Bitmap(cn.CN_IM_ARROW_UP, wx.BITMAP_TYPE_PNG))
         self.img_arrow_down = self.im_list.Add(wx.Bitmap(cn.CN_IM_ARROW_DOWN, wx.BITMAP_TYPE_PNG))
+        self.img_hard_disk = self.im_list.Add(wx.Bitmap(cn.CN_IM_HARD_DISK, wx.BITMAP_TYPE_PNG))
+        self.img_add = self.im_list.Add(wx.Bitmap(cn.CN_IM_ADD, wx.BITMAP_TYPE_PNG))
+        self.img_tools = self.im_list.Add(wx.Bitmap(cn.CN_IM_TOOLS, wx.BITMAP_TYPE_PNG))
+        self.img_home = self.im_list.Add(wx.Bitmap(cn.CN_IM_HOME, wx.BITMAP_TYPE_PNG))
+        self.img_anchor = self.im_list.Add(wx.Bitmap(cn.CN_IM_ANCHOR, wx.BITMAP_TYPE_PNG))
 
         self.splitter = wx.SplitterWindow(self, cn.ID_SPLITTER, style=wx.SP_BORDER)
         self.splitter.SetMinimumPaneSize(10)
@@ -164,9 +169,6 @@ class MainFrame(wx.Frame):
         self.left_browser.get_active_browser().SetFocus()
         self.Thaw()
 
-    # def on_btn(self, e):
-    #     print("btn")
-
     def on_size(self, e):
         size = self.GetSize()
         self.splitter.SetSashPosition(size.x / 2)
@@ -188,12 +190,6 @@ class MainFrame(wx.Frame):
         # dlg = dialogs.messageDialog(parent=self, message=text, title=cn.CN_APP_NAME)
         # dlg = dialogs.findDialog(parent=self, searchText='text to find', wholeWordsOnly=0, caseSensitive=0)
         dlg.ShowModal()
-
-    def show_info(self, message):
-        if self.task_icon.IsAvailable() and self.task_icon.IsIconInstalled() and self.task_icon.IsOk():
-            self.task_icon.ShowBalloon(title=cn.CN_APP_NAME, text=message, msec=2000, flags=wx.ICON_INFORMATION)
-        else:
-            print("problem")
 
     def get_question_feedback(self, question, caption=cn.CN_APP_NAME):
         dlg = wx.MessageDialog(self, question, style=wx.YES_NO | wx.CANCEL | wx.ICON_INFORMATION,
@@ -230,18 +226,26 @@ class MainFrame(wx.Frame):
         folders, files = b.get_selected_files_folders()
         b.shell_viewer(folders, files)
 
-    def copy(self):
+    def copy(self, folders=None, files=None, dst_path=""):
         win = self.get_active_win()
         b = win.get_active_browser()
-        folders, files = b.get_selected_files_folders()
-        if folders or files:
-            opr_count = "Copy " + str(len(folders)) + " folder(s) and " + str(len(files)) + " file(s)"
-            src = "From: " + str(b.path) + " to"
+        if folders is not None or files is not None:
+            if folders:
+                path = str(Path(folders[0]).parent)
+            else:
+                path = str(Path(files[0]).parent)
+            dst = dst_path
+        else:
+            path = b.path
+            folders, files = b.get_selected_files_folders()
             inactive = self.get_inactive_win()
             if not inactive:
                 raise Exception("Cannot determine inactive window")
             else:
                 dst = str(inactive.get_active_browser().path)
+        if folders or files:
+            opr_count = "Copy " + str(len(folders)) + " folder(s) and " + str(len(files)) + " file(s)"
+            src = "From: " + str(path) + " to"
             with dialogs.CopyMoveDlg(self, title="Copy", opr_count=opr_count, src=src, dst=dst) as dlg:
                 if dlg.show_modal() == wx.ID_OK:
                     self.run_in_thread(target=b.shell_copy,
@@ -340,6 +344,9 @@ class MainFrame(wx.Frame):
         else:
             self.show_message("No items selected")
 
+
+    def on_copy2same(self, e):
+        self.show_message("Copy to the same folder not implemented")
 
     def select_all(self):
         win = self.get_active_win()

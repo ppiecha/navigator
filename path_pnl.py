@@ -5,6 +5,7 @@ from pathlib import Path
 import util
 import dir_label
 import subprocess
+import dialogs
 
 
 class PathPanel(wx.Panel):
@@ -13,18 +14,20 @@ class PathPanel(wx.Panel):
         self.parent = parent
         self.frame = frame
         self._read_only = True
-        self.drive_combo = DriveCombo(self, self.frame)
+        # self.drive_combo = DriveCombo(self, self.frame)
+        # self.drive_combo = DrivePopup(self, size=(50, 23))
+        self.drive_combo = self.get_drive_combo()
         self.path_lbl = dir_label.DirLabel(self, self.frame)
         self.path_edit = PathEdit(self, self.frame)
-        self.edit_btn = PathBtn(self, frame, cn.CN_IM_OK)
+        self.edit_btn = util.PathBtn(self, frame, cn.CN_IM_OK)
         self.path_edit.Show(False)
         self.edit_btn.Show(False)
         self.edit_sizer = wx.BoxSizer(wx.HORIZONTAL)
         self.edit_sizer.Add(self.path_edit, flag=wx.EXPAND, proportion=1)
         self.edit_sizer.Add(self.edit_btn)
         self.sep = wx.Panel(self)
-        self.fav_btn = PathBtn(self, frame, cn.CN_IM_FAV)
-        self.hist_btn = PathBtn(self, frame, cn.CN_IM_HIST)
+        self.fav_btn = util.PathBtn(self, frame, cn.CN_IM_FAV)
+        self.hist_btn = util.PathBtn(self, frame, cn.CN_IM_HIST)
         self.hist_menu = HistMenu()
         self.sizer_h = wx.BoxSizer(wx.HORIZONTAL)
         self.sizer_v = wx.BoxSizer(wx.VERTICAL)
@@ -42,6 +45,20 @@ class PathPanel(wx.Panel):
         self.edit_btn.Bind(wx.EVT_BUTTON, self.on_ok)
 
         wx.CallAfter(self.set_read_only, True)
+
+    def get_drive_combo(self):
+        drive_combo = wx.ComboCtrl(self, id=wx.ID_ANY, value="", size=(46, 23), style=wx.CB_READONLY)
+        popup_ctrl = ListCtrlComboPopup(path_pnl=self)
+
+        drive_combo.Bind(wx.EVT_COMBOBOX_CLOSEUP, self.on_close_combo)
+
+        # It is important to call SetPopupControl() as soon as possible
+        drive_combo.SetPopupControl(popup_ctrl)
+
+        return drive_combo
+
+    def on_close_combo(self, e):
+        self.frame.return_focus()
 
     def on_ok(self, e):
         resp = self.path_edit.exec_path()
@@ -243,37 +260,156 @@ class HistMenu(wx.Menu):
         operation = self.sorted_items_id[event.GetId()]
         self.browser.open_dir(operation)
 
+CN_CONFIGURE = "Configure..."
 
-class DriveCombo(wx.ComboBox):
-    def __init__(self, parent, frame):
-        super().__init__(parent=parent, choices=util.get_drives(), style=wx.CB_READONLY | wx.CB_SORT, size=(40, 23))
-        self.parent = parent
-        self.frame = frame
-        self.SetForegroundColour(parent.GetForegroundColour())
+class ListCtrlComboPopup(wx.ComboPopup):
+    def __init__(self, path_pnl):
+        super().__init__()
+        self.path_pnl = path_pnl
+        self.frame = path_pnl.frame
+        self.lc = None
+        self.lc_drives = None
+        self.lc_cols = None
+        self.item = -1
 
-        self.Bind(wx.EVT_COMBOBOX, self.on_select)
-        # self.Bind(wx.EVT_SET_FOCUS, self.on_focus)
+    def OnMotion(self, evt):
+        item, flags = self.lc.HitTest(evt.GetPosition())
+        if item >= 0:
+            self.lc.Select(item)
+            self.item = item
+        else:
+            self.item = -1
+            self.clear_selection()
 
-    def on_focus(self, e):
-        self.frame.return_focus()
+    def clear_selection(self):
+        for idx in range(self.lc.GetItemCount()):
+            self.lc.Select(idx, 0)
+        self.item = -1
+
+    def OnLeftDown(self, evt):
+        if self.item > -1:
+            if self.lc.GetItemText(self.item) == CN_CONFIGURE:
+                self.Dismiss()
+                with dialogs.OptionsDlg(frame=self.frame, title="Options") as dlg:
+                    if dlg.ShowModal() == wx.ID_OK:
+                        pass
+            else:
+                self.Dismiss()
+                self.path_pnl.path_lbl.open_dir(dir=self.get_sel_path(self.item))
+
+    # The following methods are those that are overridable from the
+    # ComboPopup base class.  Most of them are not required, but all
+    # are shown here for demonstration purposes.
+
+    # This is called immediately after construction finishes.  You can
+    # use self.GetCombo if needed to get to the ComboCtrl instance.
+    def Init(self):
+        self.item = -1
+        self.lc_drives = util.get_drives()
+        self.lc_cols = ["Path", "Name", "Type", "Full Path"]
+
+    # Create the popup child control.  Return true for success.
+    def Create(self, parent):
+        self.lc = wx.ListCtrl(parent, style=wx.LC_REPORT | wx.LC_SINGLE_SEL | wx.LC_NO_HEADER)
+        self.lc.SetBackgroundColour(wx.SystemSettings.GetColour(wx.SYS_COLOUR_GRADIENTINACTIVECAPTION))
+        for index, name in enumerate(self.lc_cols):
+            self.lc.InsertColumn(index, name)
+        self.lc.SetImageList(self.frame.im_list, wx.IMAGE_LIST_SMALL)
+        # self.lc.EnableAlternateRowColours(True)
+        # self.lc.SetAlternateRowColour(wx.SystemSettings.GetColour(wx.SYS_COLOUR_GRADIENTACTIVECAPTION))
+        self.prepare_list()
+        self.lc.Bind(wx.EVT_MOTION, self.OnMotion)
+        self.lc.Bind(wx.EVT_LEFT_DOWN, self.OnLeftDown)
+        return True
+
+    def prepare_list(self):
+        self.lc.DeleteAllItems()
+        for drive in self.lc_drives.keys():
+            idx = self.lc.Append(self.lc_drives[drive])
+            if self.lc_drives[drive][0] == "Desktop":
+                self.lc.SetItemImage(idx, self.frame.img_anchor)
+            elif self.lc_drives[drive][0] == "Home":
+                self.lc.SetItemImage(idx, self.frame.img_home)
+            else:
+                self.lc.SetItemImage(idx, self.frame.img_hard_disk)
+
+        idx = self.lc.Append([CN_CONFIGURE, "", "", ""])
+        self.lc.SetItemImage(idx, self.frame.img_tools)
+
+        for index, name in enumerate(self.lc_cols):
+            if index < 2:
+                self.lc.SetColumnWidth(index, wx.LIST_AUTOSIZE)
+            self.lc.SetColumnWidth(3, 0)
+            self.lc.SetColumnWidth(2,
+                                   self.lc.GetSize().GetWidth() -
+                                   self.lc.GetColumnWidth(0) -
+                                   self.lc.GetColumnWidth(1))
+
+    # Return the widget that is to be used for the popup
+    def GetControl(self):
+        return self.lc
+
+    # Called just prior to displaying the popup, you can use it to
+    # 'select' the current item.
+    def SetStringValue(self, val):
+        idx = self.lc.FindItem(-1, val)
+        if idx != wx.NOT_FOUND:
+            self.lc.Select(idx)
+
+    # Return a string representation of the current item.
+    def GetStringValue(self):
+        if self.item >= 0 and self.lc.GetItemText(self.item) != CN_CONFIGURE:
+            return Path(self.get_sel_path(self.item)).anchor
+        else:
+            return self.GetComboCtrl().GetValue()
+
+    def get_sel_path(self, index):
+        return self.lc.GetItemText(index, 3)
+
+    # Called immediately after the popup is shown
+    def OnPopup(self):
+        self.prepare_list()
+        wx.ComboPopup.OnPopup(self)
+
+    # Called when popup is dismissed
+    def OnDismiss(self):
+        wx.ComboPopup.OnDismiss(self)
+
+    # This is called to custom paint in the combo control itself
+    # (ie. not the popup).  Default implementation draws value as
+    # string.
+    def PaintComboControl(self, dc, rect):
+        wx.ComboPopup.PaintComboControl(self, dc, rect)
+
+    # Receives key events from the parent ComboCtrl.  Events not
+    # handled should be skipped, as usual.
+    def OnComboKeyEvent(self, event):
+        wx.ComboPopup.OnComboKeyEvent(self, event)
+
+    # Implement if you need to support special action when user
+    # double-clicks on the parent wxComboCtrl.
+    def OnComboDoubleClick(self):
+        wx.ComboPopup.OnComboDoubleClick(self)
+
+    # Return final size of popup. Called on every popup, just prior to OnPopup.
+    # minWidth = preferred minimum width for window
+    # prefHeight = preferred height. Only applies if > 0,
+    # maxHeight = max height for window, as limited by screen size
+    #   and should only be rounded down, if necessary.
+    def GetAdjustedSize(self, minWidth, prefHeight, maxHeight):
+        # return wx.ComboPopup.GetAdjustedSize(self, minWidth, prefHeight, maxHeight)
+        return self.lc.GetMinSize()
+
+    # Return true if you want delay the call to Create until the popup
+    # is shown for the first time. It is more efficient, but note that
+    # it is often more convenient to have the control created
+    # immediately.
+    # Default returns false.
+    def LazyCreate(self):
+        return wx.ComboPopup.LazyCreate(self)
 
     def AcceptsFocus(self):
         return False
 
-    def on_select(self, event):
-        self.parent.path_lbl.open_dir(event.GetString())
-
-
-class PathBtn(wx.BitmapButton):
-    def __init__(self, parent, frame, image):
-        super().__init__(parent=parent, bitmap=wx.Bitmap(image, wx.BITMAP_TYPE_PNG), size=(23, 23))
-        self.Bind(wx.EVT_SET_FOCUS, self.on_focus)
-        self.frame = frame
-
-    def on_focus(self, e):
-        self.frame.return_focus()
-
-    def AcceptsFocus(self):
-        return False
 
 

@@ -1,13 +1,15 @@
 import wx
 import constants as cn
-from pathlib import Path
+import browser
 import os
 import wx.html as html
+import wx.propgrid as pg
+import util
 
 
 class BasicDlg(wx.Dialog):
-    def __init__(self, frame, title):
-        super().__init__(parent=frame, title=title)
+    def __init__(self, frame, title, size=None):
+        super().__init__(parent=frame, title=title, size=size if size else wx.DefaultSize)
 
         self.SetAcceleratorTable(wx.AcceleratorTable([wx.AcceleratorEntry(flags=wx.ACCEL_NORMAL,
                                                                           keyCode=wx.WXK_ESCAPE,
@@ -28,13 +30,12 @@ class BasicDlg(wx.Dialog):
         self.dlg_sizer.Add(self.btn_ok, flag=wx.LEFT, border=5)
         self.dlg_sizer.Add(self.btn_cancel, flag=wx.LEFT, border=5)
 
-        self.main_sizer.Add(self.ctrl_sizer, flag=wx.ALL | wx.EXPAND, border=10)
+        self.main_sizer.Add(self.ctrl_sizer, flag=wx.ALL | wx.EXPAND, border=10, proportion=1)
         self.main_sizer.Add(wx.StaticLine(self), flag=wx.LEFT | wx.RIGHT | wx.EXPAND, border=10)
         self.main_sizer.Add(self.dlg_sizer, flag=wx.ALL | wx.EXPAND, border=10)
 
         self.SetSizer(self.main_sizer)
 
-        # self.btn_cancel.Bind(wx.EVT_BUTTON, self.on_cancel, id=wx.ID_CANCEL)
 
     def on_cancel(self, e):
         self.EndModal(wx.ID_CANCEL)
@@ -42,8 +43,76 @@ class BasicDlg(wx.Dialog):
 
     def show_modal(self):
         self.main_sizer.Fit(self)
+        self.SetSize(self.GetEffectiveMinSize())
         self.CenterOnParent()
         return self.ShowModal()
+
+
+CN_CUSTOM_PATHS = "Custom paths"
+
+
+class PathEditor(pg.PropertyGrid):
+    def __init__(self, parent, main_frame, frame):
+        super().__init__(parent=parent, style=pg.PGMAN_DEFAULT_STYLE)
+        self.parent = parent
+        self.frame = frame
+        self.main_frame = main_frame
+        self.Append(pg.PropertyCategory(label=CN_CUSTOM_PATHS))
+
+    def load_cust_paths(self):
+        for name, path in self.main_frame.app_conf.custom_paths:
+            self.Append(pg.DirProperty(label=name, value=path))
+
+    def save_cust_paths(self):
+        pass
+
+
+
+class PathTab(wx.Panel):
+    def __init__(self, parent, main_frame, frame):
+        super().__init__(parent=parent)
+        self.frame = frame
+        self.main_frame = frame
+
+        # Sizers
+        btn_sizer = wx.BoxSizer(wx.HORIZONTAL)
+        main_sizer = wx.BoxSizer(wx.VERTICAL)
+
+        btn_add = util.PathBtn(self, frame, cn.CN_IM_ADD)
+        btn_edit = util.PathBtn(self, frame, cn.CN_IM_EDIT)
+        btn_remove = util.PathBtn(self, frame, cn.CN_IM_REMOVE)
+
+        btn_sizer.AddMany([btn_add, btn_edit, btn_remove])
+
+        self.path_edt = PathEditor(self, main_frame, frame)
+
+        main_sizer.Add(btn_sizer)
+        main_sizer.Add(self.path_edt, flag=wx.EXPAND, proportion=1)
+
+        self.SetSizerAndFit(main_sizer)
+
+        btn_add.Bind(wx.EVT_BUTTON, self.add_path)
+
+    def add_path(self, e):
+        with TextEditDlg(frame=self.frame, title="New custom path", label="Enter new path name", edit_text="") as dlg:
+            if dlg.show_modal() == wx.ID_OK:
+                for item in dlg.get_new_names():
+                    item = self.path_edt.Append(pg.DirProperty(label=item, value=""))
+                    (res, value) = item.DisplayEditorDialog(self.path_edt, item.GetValue())
+                    if res:
+                        item.SetValue(value)
+
+
+class OptionsDlg(BasicDlg):
+    def __init__(self, frame, title):
+        super().__init__(frame=frame, title=title, size=(500, 300))
+        self.opt_book = wx.Listbook(self)
+        path_tab = PathTab(parent=self.opt_book, main_frame = frame, frame=self)
+        self.opt_book.AddPage(page=path_tab, text=CN_CUSTOM_PATHS, select=True)
+
+        self.opt_book.GetListView().SetColumnWidth(0, wx.LIST_AUTOSIZE)
+
+        self.ctrl_sizer.Add(self.opt_book, flag=wx.ALL | wx.EXPAND, border=5, proportion=1)
 
 
 class HTMLDlg(BasicDlg):
@@ -73,10 +142,10 @@ class DeleteDlg(HTMLDlg):
 
 
 class TextEditDlg(BasicDlg):
-    def __init__(self, frame, title):
+    def __init__(self, frame, title, label="", edit_text=""):
         super().__init__(frame=frame, title=title)
-        self.lbl_text = wx.StaticText(self)
-        self.ed_new_name = wx.TextCtrl(parent=self, size=(400, 23))
+        self.lbl_text = wx.StaticText(self, label=label)
+        self.ed_new_name = wx.TextCtrl(parent=self, size=(400, 23), value=edit_text)
         self.ctrl_sizer.Add(self.lbl_text)
         self.ctrl_sizer.Add(self.ed_new_name, flag=wx.TOP, border=5)
 
@@ -101,6 +170,7 @@ class TextEditDlg(BasicDlg):
 
     def show_modal(self):
         self.main_sizer.Fit(self)
+        self.SetSize(self.GetEffectiveMinSize())
         self.CenterOnParent()
         self.ed_new_name.SetFocus()
         self.ed_new_name.SelectAll()
@@ -135,6 +205,14 @@ class NewFolderDlg(NewItemDlg):
     def __init__(self, frame, browser_path, def_name):
         super().__init__(frame=frame, title="Create new folder", browser_path=browser_path, def_name=def_name)
         self.lbl_text.SetLabelText("Enter new folder name")
+
+
+class LockTabDlg(TextEditDlg):
+    def __init__(self, frame, edit_text=None):
+        super().__init__(frame=frame,
+                         title=browser.CN_LOCK_RENAME,
+                         label="Enter new name for the tab",
+                         edit_text=edit_text)
 
 
 class NewFileDlg(NewItemDlg):

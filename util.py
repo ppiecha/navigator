@@ -5,11 +5,36 @@ import wx
 import stat
 import os
 import win32api
+import win32file
+from pathlib import Path
 
 
 def get_drives():
-    drives = win32api.GetLogicalDriveStrings()
-    return drives.split('\000')[:-1]
+
+    drive_types = {
+        0: "Unknown",
+        1: "No Root Directory",
+        2: "Removable Disk",
+        3: "Local Disk",
+        4: "Network Drive",
+        5: "Compact Disc",
+        6: "RAM Disk"
+    }
+
+    drives = (drive for drive in win32api.GetLogicalDriveStrings().split("\000") if drive)
+    drive_dict = {}
+    for drive in drives:
+        try:
+            info = win32api.GetVolumeInformation(drive)
+        except:
+            info = [""]
+        # print(drive, "=>", drive_types[win32file.GetDriveType(drive)])
+        drive_dict[drive] = [drive, info[0], drive_types[win32file.GetDriveType(drive)], drive]
+    desk_path = shell.SHGetFolderPath(0, shellcon.CSIDL_DESKTOP, None, 0)
+    home_path = Path.home()
+    drive_dict[desk_path] = ["Desktop", "", desk_path, desk_path]
+    drive_dict[home_path] = ["Home", "", home_path, home_path]
+    return drive_dict
 
 
 def format_date(timestamp, format="%Y-%m-%d %H:%M"):
@@ -68,3 +93,17 @@ def extension_to_bitmap(extension):
     bmp = wx.Bitmap()
     bmp.CopyFromIcon(icon)
     return bmp
+
+
+class PathBtn(wx.BitmapButton):
+    def __init__(self, parent, frame, image):
+        super().__init__(parent=parent, bitmap=wx.Bitmap(image, wx.BITMAP_TYPE_PNG), size=(23, 23))
+        self.Bind(wx.EVT_SET_FOCUS, self.on_focus)
+        self.frame = frame
+
+    def on_focus(self, e):
+        if hasattr(self.frame, 'return_focus'):
+            self.frame.return_focus()
+
+    def AcceptsFocus(self):
+        return False

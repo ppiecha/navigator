@@ -73,6 +73,7 @@ class MainMenu(wx.MenuBar):
         self.frame.SetAcceleratorTable(wx.AcceleratorTable(self.entries))
 
         self.frame.Bind(wx.EVT_MENU, self.frame.on_create_shortcut, id=CREATE_SHORTCUT)
+        self.frame.Bind(wx.EVT_MENU, self.frame.on_copy2same, id=COPY2SAME)
 
     def create_menu(self, menu, lst):
         for item in lst:

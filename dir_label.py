@@ -147,7 +147,9 @@ class DirLabel(wx.Panel):
         dc.Clear()
         # Text
         size = dc.GetTextExtent(self.dir_label)
-        self.label_top = (self.GetSize().GetHeight() - size.GetHeight()) / 2
+        # self.label_top = (self.GetSize().GetHeight() - size.GetHeight()) / 2
+        # print("label top", self.label_top)
+        self.label_top = 1
         if self.is_active():
             brush = wx.Brush(wx.SystemSettings.GetColour(wx.SYS_COLOUR_GRADIENTINACTIVECAPTION))
             pen = wx.Pen(wx.SystemSettings.GetColour(wx.SYS_COLOUR_GRADIENTINACTIVECAPTION))
@@ -194,10 +196,12 @@ class PathMenu(wx.Menu):
 
     def on_click(self, event):
         operation = self.menu_items_id[event.GetId()]
+        print(operation)
         if operation == CN_EDIT:
             self.path_panel.read_only = False
         elif operation == CN_COPY:
-            self.path_label.Copy()
+            self.path_panel.path_edit.Copy()
+            print(self.path_panel.path_edit.GetValue())
         elif operation == CN_CMD:
             subprocess.Popen(["start", "cmd"], shell=True)
         elif operation == CN_MENU:

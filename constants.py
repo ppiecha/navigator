@@ -2,6 +2,8 @@ import os
 import wx.lib.newevent
 from pathlib import Path
 
+
+
 ID_SPLITTER = wx.NewId()
 # ID_CMD1 = wx.NewIdRef()
 # DirChangedEvent, EVT_DIR_CHANGED_EVENT = wx.lib.newevent.NewEvent()
@@ -30,9 +32,16 @@ CN_IM_FILTER_OFF = os.path.join(CN_APP_PATH, "img\\filter_off.png")
 # CN_IM_DRIVE = os.path.join(CN_APP_PATH, "img\\drive.png")
 # CN_IM_STAR = os.path.join(CN_APP_PATH, "img\\star.png")
 # CN_IM_CODE = os.path.join(CN_APP_PATH, "img\\code.png")
-CN_IM_FAV = os.path.join(CN_APP_PATH, "img\\fav.png")
+CN_IM_FAV = os.path.join(CN_APP_PATH, "img\\star.png")
 CN_IM_HIST = os.path.join(CN_APP_PATH, "img\\hist.png")
 CN_IM_OK = os.path.join(CN_APP_PATH, "img\\ok.png")
+CN_IM_ADD = os.path.join(CN_APP_PATH, "img\\add.png")
+CN_IM_EDIT = os.path.join(CN_APP_PATH, "img\\edit.png")
+CN_IM_REMOVE = os.path.join(CN_APP_PATH, "img\\remove.png")
+CN_IM_HARD_DISK = os.path.join(CN_APP_PATH, "img\\hard_disk.png")
+CN_IM_TOOLS = os.path.join(CN_APP_PATH, "img\\gear_wheel.png")
+CN_IM_ANCHOR = os.path.join(CN_APP_PATH, "img\\anchor.png")
+CN_IM_HOME = os.path.join(CN_APP_PATH, "img\\home.png")
 # CN_IM_RENAME = os.path.join(CN_APP_PATH, "img\\rename.png")
 # CN_IM_VIEWER = os.path.join(CN_APP_PATH, "img\\viewer.png")
 # CN_IM_EDIT = os.path.join(CN_APP_PATH, "img\\edit.png")
@@ -54,3 +63,5 @@ CN_TOPIC_DIR_CHG = "DIR_CHANGED"
 
 def q(text):
     return '"' + str(text) + '"'
+
+
