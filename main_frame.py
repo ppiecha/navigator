@@ -122,6 +122,7 @@ class MainFrame(wx.Frame):
         self.img_tools = self.im_list.Add(wx.Bitmap(cn.CN_IM_TOOLS, wx.BITMAP_TYPE_PNG))
         self.img_home = self.im_list.Add(wx.Bitmap(cn.CN_IM_HOME, wx.BITMAP_TYPE_PNG))
         self.img_anchor = self.im_list.Add(wx.Bitmap(cn.CN_IM_ANCHOR, wx.BITMAP_TYPE_PNG))
+        self.img_user = self.im_list.Add(wx.Bitmap(cn.CN_IM_USER, wx.BITMAP_TYPE_PNG))
 
         self.splitter = wx.SplitterWindow(self, cn.ID_SPLITTER, style=wx.SP_BORDER)
         self.splitter.SetMinimumPaneSize(10)

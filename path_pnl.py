@@ -262,6 +262,7 @@ class HistMenu(wx.Menu):
 
 CN_CONFIGURE = "Configure..."
 
+
 class ListCtrlComboPopup(wx.ComboPopup):
     def __init__(self, path_pnl):
         super().__init__()
@@ -291,8 +292,8 @@ class ListCtrlComboPopup(wx.ComboPopup):
             if self.lc.GetItemText(self.item) == CN_CONFIGURE:
                 self.Dismiss()
                 with dialogs.OptionsDlg(frame=self.frame, title="Options") as dlg:
-                    if dlg.ShowModal() == wx.ID_OK:
-                        pass
+                    if dlg.show_modal() == wx.ID_OK:
+                        self.frame.app_conf.custom_paths = dlg.path_tab.save_cust_paths()
             else:
                 self.Dismiss()
                 self.path_pnl.path_lbl.open_dir(dir=self.get_sel_path(self.item))
@@ -332,6 +333,11 @@ class ListCtrlComboPopup(wx.ComboPopup):
                 self.lc.SetItemImage(idx, self.frame.img_home)
             else:
                 self.lc.SetItemImage(idx, self.frame.img_hard_disk)
+
+        for name, path in self.frame.app_conf.custom_paths:
+            idx = self.lc.Append([name, "", path, path])
+            self.lc.SetItemImage(idx, self.frame.img_user)
+            self.lc.SetItemTextColour(idx, wx.Colour(0, 0, 64))
 
         idx = self.lc.Append([CN_CONFIGURE, "", "", ""])
         self.lc.SetItemImage(idx, self.frame.img_tools)

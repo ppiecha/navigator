@@ -5,6 +5,7 @@ import os
 import wx.html as html
 import wx.propgrid as pg
 import util
+from pathlib import Path
 
 
 class BasicDlg(wx.Dialog):
@@ -58,21 +59,36 @@ class PathEditor(pg.PropertyGrid):
         self.frame = frame
         self.main_frame = main_frame
         self.Append(pg.PropertyCategory(label=CN_CUSTOM_PATHS))
+        self.load_cust_paths()
 
     def load_cust_paths(self):
         for name, path in self.main_frame.app_conf.custom_paths:
             self.Append(pg.DirProperty(label=name, value=path))
 
     def save_cust_paths(self):
-        pass
+        lst = []
+        iterator = self.GetPyIterator(pg.PG_ITERATE_ALL)
+        for prop in iterator:
+            if isinstance(prop, pg.DirProperty):
+                lst.append((prop.GetLabel(), prop.GetValue()))
+        return lst
 
+    def validate_cust_paths(self):
+        iterator = self.GetPyIterator(pg.PG_ITERATE_ALL)
+        for prop in iterator:
+            if isinstance(prop, pg.DirProperty):
+                if not Path(prop.GetValue()).exists():
+                    self.SelectProperty(prop, focus=True)
+                    wx.MessageBox(message="Incorrect path for: " + prop.GetLabel(), caption=cn.CN_APP_NAME)
+                    return False
+        return True
 
 
 class PathTab(wx.Panel):
     def __init__(self, parent, main_frame, frame):
         super().__init__(parent=parent)
         self.frame = frame
-        self.main_frame = frame
+        self.main_frame = main_frame
 
         # Sizers
         btn_sizer = wx.BoxSizer(wx.HORIZONTAL)
@@ -92,9 +108,12 @@ class PathTab(wx.Panel):
         self.SetSizerAndFit(main_sizer)
 
         btn_add.Bind(wx.EVT_BUTTON, self.add_path)
+        btn_edit.Bind(wx.EVT_BUTTON, self.edit_path)
+        btn_remove.Bind(wx.EVT_BUTTON, self.remove_path)
 
     def add_path(self, e):
-        with TextEditDlg(frame=self.frame, title="New custom path", label="Enter new path name", edit_text="") as dlg:
+        with TextEditDlg(frame=self.frame, title="New custom path",
+                         label="Enter new path name", edit_text="") as dlg:
             if dlg.show_modal() == wx.ID_OK:
                 for item in dlg.get_new_names():
                     item = self.path_edt.Append(pg.DirProperty(label=item, value=""))
@@ -102,17 +121,57 @@ class PathTab(wx.Panel):
                     if res:
                         item.SetValue(value)
 
+    def edit_path(self, e):
+        prop = self.path_edt.GetSelection()
+        if prop:
+            with TextEditDlg(frame=self.frame, title="Edit custom path",
+                             label="Enter new path name", edit_text=prop.GetLabel()) as dlg:
+                if dlg.show_modal() == wx.ID_OK:
+                    prop.SetLabel(dlg.get_new_names()[0])
+        else:
+            wx.MessageBox(message="Select path to edit", caption=cn.CN_APP_NAME)
+
+    def remove_path(self, e):
+        prop = self.path_edt.GetSelection()
+        if prop:
+            if self.main_frame.get_question_feedback("Are you sure you want to remove path: " +
+                                                     prop.GetLabel()) == wx.YES:
+                self.path_edt.DeleteProperty(prop)
+        else:
+            wx.MessageBox(message="Select path to remove", caption=cn.CN_APP_NAME)
+
+    def save_cust_paths(self):
+        return self.path_edt.save_cust_paths()
+
 
 class OptionsDlg(BasicDlg):
     def __init__(self, frame, title):
         super().__init__(frame=frame, title=title, size=(500, 300))
         self.opt_book = wx.Listbook(self)
-        path_tab = PathTab(parent=self.opt_book, main_frame = frame, frame=self)
-        self.opt_book.AddPage(page=path_tab, text=CN_CUSTOM_PATHS, select=True)
+        self.path_tab = PathTab(parent=self.opt_book, main_frame = frame, frame=self)
+        self.opt_book.AddPage(page=self.path_tab, text=CN_CUSTOM_PATHS, select=True)
 
         self.opt_book.GetListView().SetColumnWidth(0, wx.LIST_AUTOSIZE)
 
         self.ctrl_sizer.Add(self.opt_book, flag=wx.ALL | wx.EXPAND, border=5, proportion=1)
+
+        self.btn_ok.Bind(wx.EVT_BUTTON, self.on_ok)
+
+    def on_ok(self, e):
+        if self.path_tab.path_edt.validate_cust_paths():
+            e.Skip()
+        else:
+            return
+
+    def show_modal(self):
+        self.main_sizer.Fit(self)
+        self.SetSize(self.GetEffectiveMinSize())
+        self.CenterOnParent()
+        self.path_tab.path_edt.SetFocus()
+        prop = self.path_tab.path_edt.GetFirst(pg.PG_ITERATE_NORMAL)
+        if prop:
+            self.path_tab.path_edt.SelectProperty(prop)
+        return self.ShowModal()
 
 
 class HTMLDlg(BasicDlg):
