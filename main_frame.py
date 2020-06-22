@@ -396,6 +396,7 @@ class MainFrame(wx.Frame):
                         b.open_file(path)
 
     def on_create_shortcut(self, e):
+        print("Here")
         win = self.get_active_win()
         b = win.get_active_browser()
         folders, files = b.get_selected_files_folders()

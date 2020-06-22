@@ -90,6 +90,14 @@ class MainMenu(wx.MenuBar):
             self.frame.delete(None)
         elif id == cn.ID_NEW_FILE:
             self.frame.new_file()
+        elif id == cn.ID_CREATE_SHORTCUT:
+            self.frame.on_create_shortcut(None)
+        elif id == cn.ID_COPY2SAME:
+            self.frame.on_copy2same(None)
+        elif id == cn.ID_COPY_CLIP:
+            self.frame.copy_file2clip(None)
+        elif id == cn.ID_PASTE_CLIP:
+            self.frame.paste_files_from_clip(None)
         # Edit
         elif id == cn.ID_SELECT_ALL:
             self.frame.select_all()

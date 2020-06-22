@@ -67,13 +67,13 @@ dt_file = {
     ID_SEP:             MItem(id=ID_SEP, name="-", type=wx.ITEM_SEPARATOR),
     ID_EXIT:            MItem(id=ID_EXIT, name="Exit", key=wx.WXK_F4, acc_type=wx.ACCEL_ALT),
     ID_CREATE_SHORTCUT: MItem(id=ID_CREATE_SHORTCUT, name="Create shortcut", key=wx.WXK_F5,
-                              acc_type=wx.ACCEL_SHIFT + wx.ACCEL_CTRL, hidden=True),
+                              acc_type=wx.ACCEL_SHIFT + wx.ACCEL_CTRL, hidden=False),
     ID_COPY2SAME:       MItem(id=ID_COPY2SAME, name="Copy to same folder", key=wx.WXK_F5,
                               acc_type=wx.ACCEL_SHIFT, hidden=True),
     ID_COPY_CLIP:       MItem(id=ID_COPY_CLIP, name="Copy to clipboard", key=ord("C"),
-                              acc_type=wx.ACCEL_CTRL, hidden=True),
+                              acc_type=wx.ACCEL_CTRL, hidden=False),
     ID_PASTE_CLIP:      MItem(id=ID_PASTE_CLIP, name="Paste from clipboard", key=ord("V"),
-                              acc_type=wx.ACCEL_CTRL, hidden=True)
+                              acc_type=wx.ACCEL_CTRL, hidden=False)
 }
 
 dt_edit = {
