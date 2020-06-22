@@ -4,8 +4,9 @@ import constants as cn
 from pathlib import Path
 import util
 import dir_label
-import subprocess
+import links
 import dialogs
+import controls
 
 
 class PathPanel(wx.Panel):
@@ -19,21 +20,21 @@ class PathPanel(wx.Panel):
         self.drive_combo = self.get_drive_combo()
         self.path_lbl = dir_label.DirLabel(self, self.frame)
         self.path_edit = PathEdit(self, self.frame)
-        self.edit_btn = util.PathBtn(self, frame, cn.CN_IM_OK)
+        self.edit_btn = controls.PathBtn(self, frame, cn.CN_IM_OK)
         self.path_edit.Show(False)
         self.edit_btn.Show(False)
         self.edit_sizer = wx.BoxSizer(wx.HORIZONTAL)
         self.edit_sizer.Add(self.path_edit, flag=wx.EXPAND, proportion=1)
         self.edit_sizer.Add(self.edit_btn)
         self.sep = wx.Panel(self)
-        self.fav_btn = util.PathBtn(self, frame, cn.CN_IM_FAV)
-        self.hist_btn = util.PathBtn(self, frame, cn.CN_IM_HIST)
+        self.links_btn = controls.PathBtn(self, frame, cn.CN_IM_FAV)
+        self.hist_btn = controls.PathBtn(self, frame, cn.CN_IM_HIST)
         self.hist_menu = HistMenu()
         self.sizer_h = wx.BoxSizer(wx.HORIZONTAL)
         self.sizer_v = wx.BoxSizer(wx.VERTICAL)
         self.sizer_h.Add(self.drive_combo)
         self.sizer_h.Add(self.sep, flag=wx.EXPAND, proportion=1)
-        self.sizer_h.Add(self.fav_btn)
+        self.sizer_h.Add(self.links_btn)
         self.sizer_h.Add(self.hist_btn)
         self.sizer_v.Add(self.path_lbl, flag=wx.EXPAND, proportion=1)
         self.sizer_v.Add(self.edit_sizer, flag=wx.EXPAND, proportion=1)
@@ -41,7 +42,7 @@ class PathPanel(wx.Panel):
         self.SetSizerAndFit(self.sizer_v)
 
         self.hist_btn.Bind(wx.EVT_BUTTON, self.on_history)
-        self.fav_btn.Bind(wx.EVT_BUTTON, self.on_favorite)
+        self.links_btn.Bind(wx.EVT_BUTTON, self.on_links)
         self.edit_btn.Bind(wx.EVT_BUTTON, self.on_ok)
 
         wx.CallAfter(self.set_read_only, True)
@@ -90,9 +91,11 @@ class PathPanel(wx.Panel):
     def AcceptsFocusFromKeyboard(self):
         return False
 
-    def on_favorite(self, e):
-        subprocess.Popen(["pythonw", str(cn.CN_VIEWER_APP)], shell=False, cwd=cn.CN_VIEWER_APP.parent)
+    def on_links(self, e):
+        with links.LinkDlg(self.frame, link_pages=None) as dlg:
+            dlg.show_modal()
 
+        # subprocess.Popen(["pythonw", str(cn.CN_VIEWER_APP)], shell=False, cwd=cn.CN_VIEWER_APP.parent)
         # out, _ = p.communicate("Navigator test".encode())
         # self.parent.browser.shell_copy("C:\\Temp\\Back lab", "c:\\Temp\\py\\temp2", auto_rename=True)
 
@@ -108,11 +111,7 @@ class PathEdit(wx.TextCtrl):
         self.frame = frame
 
         self.AutoCompleteDirectories()
-        # self.AutoCompleteFileNames()
 
-        # self.Bind(wx.EVT_MOTION, self.on_mouse_move)
-        # self.Bind(wx.EVT_KILL_FOCUS, self.on_kill_focus)
-        # self.Bind(wx.EVT_LEFT_DOWN, self.on_left_down)
         self.Bind(wx.EVT_KEY_DOWN, self.on_enter)
         # self.Bind(wx.EVT_SIZE, self.on_size)
 

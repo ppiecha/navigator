@@ -10,7 +10,7 @@ class ToolBtn(buttons.ThemedGenBitmapButton):
 
         self.Bind(wx.EVT_SET_FOCUS, self.on_focus)
 
-    def AcceptsFocus(self):
+    def AcceptsFocusFromKeyboard(self):
         return False
 
     def on_focus(self, event):
@@ -73,3 +73,18 @@ class DriveBtn(buttons.GenBitmapTextToggleButton):
         if self.def_ctrl:
             self.def_ctrl[0].SetFocus()
         event.Skip()
+
+
+class PathBtn(wx.BitmapButton):
+    def __init__(self, parent, frame, image):
+        super().__init__(parent=parent, bitmap=wx.Bitmap(image, wx.BITMAP_TYPE_PNG), size=(23, 23))
+        self.Bind(wx.EVT_SET_FOCUS, self.on_focus)
+        self.frame = frame
+
+    def on_focus(self, e):
+        if hasattr(self.frame, 'return_focus'):
+            self.frame.return_focus()
+        # e.Skip()
+
+    def AcceptsFocusFromKeyboard(self):
+        return False

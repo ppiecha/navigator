@@ -2,20 +2,6 @@ import wx
 import constants as cn
 
 
-CREATE_SHORTCUT = wx.NewId()
-COPY2SAME = wx.NewId()
-
-# FILE
-NEW_FILE = "New file"
-RENAME = "Rename"
-VIEW = "View"
-EDIT = "Edit"
-COPY = "Copy"
-MOVE = "Move"
-NEW_FOLDER = "New folder"
-DELETE = "Delete"
-EXIT = "Exit"
-
 # EDIT
 SELECT_ALL = "Select all"
 INVERT_SEL = "Invert selection"
@@ -28,19 +14,7 @@ COPY_SEL_NAMES_AND_PATHS = "Copy selected names with path"
 class MainMenu(wx.MenuBar):
     def __init__(self, frame):
         super().__init__()
-        self.file_lst = [
-            [NEW_FILE, wx.ITEM_NORMAL, wx.WXK_F9, wx.ACCEL_NORMAL, None], #wx.Bitmap(cn.CN_IM_RENAME, wx.BITMAP_TYPE_PNG)],
-            [RENAME, wx.ITEM_NORMAL, wx.WXK_F2, wx.ACCEL_NORMAL, None], #wx.Bitmap(cn.CN_IM_RENAME, wx.BITMAP_TYPE_PNG)],
-            [VIEW, wx.ITEM_NORMAL, wx.WXK_F3, wx.ACCEL_NORMAL, None], #wx.Bitmap(cn.CN_IM_VIEWER, wx.BITMAP_TYPE_PNG)],
-            [EDIT, wx.ITEM_NORMAL, wx.WXK_F4, wx.ACCEL_NORMAL, None], #wx.Bitmap(cn.CN_IM_EDIT, wx.BITMAP_TYPE_PNG)],
-            [COPY, wx.ITEM_NORMAL, wx.WXK_F5, wx.ACCEL_NORMAL, None], #wx.Bitmap(cn.CN_IM_COPY, wx.BITMAP_TYPE_PNG)],
-            [MOVE, wx.ITEM_NORMAL, wx.WXK_F6, wx.ACCEL_NORMAL, None], #wx.Bitmap(cn.CN_IM_MOVE, wx.BITMAP_TYPE_PNG)],
-            [NEW_FOLDER, wx.ITEM_NORMAL, wx.WXK_F7, wx.ACCEL_NORMAL,
-             None], #wx.Bitmap(cn.CN_IM_NEW_FOLDER, wx.BITMAP_TYPE_PNG)],
-            [DELETE, wx.ITEM_NORMAL, wx.WXK_F8, wx.ACCEL_NORMAL, None], #wx.Bitmap(cn.CN_IM_DELETE, wx.BITMAP_TYPE_PNG)],
-            ["-", wx.ITEM_SEPARATOR, None, None, None],
-            [EXIT, wx.ITEM_NORMAL, wx.WXK_F4, wx.ACCEL_ALT, None]
-        ]
+
         self.edit_lst = [
             [SELECT_ALL, wx.ITEM_NORMAL, ord("A"), wx.ACCEL_CTRL, None],
             [INVERT_SEL, wx.ITEM_NORMAL, ord("A"), wx.ACCEL_SHIFT + wx.ACCEL_CTRL, None],
@@ -56,24 +30,22 @@ class MainMenu(wx.MenuBar):
         self.frame = frame
         self.menu_items_id = {}
         self.entries = []
-        self.entries.append(wx.AcceleratorEntry(flags=wx.ACCEL_SHIFT + wx.ACCEL_CTRL,
-                                                keyCode=wx.WXK_F5,
-                                                cmd=CREATE_SHORTCUT))
-        self.entries.append(wx.AcceleratorEntry(flags=wx.ACCEL_SHIFT,
-                                                keyCode=wx.WXK_F5,
-                                                cmd=COPY2SAME))
+        self.entries.append(wx.AcceleratorEntry(wx.ACCEL_NORMAL, wx.WXK_DELETE, cn.ID_DELETE))
         self.file_menu = wx.Menu()
-        self.create_menu(self.file_menu, self.file_lst)
+        self.make_menu(self.file_menu, cn.dt_file)
         self.edit_menu = wx.Menu()
-        self.create_menu(self.edit_menu, self.edit_lst)
+        self.make_menu(self.edit_menu, cn.dt_edit)
 
         self.Append(self.file_menu, '&File')
         self.Append(self.edit_menu, '&Edit')
 
         self.frame.SetAcceleratorTable(wx.AcceleratorTable(self.entries))
 
-        self.frame.Bind(wx.EVT_MENU, self.frame.on_create_shortcut, id=CREATE_SHORTCUT)
-        self.frame.Bind(wx.EVT_MENU, self.frame.on_copy2same, id=COPY2SAME)
+        # self.frame.Bind(wx.EVT_MENU, self.frame.on_create_shortcut, id=ID_CREATE_SHORTCUT)
+        # self.frame.Bind(wx.EVT_MENU, self.frame.on_copy2same, id=ID_COPY2SAME)
+        # self.frame.Bind(wx.EVT_MENU, self.frame.delete, id=ID_DELETE)
+        # self.frame.Bind(wx.EVT_MENU, self.frame.copy_file2clip, id=ID_COPY_FILE)
+        # self.frame.Bind(wx.EVT_MENU, self.frame.paste_files_from_clip, id=ID_PASTE_FILE)
 
     def create_menu(self, menu, lst):
         for item in lst:
@@ -89,28 +61,45 @@ class MainMenu(wx.MenuBar):
                     self.entries.append(entry)
                     self.Bind(wx.EVT_MENU, self.on_click, id=id)
 
+    def make_menu(self, menu_item, menu_dict):
+        for id in menu_dict.keys():
+            item = wx.MenuItem(id=menu_dict[id].id, text=menu_dict[id].name, kind=menu_dict[id].type)
+            if not menu_dict[id].hidden:
+                menu_item.Append(item)
+            if menu_dict[id].name != "-":
+                entry = wx.AcceleratorEntry(menu_dict[id].acc_type, menu_dict[id].key, id, item)
+                item.SetAccel(entry)
+                self.entries.append(entry)
+                self.Bind(wx.EVT_MENU, self.on_click, id=id)
+
     def exec_cmd_id(self, id):
-        operation = self.menu_items_id[id][0]
         # File
-        if operation == RENAME:
+        if id == cn.ID_RENAME:
             self.frame.rename()
-        elif operation == VIEW:
+        elif id == cn.ID_VIEW:
             self.frame.view()
-        elif operation == COPY:
+        elif id == cn.ID_EDIT:
+            self.frame.view()
+        elif id == cn.ID_COPY:
             self.frame.copy()
-        elif operation == MOVE:
+        elif id == cn.ID_MOVE:
             self.frame.move()
-        elif operation == NEW_FOLDER:
+        elif id == cn.ID_NEW_FOLDER:
             self.frame.new_folder()
-        elif operation == DELETE:
-            self.frame.delete()
-        elif operation == NEW_FILE:
+        elif id == cn.ID_DELETE:
+            self.frame.delete(None)
+        elif id == cn.ID_NEW_FILE:
             self.frame.new_file()
         # Edit
-        if operation == SELECT_ALL:
+        elif id == cn.ID_SELECT_ALL:
             self.frame.select_all()
-        if operation == INVERT_SEL:
+        elif id == cn.ID_INVERT_SEL:
             self.frame.invert_selection()
+        elif id == cn.ID_COPY_SEL_NAMES:
+            self.frame.copy_sel2clip()
+        elif id == cn.ID_COPY_SEL_NAMES_AND_PATHS:
+            self.frame.copy_sel2clip_with_path()
+
 
     def on_click(self, event):
         self.exec_cmd_id(event.GetId())

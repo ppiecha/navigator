@@ -34,7 +34,7 @@ class Tit:
 
 class BrowserCtrl(aui.AuiNotebook):
     def __init__(self, parent, frame, im_list, conf, is_left):
-        super().__init__(parent=parent, style=aui.AUI_NB_TAB_MOVE | aui.AUI_NB_TAB_SPLIT |
+        super().__init__(parent=parent, style=aui.AUI_NB_TAB_MOVE | # aui.AUI_NB_TAB_SPLIT |
                                               aui.AUI_NB_SCROLL_BUTTONS | aui.AUI_NB_TOP)
         self.SetArtProvider(aui.AuiDefaultTabArt())
         self.parent = parent
@@ -42,6 +42,7 @@ class BrowserCtrl(aui.AuiNotebook):
         self.is_left = is_left
         self.im_list = im_list
         self.conf = conf
+        self.begin_drag_index = None
         if not conf:
             self.add_new_tab(dir_name="")
         else:
@@ -59,12 +60,44 @@ class BrowserCtrl(aui.AuiNotebook):
         self.Bind(wx.EVT_CHILD_FOCUS, self.on_child_focus)
         self.Bind(aui.EVT_AUINOTEBOOK_BG_DCLICK, self.on_ctrl_db_click)
         self.Bind(aui.EVT_AUINOTEBOOK_TAB_RIGHT_DOWN, self.on_tab_right_click)
+        self.Bind(aui.EVT_AUINOTEBOOK_END_DRAG, self.on_end_drag)
+        self.Bind(aui.EVT_AUINOTEBOOK_BEGIN_DRAG, self.on_begin_drag)
+        self.Bind(wx.EVT_NAVIGATION_KEY, self.on_navigate)
+
+    def on_navigate(self, e):
+        if e.IsFromTab():
+            if self.is_left:
+                self.frame.go_to_right()
+            else:
+                self.frame.go_to_left()
+        else:
+            e.Skip()
+
+    def on_child_focus(self, e):
+        win = wx.Window.FindFocus()
+        if isinstance(win, aui.AuiTabCtrl):
+            self.on_page_changed(e)
+        elif isinstance(win, Browser):
+            pass
+        elif isinstance(win, wx._core.ComboCtrl):
+            self.get_active_browser().SetFocus()
+        else:
+            # print(type(win))
+            pass
+        e.Skip()
+
+
+    def on_begin_drag(self, e):
+        self.begin_drag_index = e.GetSelection()
+
+    def on_end_drag(self, e):
+        new_index = e.GetSelection()
+        self.conf[new_index], self.conf[self.begin_drag_index] = self.conf[self.begin_drag_index], self.conf[new_index]
+        self.SetSelection(new_index)
 
     def on_tab_right_click(self, e):
-        screen_pt = wx.GetMousePosition()
-        client_pt = self.ScreenToClient(screen_pt)
-        tab_index, _ = self.HitTest(client_pt)
-        menu = TabMenu(self.frame, self, tab_index)
+        index = e.GetSelection()
+        menu = TabMenu(self.frame, self, index)
         self.frame.PopupMenu(menu)
         del menu
 
@@ -89,11 +122,6 @@ class BrowserCtrl(aui.AuiNotebook):
 
     def duplicate_tab(self, tab_index):
         self.add_new_tab(self.conf[tab_index].last_path)
-
-    def on_child_focus(self, e):
-        if isinstance(wx.Window.FindFocus(), aui.AuiTabCtrl):
-            self.frame.change_win_focus()
-        e.Skip()
 
     def lock_tab(self, tab_index, tab_name=None):
         self.conf[tab_index].lock_tab(user_tab_name=tab_name)
@@ -129,6 +157,7 @@ class BrowserPnl(wx.Panel):
         self.browser.set_references(self.path_pnl, self.filter_pnl)
         self.path_pnl.hist_menu.set_browser(self.browser)
         self.browser.open_dir(conf.last_path)
+        # self.browser.SetFocus()
         self.top_down_sizer = wx.BoxSizer(wx.VERTICAL)
         self.top_down_sizer.Add(self.path_pnl, flag=wx.EXPAND)
         self.top_down_sizer.Add(self.browser, flag=wx.EXPAND, proportion=1)
@@ -155,7 +184,6 @@ class MyFileDropTarget(wx.FileDropTarget):
                 return wx.DragNone
             else:
                 path = self.object.path.joinpath(self.object.GetItemText(item))
-                print(path)
                 return wx.DragCopy if path.is_dir() else wx.DragNone
         else:
             return wx.DragCopy
@@ -275,7 +303,6 @@ class Browser(wx.ListCtrl, ListCtrlAutoWidthMixin):
     def OnGetItemText(self, item, col):
 
         def gci(item, col):
-            # print(item, col)
             if col == cn.CN_COL_DATE:
                 return util.format_date(self.dir_cache[item][col])
             elif col == cn.CN_COL_SIZE:
@@ -324,8 +351,8 @@ class Browser(wx.ListCtrl, ListCtrlAutoWidthMixin):
         #     if index >= 0:
         #         self.on_item_activated(self.GetItemText(index, 0))
         if e.GetKeyCode() == wx.WXK_ESCAPE:
-            print("escape")
             self.filter_pnl.enable_filter()
+        e.Skip()
 
     def show_hide_cols(self, column_conf):
         for col in column_conf.keys():
@@ -437,11 +464,11 @@ class Browser(wx.ListCtrl, ListCtrlAutoWidthMixin):
             pass
         else:
             if self.GetFirstSelected() < 0:
-                self.get_context_menu2(str(self.path), [])
+                self.get_context_menu(str(self.path), [])
             else:
                 items = self.get_selected()
                 # items = [str(self.path.joinpath(item)) for item in self.get_selected()]
-                self.get_context_menu2(self.path, items)
+                self.get_context_menu(str(self.path), self.get_selected())
 
     def set_references(self, path_pnl, filter_pnl):
         self.path_pnl = path_pnl
@@ -517,6 +544,7 @@ class Browser(wx.ListCtrl, ListCtrlAutoWidthMixin):
                 del lnk
             if new_path.is_file():
                 self.open_file(new_path)
+                self.frame.show_wait()
             elif new_path.is_dir():
                 self.open_dir(dir_name=new_path)
         del t
@@ -596,7 +624,6 @@ class Browser(wx.ListCtrl, ListCtrlAutoWidthMixin):
             self.refresh_list(dir_name=self.get_next_dir(Path(dir_name)), conf=conf, to_select=to_select)
         except OSError as err:
             self.frame.log_error(str(err))
-            print(temp)
             self.open_dir(temp)
 
     def refresh_list(self, dir_name, conf, to_select):
@@ -723,7 +750,6 @@ class Browser(wx.ListCtrl, ListCtrlAutoWidthMixin):
 
         flags = shellcon.FOF_NOCONFIRMMKDIR | shellcon.FOF_SILENT
         if auto_rename:
-            print("will replace")
             flags = flags | shellcon.FOF_RENAMEONCOLLISION
 
         result, aborted = shell.SHFileOperation((
@@ -834,118 +860,45 @@ class Browser(wx.ListCtrl, ListCtrlAutoWidthMixin):
                                 Description=str(desc),
                                 StartIn=str(start_in))
 
-    def get_context_menu(self, path, file_names=[]):
-        # pythoncom.OleInitialize()
-        # file_names = [str(item) for item in file_names]
-        path = str(path)
+
+    def get_context_menu(self, path, file_names):
+        desktop_folder = shell.SHGetDesktopFolder()
         hwnd = win32gui.GetForegroundWindow()
-        # Get an IShellFolder for the desktop.
-        desktopFolder = shell.SHGetDesktopFolder()
-        if not desktopFolder:
-            raise Exception("Failed to get Desktop folder.")
-        # Get a pidl for the folder the file is located in.
-        eaten, parentPidl, attr = desktopFolder.ParseDisplayName(hwnd, None, path)
-        # Get an IShellFolder for the folder the file is located in.
-        parentFolder = desktopFolder.BindToObject(parentPidl, None, shell.IID_IShellFolder)
+        parent_pidl = shell.SHILCreateFromPath(path, 0)[0]
+        parent_folder = desktop_folder.BindToObject(parent_pidl, None, shell.IID_IShellFolder)
         if file_names:
-            # Get a pidl for the file itself.
             pidls = []
-            print(path, file_names)
             for item in file_names:
-                eaten, pidl, attr = parentFolder.ParseDisplayName(hwnd, None, item)
+                pidl = parent_folder.ParseDisplayName(hwnd, None, file_names[0])[1]
                 pidls.append(pidl)
-            # Get the IContextMenu for the file.
-            i, contextMenu = parentFolder.GetUIObjectOf(hwnd, pidls, shell.IID_IContextMenu, 0)
+            context_menu = parent_folder.GetUIObjectOf(hwnd, pidls, shell.IID_IContextMenu, 0)[1]
+            print(parent_folder.GetDisplayNameOf(pidls[0], shellcon.SHGDN_FORPARSING | shellcon.SHGDN_FORADDRESSBAR))
         else:
-            i, contextMenu = desktopFolder.GetUIObjectOf(hwnd, [parentPidl], shell.IID_IContextMenu,
-                                                         0)  # <----- where i attempt to get menu for a drive.
-        contextMenu_plus = None
-        if contextMenu:
-            # try to obtain a higher level pointer, first 3 then 2
+            item = Path(path)
+            path = item.parent
+            parent_pidl = shell.SHILCreateFromPath(str(path), 0)[0]
+            parent_folder = desktop_folder.BindToObject(parent_pidl, None, shell.IID_IShellFolder)
+            pidl = parent_folder.ParseDisplayName(hwnd, None, item.name)[1]
+            context_menu = parent_folder.GetUIObjectOf(hwnd, [pidl], shell.IID_IContextMenu, 0)[1]
+            # context_menu = parent_folder.CreateViewObject(hwnd, shell.IID_IContextMenu)
+        cm_plus = None
+        if context_menu:
             try:
-                contextMenu_plus = contextMenu.QueryInterface(shell.IID_IContextMenu3, None)
-            except Exception:
+                cm_plus = context_menu.QueryInterface(shell.IID_IContextMenu3, None)
+            except Exception as e:
+                pass
                 try:
-                    contextMenu_plus = contextMenu.QueryInterface(shell.IID_IContextMenu2, None)
-                    print("plus", contextMenu_plus)
-                except Exception:
+                    cm_plus = context_menu.QueryInterface(shell.IID_IContextMenu2, None)
+                except Exception as e:
                     pass
         else:
-            raise Exception("Unable to get context menu interface.")
-
-        if contextMenu_plus:
-            contextMenu.Release()  # free initial "v1.0" interface
-            contextMenu = contextMenu_plus
-        else:  # no higher version supported
-            pcmType = 1
-
-        hMenu = win32gui.CreatePopupMenu()
-        MIN_SHELL_ID = 1
-        MAX_SHELL_ID = 30000  #  30000
-
-        contextMenu.QueryContextMenu(hMenu, 0, MIN_SHELL_ID, MAX_SHELL_ID, shellcon.CMF_EXPLORE)
-                                     #  shellcon.CMF_CANRENAME)
-        x, y = win32gui.GetCursorPos()
-        flags = win32gui.TPM_LEFTALIGN | win32gui.TPM_RETURNCMD  # | win32gui.TPM_LEFTBUTTON | win32gui.TPM_RIGHTBUTTON
-        cmd = win32gui.TrackPopupMenu(hMenu, flags, x, y, 0, hwnd, None)
-        if not cmd:
-            e = win32api.GetLastError()
-            if e:
-                s = win32api.FormatMessage(e)
-                raise Exception(s)
-        CI = (0,  # Mask
-              hwnd,  # hwnd
-              cmd - MIN_SHELL_ID,  # Verb
-              '',  # Parameters
-              '',  # Directory
-              win32con.SW_SHOWNORMAL,  # Show
-              0,  # HotKey
-              None  # Icon
-              )
-        # print("cmd", cmd - MIN_SHELL_ID)
-        # print(contextMenu.GetCommandString(cmd - MIN_SHELL_ID, shellcon.GCS_UNICODE)) #shellcon.GCS_VERB))
-        if cmd - MIN_SHELL_ID >= 0:
-            # try:
-            contextMenu.InvokeCommand(CI)
-            # except:
-            #     e = win32api.GetLastError()
-            #     wx.LogError(win32api.FormatMessage(e))
-
-    def get_context_menu2(self, path, file_names=[]):
-        print(path, file_names)
-        path = r'C:\temp'
-        file_name = r'temp.txt'
-        desktop_folder = shell.SHGetDesktopFolder()
-        if not desktop_folder:
-            raise Exception("Cannot get desktop folder")
-        hwnd = win32gui.GetForegroundWindow()
-        if not hwnd:
-            raise Exception("Cannot get window handler")
-        eaten, parent_pidl, attr = desktop_folder.ParseDisplayName(hwnd, None, path)
-        if not parent_pidl:
-            raise Exception("Cannot get parent pidl")
-        parent_folder = desktop_folder.BindToObject(parent_pidl, None, shell.IID_IShellFolder)
-        if not parent_folder:
-            raise Exception("Cannot get parent folder")
-        # if file_names:
-        #     pidls = []
-        #     for item in file_names:
-        #         print(str(item))
-        eaten, pidl, attr = parent_folder.ParseDisplayName(hwnd, None, file_name+"\0")
-                # print(pidl)
-                # if not pidl:
-                #     raise Exception("Cannot get file pidl")
-                # pidls.append(pidl)
-        i, context_menu = parent_folder.GetUIObjectOf(hwnd, [pidl], shell.IID_IContextMenu, 0)
-        context_menu = context_menu.QueryInterface(shell.IID_IContextMenu, None)
-        # else:
-        #     i, context_menu = desktop_folder.GetUIObjectOf(hwnd, [parent_pidl], shell.IID_IContextMenu, 0)
-        if not context_menu:
-            raise Exception("Cannot get context menu")
+            raise Exception("Unable to get context menu interface")
+        if cm_plus:
+            context_menu.Release()
+            context_menu = cm_plus
         menu = win32gui.CreatePopupMenu()
-        if not menu:
-            raise Exception("Cannot get menu")
-        context_menu.QueryContextMenu(menu, 0, 1, 30000, shellcon.CMF_EXPLORE)
+        context_menu.QueryContextMenu(menu, 0, 1, 0x7FFF, shellcon.CMF_EXPLORE | shellcon.CMF_ITEMMENU |
+                                      shellcon.CMF_EXTENDEDVERBS)
         x, y = win32gui.GetCursorPos()
         flags = win32gui.TPM_LEFTALIGN | win32gui.TPM_RETURNCMD
         cmd = win32gui.TrackPopupMenu(menu, flags, x, y, 0, hwnd, None)
@@ -1025,10 +978,6 @@ class TabMenu(wx.Menu):
             item = self.Append(id, item=self.menu_items_id[id][0], kind=self.menu_items_id[id][1])
             if item.GetItemLabelText() == CN_LOCK and self.nb.conf[self.tab_index].locked:
                 item.Check(True)
-                if item.IsChecked():
-                    print("checked")
-                else:
-                    print("not checked")
             self.Bind(wx.EVT_MENU, self.on_click, id=id)
 
     def on_click(self, event):

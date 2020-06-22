@@ -6,11 +6,11 @@ import wx.html as html
 import wx.propgrid as pg
 import util
 from pathlib import Path
-
+import controls
 
 class BasicDlg(wx.Dialog):
-    def __init__(self, frame, title, size=None):
-        super().__init__(parent=frame, title=title, size=size if size else wx.DefaultSize)
+    def __init__(self, frame, title, size=None, style=wx.DEFAULT_DIALOG_STYLE, border=10):
+        super().__init__(parent=frame, title=title, size=size if size else wx.DefaultSize, style=style)
 
         self.SetAcceleratorTable(wx.AcceleratorTable([wx.AcceleratorEntry(flags=wx.ACCEL_NORMAL,
                                                                           keyCode=wx.WXK_ESCAPE,
@@ -22,6 +22,7 @@ class BasicDlg(wx.Dialog):
         self.dlg_sizer = wx.BoxSizer(wx.HORIZONTAL)
 
         # Dialog buttons
+        self.static_line = wx.StaticLine(self)
         self.btn_ok = wx.Button(self, id=wx.ID_OK, label="OK")
         self.btn_ok.SetDefault()
         self.btn_cancel = wx.Button(self, id=wx.ID_CANCEL, label="Cancel")
@@ -31,9 +32,9 @@ class BasicDlg(wx.Dialog):
         self.dlg_sizer.Add(self.btn_ok, flag=wx.LEFT, border=5)
         self.dlg_sizer.Add(self.btn_cancel, flag=wx.LEFT, border=5)
 
-        self.main_sizer.Add(self.ctrl_sizer, flag=wx.ALL | wx.EXPAND, border=10, proportion=1)
-        self.main_sizer.Add(wx.StaticLine(self), flag=wx.LEFT | wx.RIGHT | wx.EXPAND, border=10)
-        self.main_sizer.Add(self.dlg_sizer, flag=wx.ALL | wx.EXPAND, border=10)
+        self.main_sizer.Add(self.ctrl_sizer, flag=wx.ALL | wx.EXPAND, border=border, proportion=1)
+        self.main_sizer.Add(self.static_line, flag=wx.LEFT | wx.RIGHT | wx.EXPAND, border=border)
+        self.main_sizer.Add(self.dlg_sizer, flag=wx.ALL | wx.EXPAND, border=border)
 
         self.SetSizer(self.main_sizer)
 
@@ -44,7 +45,7 @@ class BasicDlg(wx.Dialog):
 
     def show_modal(self):
         self.main_sizer.Fit(self)
-        self.SetSize(self.GetEffectiveMinSize())
+        # self.SetSize(self.GetEffectiveMinSize())
         self.CenterOnParent()
         return self.ShowModal()
 
@@ -94,9 +95,9 @@ class PathTab(wx.Panel):
         btn_sizer = wx.BoxSizer(wx.HORIZONTAL)
         main_sizer = wx.BoxSizer(wx.VERTICAL)
 
-        btn_add = util.PathBtn(self, frame, cn.CN_IM_ADD)
-        btn_edit = util.PathBtn(self, frame, cn.CN_IM_EDIT)
-        btn_remove = util.PathBtn(self, frame, cn.CN_IM_REMOVE)
+        btn_add = controls.PathBtn(self, frame, cn.CN_IM_ADD)
+        btn_edit = controls.PathBtn(self, frame, cn.CN_IM_EDIT)
+        btn_remove = controls.PathBtn(self, frame, cn.CN_IM_REMOVE)
 
         btn_sizer.AddMany([btn_add, btn_edit, btn_remove])
 

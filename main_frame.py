@@ -15,7 +15,9 @@ import traceback
 from threading import Thread
 import wx.adv
 import sys
-
+import win32gui
+from win32com.shell import shell, shellcon
+import win32con
 
 class MainFrame(wx.Frame):
     def __init__(self):
@@ -28,20 +30,19 @@ class MainFrame(wx.Frame):
         self.dir_cache = DirCache(self)
         self.SetIcon(wx.Icon(cn.CN_ICON_FILE_NAME))
         self.im_list = wx.ImageList(16, 16)
-        # self.img_folder = None
-        # self.img_file = None
-        # self.img_go_up = None
-        # self.img_arrow_up = None
-        # self.img_arrow_down = None
-        # self.splitter = None
-        # self.left_browser = None
-        # self.right_browser = None
         self.sizer = None
+        self.wait = None
 
         self.InitUI()
         self.process_args()
 
         self.Bind(wx.EVT_CLOSE, self.on_close)
+
+    def go_to_left(self):
+        self.left_browser.get_active_browser().SetFocus()
+
+    def go_to_right(self):
+        self.right_browser.get_active_browser().SetFocus()
 
     def process_args(self):
         if len(sys.argv) > 1:
@@ -139,14 +140,14 @@ class MainFrame(wx.Frame):
         self.btn_sizer = wx.BoxSizer(wx.HORIZONTAL)
 
         btn_size = (60, 23)
-        buttons = [CmdBtn(self, self.cmd_ids[menu.RENAME], "F2 Rename", size=btn_size),
-                   CmdBtn(self, self.cmd_ids[menu.VIEW], "F3 View", size=btn_size),
-                   CmdBtn(self, self.cmd_ids[menu.EDIT], "F4 Edit", size=btn_size),
-                   CmdBtn(self, self.cmd_ids[menu.COPY], "F5 Copy", size=btn_size),
-                   CmdBtn(self, self.cmd_ids[menu.MOVE], "F6 Move", size=btn_size),
-                   CmdBtn(self, self.cmd_ids[menu.NEW_FOLDER], "F7 Mkdir", size=btn_size),
-                   CmdBtn(self, self.cmd_ids[menu.DELETE], "F8 Delete", size=btn_size),
-                   CmdBtn(self, self.cmd_ids[menu.NEW_FILE], "F9 Mkfile", size=btn_size)]
+        buttons = [CmdBtn(self, cn.ID_RENAME, "F2 Rename", size=btn_size),
+                   CmdBtn(self, cn.ID_VIEW, "F3 View", size=btn_size),
+                   CmdBtn(self, cn.ID_EDIT, "F4 Edit", size=btn_size),
+                   CmdBtn(self, cn.ID_COPY, "F5 Copy", size=btn_size),
+                   CmdBtn(self, cn.ID_MOVE, "F6 Move", size=btn_size),
+                   CmdBtn(self, cn.ID_NEW_FOLDER, "F7 Mkdir", size=btn_size),
+                   CmdBtn(self, cn.ID_DELETE, "F8 Delete", size=btn_size),
+                   CmdBtn(self, cn.ID_NEW_FILE, "F9 Mkfile", size=btn_size)]
 
         for btn in buttons:
             self.btn_sizer.Add(btn, proportion=1, flag=wx.ALL | wx.EXPAND, border=0)
@@ -167,8 +168,8 @@ class MainFrame(wx.Frame):
             self.Center()
 
         self.SetDefaultItem(self.left_browser)
-        self.left_browser.get_active_browser().SetFocus()
         self.Thaw()
+        self.left_browser.get_active_browser().SetFocus()
 
     def on_size(self, e):
         size = self.GetSize()
@@ -196,6 +197,13 @@ class MainFrame(wx.Frame):
         dlg = wx.MessageDialog(self, question, style=wx.YES_NO | wx.CANCEL | wx.ICON_INFORMATION,
                                caption=caption)
         return dlg.ShowModal()
+
+    def show_wait(self):
+        self.wait = wx.BusyCursor(cursor=wx.Cursor(wx.CURSOR_ARROWWAIT))
+        wx.CallLater(200, self.hide_wait)
+
+    def hide_wait(self):
+        del self.wait
 
     def log_error(self, message):
         # wx.LogError(message)
@@ -226,6 +234,73 @@ class MainFrame(wx.Frame):
         b = win.get_active_browser()
         folders, files = b.get_selected_files_folders()
         b.shell_viewer(folders, files)
+
+    def copy_text2clip(self, lst):
+        if wx.TheClipboard.Open():
+            text = "\n".join(lst)
+            wx.TheClipboard.SetData(wx.TextDataObject(text))
+            wx.TheClipboard.Close()
+        else:
+            self.show_message("Cannot copy text to clipboard")
+
+
+    def copy_file2clip(self, e):
+        win = self.get_active_win()
+        b = win.get_active_browser()
+        path = b.path
+        lst = [str(path.joinpath(b)) for b in b.get_selected()]
+        if lst:
+            if wx.TheClipboard.Open():
+                data = wx.FileDataObject()
+                for item in lst:
+                    data.AddFile(item)
+                wx.TheClipboard.SetData(data)
+                wx.TheClipboard.Close()
+                self.show_wait()
+            else:
+                self.show_message("Cannot copy selected items")
+
+    def paste_file(self, path):
+        desktop_folder = shell.SHGetDesktopFolder()
+        hwnd = win32gui.GetForegroundWindow()
+        item = Path(path)
+        path = item.parent
+        parent_pidl = shell.SHILCreateFromPath(str(path), 0)[0]
+        parent_folder = desktop_folder.BindToObject(parent_pidl, None, shell.IID_IShellFolder)
+        pidl = parent_folder.ParseDisplayName(hwnd, None, item.name)[1]
+        context_menu = parent_folder.GetUIObjectOf(hwnd, [pidl], shell.IID_IContextMenu, 0)[1]
+        menu = win32gui.CreatePopupMenu()
+        context_menu.QueryContextMenu(menu, 0, 1, 0x7FFF, shellcon.CMF_EXPLORE | shellcon.CMF_ITEMMENU |
+                                      shellcon.CMF_EXTENDEDVERBS)
+        ci = (0,  # Mask
+              hwnd,  # hwnd
+              "Paste",  # Verb
+              "",  # Parameters
+              "",  # Directory
+              win32con.SW_SHOWNORMAL,  # Show
+              0,  # HotKey
+              None  # Icon
+              )
+        context_menu.InvokeCommand(ci)
+
+    def paste_files_from_clip(self, e):
+        win = self.get_active_win()
+        b = win.get_active_browser()
+        path = b.path
+        self.run_in_thread(self.paste_file, [path])
+        self.show_wait()
+        # self.paste_file(path)
+        # if wx.TheClipboard.Open():
+        #     data = wx.FileDataObject()
+        #     success = wx.TheClipboard.IsSupported(wx.DataFormat(wx.DF_FILENAME))
+        #     if success:
+        #         success = wx.TheClipboard.GetData(data)
+        #         if not success:
+        #             self.show_message("Cannot paste from clipboard")
+        #         else:
+        #             lst = data.GetFilenames()
+        #             print(lst)
+        #     wx.TheClipboard.Close()
 
     def copy(self, folders=None, files=None, dst_path=""):
         win = self.get_active_win()
@@ -288,7 +363,7 @@ class MainFrame(wx.Frame):
                         if not path.exists():
                             b.shell_new_folder(str(path))
 
-    def delete(self):
+    def delete(self, e):
         win = self.get_active_win()
         b = win.get_active_browser()
         folders, files = b.get_selected_files_folders()
@@ -358,6 +433,17 @@ class MainFrame(wx.Frame):
         win = self.get_active_win()
         b = win.get_active_browser()
         b.invert_selection()
+
+    def copy_sel2clip(self):
+        win = self.get_active_win()
+        b = win.get_active_browser()
+        self.copy_text2clip(b.get_selected())
+
+    def copy_sel2clip_with_path(self):
+        win = self.get_active_win()
+        b = win.get_active_browser()
+        folders, files = b.get_selected_files_folders()
+        self.copy_text2clip([str(f) for f in folders] + [str(f) for f in files])
 
 
 class CmdBtn(wx.Button):

@@ -38,7 +38,7 @@ class BrowserConf:
         item = Path(full_name)
         new_name = ""
         if item.samefile(item.anchor):
-            new_name = str(item.anchor).lower()
+            new_name = str(item.anchor)
         else:
             new_name = self.get_short(item.name)
         return self.get_short("*" + new_name) if locked else new_name

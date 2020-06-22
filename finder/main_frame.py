@@ -116,7 +116,6 @@ class MainPanel(wx.Panel):
         dlg = wx.DirDialog(None, "Select directory", "",
                            wx.DD_DEFAULT_STYLE | wx.DD_DIR_MUST_EXIST)
         if dlg.ShowModal() == wx.ID_OK:
-            print(dlg.GetPath())
             if self.directories.GetValue() != "":
                 self.directories.SetValue(self.directories.GetValue() + "; " + dlg.GetPath())
             else:

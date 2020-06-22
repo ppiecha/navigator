@@ -21,6 +21,73 @@ CN_VIEWER_APP = Path(os.path.join(CN_APP_PATH, "viewer\\viewer.py"))
 
 CN_ICON_FILE_NAME = os.path.join(CN_APP_PATH, "img\\navigator.ico")
 
+# File
+ID_NEW_FILE = wx.NewId()
+ID_RENAME = wx.NewId()
+ID_VIEW = wx.NewId()
+ID_EDIT = wx.NewId()
+ID_COPY = wx.NewId()
+ID_MOVE = wx.NewId()
+ID_NEW_FOLDER = wx.NewId()
+ID_DELETE = wx.NewId()
+ID_SEP = wx.NewId()
+ID_EXIT = wx.NewId()
+# Hidden
+ID_CREATE_SHORTCUT = wx.NewId()
+ID_COPY2SAME = wx.NewId()
+ID_COPY_CLIP = wx.NewId()
+ID_PASTE_CLIP = wx.NewId()
+
+# EDIT
+ID_SELECT_ALL = wx.NewId()
+ID_INVERT_SEL = wx.NewId()
+ID_COPY_SEL_NAMES = wx.NewId()
+ID_COPY_SEL_NAMES_AND_PATHS = wx.NewId()
+
+
+class MItem:
+    def __init__(self, id=None, name=None, key=None, type=wx.ITEM_NORMAL, acc_type=wx.ACCEL_NORMAL, hidden=False):
+        self.id = id
+        self.name = name
+        self.type = type
+        self.acc_type = acc_type
+        self.key = key
+        self.hidden = hidden
+
+
+dt_file = {
+    ID_RENAME:          MItem(id=ID_RENAME, name="Rename", key=wx.WXK_F2),
+    ID_VIEW:            MItem(id=ID_VIEW, name="View", key=wx.WXK_F3),
+    ID_EDIT:            MItem(id=ID_EDIT, name="Edit", key=wx.WXK_F4),
+    ID_COPY:            MItem(id=ID_COPY, name="Copy", key=wx.WXK_F5),
+    ID_MOVE:            MItem(id=ID_MOVE, name="Move", key=wx.WXK_F6),
+    ID_NEW_FOLDER:      MItem(id=ID_NEW_FOLDER, name="New folder", key=wx.WXK_F7),
+    ID_DELETE:          MItem(id=ID_DELETE, name="Delete", key=wx.WXK_F8),
+    ID_NEW_FILE:        MItem(id=ID_NEW_FILE, name="New file", key=wx.WXK_F9),
+    ID_SEP:             MItem(id=ID_SEP, name="-", type=wx.ITEM_SEPARATOR),
+    ID_EXIT:            MItem(id=ID_EXIT, name="Exit", key=wx.WXK_F4, acc_type=wx.ACCEL_ALT),
+    ID_CREATE_SHORTCUT: MItem(id=ID_CREATE_SHORTCUT, name="Create shortcut", key=wx.WXK_F5,
+                              acc_type=wx.ACCEL_SHIFT + wx.ACCEL_CTRL, hidden=True),
+    ID_COPY2SAME:       MItem(id=ID_COPY2SAME, name="Copy to same folder", key=wx.WXK_F5,
+                              acc_type=wx.ACCEL_SHIFT, hidden=True),
+    ID_COPY_CLIP:       MItem(id=ID_COPY_CLIP, name="Copy to clipboard", key=ord("C"),
+                              acc_type=wx.ACCEL_CTRL, hidden=True),
+    ID_PASTE_CLIP:      MItem(id=ID_PASTE_CLIP, name="Paste from clipboard", key=ord("V"),
+                              acc_type=wx.ACCEL_CTRL, hidden=True)
+}
+
+dt_edit = {
+    ID_SELECT_ALL:                  MItem(id=ID_SELECT_ALL, name="Select all", key=ord("A"), acc_type=wx.ACCEL_CTRL),
+    ID_INVERT_SEL:                  MItem(id=ID_INVERT_SEL, name="Invert selection", key=ord("A"),
+                                          acc_type=wx.ACCEL_SHIFT + wx.ACCEL_CTRL),
+    ID_SEP:                         MItem(id=ID_SEP, name="-", type=wx.ITEM_SEPARATOR),
+    ID_COPY_SEL_NAMES:              MItem(id=ID_COPY_SEL_NAMES, name="Copy selected names", key=ord("C"),
+                                          acc_type=wx.ACCEL_SHIFT + wx.ACCEL_CTRL),
+    ID_COPY_SEL_NAMES_AND_PATHS:    MItem(id=ID_COPY_SEL_NAMES_AND_PATHS, name="Copy selected names with path",
+                                          key=ord("C"), acc_type=wx.ACCEL_SHIFT),
+}
+
+
 CN_IM_FOLDER = os.path.join(CN_APP_PATH, "img\\folder.png")
 CN_IM_FILE = os.path.join(CN_APP_PATH, "img\\file.png")
 CN_IM_GO_UP = os.path.join(CN_APP_PATH, "img\\go_up.png")
@@ -64,5 +131,7 @@ CN_TOPIC_DIR_CHG = "DIR_CHANGED"
 
 def q(text):
     return '"' + str(text) + '"'
+
+
 
 

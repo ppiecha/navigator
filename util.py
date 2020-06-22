@@ -66,8 +66,6 @@ def is_link(x):
     return False
 
 
-
-
 def q(text):
     return '"' + str(text) + '"'
 
@@ -94,16 +92,3 @@ def extension_to_bitmap(extension):
     bmp.CopyFromIcon(icon)
     return bmp
 
-
-class PathBtn(wx.BitmapButton):
-    def __init__(self, parent, frame, image):
-        super().__init__(parent=parent, bitmap=wx.Bitmap(image, wx.BITMAP_TYPE_PNG), size=(23, 23))
-        self.Bind(wx.EVT_SET_FOCUS, self.on_focus)
-        self.frame = frame
-
-    def on_focus(self, e):
-        if hasattr(self.frame, 'return_focus'):
-            self.frame.return_focus()
-
-    def AcceptsFocus(self):
-        return False

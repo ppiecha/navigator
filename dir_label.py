@@ -3,6 +3,7 @@ from pathlib import Path
 import os
 import subprocess
 import constants as cn
+import ctypes.wintypes
 
 
 class DirLabel(wx.Panel):
@@ -58,6 +59,8 @@ class DirLabel(wx.Panel):
             else:
                 return self.dir_path[:self.dir_path.find(self.suffix)]
 
+        self.browser_panel.browser.SetFocus()
+
         if self.selected and "..." not in self.selected:
             dir = get_selected_path()
             if dir != self.dir_path:
@@ -102,8 +105,8 @@ class DirLabel(wx.Panel):
     def dir_path(self, value):
         if not value:
             return
-        if value == self._dir_path:
-            return
+        # if value == self._dir_path:
+        #     return
         self._dir_path = value
         path = Path(value)
         prefix_len = wx.WindowDC(self).GetTextExtent(path.anchor).GetWidth()
@@ -177,7 +180,7 @@ class DirLabel(wx.Panel):
 CN_EDIT = "Edit"
 CN_COPY = "Copy path to clipboard"
 CN_CMD = "Run command prompt"
-CN_MENU = "Show context menu"
+CN_DRIVE = "Show drive properties"
 
 
 class PathMenu(wx.Menu):
@@ -186,7 +189,7 @@ class PathMenu(wx.Menu):
         self.frame = frame
         self.path_panel = path_panel
         self.path_label = path_label
-        self.menu_items = [CN_EDIT, CN_MENU, CN_COPY, CN_CMD]
+        self.menu_items = [CN_EDIT, CN_COPY, CN_CMD, CN_DRIVE]
         self.menu_items_id = {}
         for item in self.menu_items:
             self.menu_items_id[wx.NewId()] = item
@@ -196,20 +199,50 @@ class PathMenu(wx.Menu):
 
     def on_click(self, event):
         operation = self.menu_items_id[event.GetId()]
-        print(operation)
         if operation == CN_EDIT:
             self.path_panel.read_only = False
         elif operation == CN_COPY:
-            self.path_panel.path_edit.Copy()
-            print(self.path_panel.path_edit.GetValue())
+            self.frame.copy_text2clip([self.path_panel.path_edit.GetValue()])
         elif operation == CN_CMD:
             subprocess.Popen(["start", "cmd"], shell=True)
-        elif operation == CN_MENU:
-            path = Path(self.path_label.GetValue())
-            print(path.parent)
-            self.path_label.context_menu("C:", [])
-            # path = Path(self.path_label.GetValue())
-            # if path.exists():
-            #     self.path_label.context_menu(path.parent, [path.name])
+        elif operation == CN_DRIVE:
+            self.show_drive_props(Path(self.path_panel.path_edit.GetValue()).anchor.rstrip("\\"))
+
+    def show_drive_props(self, drive_nobackslash):
+        sei = SHELLEXECUTEINFO()
+        sei.cbSize = ctypes.sizeof(sei)
+        sei.fMask = _SEE_MASK_NOCLOSEPROCESS | _SEE_MASK_INVOKEIDLIST
+        sei.lpVerb = "properties"
+        sei.lpFile = drive_nobackslash + '\\'
+        sei.nShow = 1
+        ShellExecuteEx(ctypes.byref(sei))
+
+
+_SEE_MASK_NOCLOSEPROCESS = 0x00000040
+_SEE_MASK_INVOKEIDLIST = 0x0000000C
+
+
+class SHELLEXECUTEINFO(ctypes.Structure):
+    _fields_ = (
+        ("cbSize", ctypes.wintypes.DWORD),
+        ("fMask", ctypes.c_ulong),
+        ("hwnd", ctypes.wintypes.HANDLE),
+        ("lpVerb", ctypes.c_wchar_p),
+        ("lpFile", ctypes.c_wchar_p),
+        ("lpParameters", ctypes.c_char_p),
+        ("lpDirectory", ctypes.c_char_p),
+        ("nShow", ctypes.c_int),
+        ("hInstApp", ctypes.wintypes.HINSTANCE),
+        ("lpIDList", ctypes.c_void_p),
+        ("lpClass", ctypes.c_char_p),
+        ("hKeyClass", ctypes.wintypes.HKEY),
+        ("dwHotKey", ctypes.wintypes.DWORD),
+        ("hIconOrMonitor", ctypes.wintypes.HANDLE),
+        ("hProcess", ctypes.wintypes.HANDLE),
+    )
+
+
+ShellExecuteEx = ctypes.windll.shell32.ShellExecuteExW
+ShellExecuteEx.restype = ctypes.wintypes.BOOL
 
 
