@@ -259,9 +259,13 @@ class Browser(wx.ListCtrl, ListCtrlAutoWidthMixin):
         self.drag_src = None
 
     def on_browser_focus(self, e):
-        os.chdir(str(self.path))
-        self.path_pnl.path_lbl.Refresh()
-        self.frame.get_inactive_win().get_active_browser().path_pnl.path_lbl.Refresh()
+        if self.path.exists():
+            os.chdir(str(self.path))
+            self.path_pnl.path_lbl.Refresh()
+            self.frame.get_inactive_win().get_active_browser().path_pnl.path_lbl.Refresh()
+        else:
+            self.frame.show_message(str(self.path) + " doesn't exist anymore")
+            self.open_dir(Path.home())
         e.Skip()
 
     def on_kill_focus(self, e):
@@ -374,7 +378,7 @@ class Browser(wx.ListCtrl, ListCtrlAutoWidthMixin):
     def add_hist_item(self, path):
         if path not in self.history:
             self.history.insert(0, path)
-            if len(self.history) > CN_MAX_HIST_COUNT:
+            if len(self.history) > self.frame.app_conf.history_limit:
                 self.history.pop()
 
     def on_select(self, event):
@@ -419,6 +423,9 @@ class Browser(wx.ListCtrl, ListCtrlAutoWidthMixin):
             else:
                 if self.GetItemCount() > 1:
                     self.select_item(1)
+                    return True
+        return False
+
 
     def get_selected(self):
 
@@ -502,11 +509,17 @@ class Browser(wx.ListCtrl, ListCtrlAutoWidthMixin):
         self._path = value
 
     def do_search_folder(self, pattern):
-        pattern = "*" if pattern == "" else pattern
-        pattern = pattern if pattern.startswith("*") else "*{p}*".format(p=pattern)
+        hist = pattern
+        if not pattern:
+            pattern = ["*"]
+        else:
+            pattern = list(map(lambda x: "*" + x + "*",
+                               [part.strip() for part in pattern.split(";") if part.strip()]))
         self.conf.pattern = pattern
         self.open_dir(self.path, sel_dir=cn.CN_GO_BACK)
-        self.select_first_one()
+        if self.select_first_one():
+            if "*" not in pattern:
+                self.frame.app_conf.add_search_hist_item(hist.lower())
 
     def sort_by_column(self, sort_key, desc, reread=True):
 

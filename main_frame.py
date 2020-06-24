@@ -528,16 +528,16 @@ class DirCache:
         self.frame = frame
         self._dict = {}
 
+    def match(self, src, pat_lst):
+        return len(list(filter(lambda x: x, map(lambda x: fnmatch.fnmatch(src, x), pat_lst)))) > 0
+
     def get_dir(self, dir_name, conf):
-        if isinstance(dir_name, str):
-            print("got str", dir_name)
         if dir_name not in self._dict.keys():
-            # print("DATA READ", dir_name)
             self._dict[dir_name] = DirCacheItem(frame=self.frame, dir_name=dir_name)
-        pattern = conf.pattern if conf.use_pattern else "*"
-        return sorted([d for d in self._dict[dir_name].dir_items if fnmatch.fnmatch(d[cn.CN_COL_NAME], pattern)],
+        pattern = conf.pattern if conf.use_pattern else ["*"]
+        return sorted([d for d in self._dict[dir_name].dir_items if self.match(d[cn.CN_COL_NAME], pattern)],
                       key=itemgetter(conf.sort_key), reverse=conf.sort_desc) + \
-               sorted([f for f in self._dict[dir_name].file_items if fnmatch.fnmatch(f[cn.CN_COL_NAME], pattern)],
+               sorted([f for f in self._dict[dir_name].file_items if self.match(f[cn.CN_COL_NAME], pattern)],
                       key=itemgetter(conf.sort_key), reverse=conf.sort_desc)
 
     def release_resources(self):

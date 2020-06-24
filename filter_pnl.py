@@ -60,7 +60,6 @@ class FilterPnl(wx.Panel):
                 self.disable_filter()
 
     def on_search(self, event):
-        # if self.filter.GetValue() != "":
         self.browser.conf.use_pattern = (self.filter.GetValue() != "")
         self.filter_btn.SetValue((self.filter.GetValue() != ""))
         self.browser.do_search_folder(event.GetString())
@@ -74,5 +73,6 @@ class Filter(wx.SearchCtrl):
         self.parent = parent
         self.ShowSearchButton(False)
         self.ShowCancelButton(False)
+        self.AutoComplete(self.frame.app_conf.search_history)
 
 

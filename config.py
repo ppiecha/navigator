@@ -72,6 +72,17 @@ class NavigatorConf:
         self.left_active_tab = None
         self.right_active_tab = None
         self.custom_paths = []
+        self.search_history = []
 
     def __str__(self):
         return "Left browser: " + str(self.left_browser) + "\n" + "Right browser: " + str(self.right_browser)
+
+    def add_search_hist_item(self, item):
+        if not [h for h in self.search_history if h.startswith(item)]:
+            self.search_history.insert(0, item)
+            if len(self.search_history) > self.history_limit:
+                self.search_history.pop()
+
+    def trim_hist(self, hist):
+        pass
+
