@@ -124,6 +124,12 @@ class MainFrame(wx.Frame):
         self.img_home = self.im_list.Add(wx.Bitmap(cn.CN_IM_HOME, wx.BITMAP_TYPE_PNG))
         self.img_anchor = self.im_list.Add(wx.Bitmap(cn.CN_IM_ANCHOR, wx.BITMAP_TYPE_PNG))
         self.img_user = self.im_list.Add(wx.Bitmap(cn.CN_IM_USER, wx.BITMAP_TYPE_PNG))
+        self.img_parent = self.im_list.Add(wx.Bitmap(cn.CN_IM_PARENT, wx.BITMAP_TYPE_PNG))
+        self.img_child = self.im_list.Add(wx.Bitmap(cn.CN_IM_CHILD, wx.BITMAP_TYPE_PNG))
+        self.img_link_folder = self.im_list.Add(wx.Bitmap(cn.CN_IM_NEW_FOLDER, wx.BITMAP_TYPE_PNG))
+        self.img_link_file = self.im_list.Add(wx.Bitmap(cn.CN_IM_NEW_FILE, wx.BITMAP_TYPE_PNG))
+        self.img_link = self.im_list.Add(wx.Bitmap(cn.CN_IM_NEW_HLINK, wx.BITMAP_TYPE_PNG))
+        self.img_link_shortcut = self.im_list.Add(wx.Bitmap(cn.CN_IM_NEW_SHORTCUT, wx.BITMAP_TYPE_PNG))
 
         self.splitter = wx.SplitterWindow(self, cn.ID_SPLITTER, style=wx.SP_BORDER)
         self.splitter.SetMinimumPaneSize(10)
@@ -315,17 +321,17 @@ class MainFrame(wx.Frame):
             path = b.path
             folders, files = b.get_selected_files_folders()
             inactive = self.get_inactive_win()
-            if not inactive:
-                raise Exception("Cannot determine inactive window")
-            else:
-                dst = str(inactive.get_active_browser().path)
+            dst = str(inactive.get_active_browser().path)
         if folders or files:
-            opr_count = "Copy " + str(len(folders)) + " folder(s) and " + str(len(files)) + " file(s)"
-            src = "From: " + str(path) + " to"
+            opr_count, src, dst = self.get_oper_details(prefix="Copy ", folders=folders,
+                                                        files=files, source_path=path,
+                                                        dest_path=dst,
+                                                        oper_id=cn.ID_COPY)
             with dialogs.CopyMoveDlg(self, title="Copy", opr_count=opr_count, src=src, dst=dst) as dlg:
                 if dlg.show_modal() == wx.ID_OK:
+                    path, name = dlg.get_path_and_name()
                     self.run_in_thread(target=b.shell_copy,
-                                       args=(folders + files, dlg.get_dst(), dlg.cb_rename.IsChecked()))
+                                       args=(folders + files, path, dlg.cb_rename.IsChecked()))
         else:
             self.show_message("No items selected")
 
@@ -334,17 +340,15 @@ class MainFrame(wx.Frame):
         b = win.get_active_browser()
         folders, files = b.get_selected_files_folders()
         if folders or files:
-            opr_count = "Move " + str(len(folders)) + " folder(s) and " + str(len(files)) + " file(s)"
-            src = "From: " + str(b.path) + " to"
-            inactive = self.get_inactive_win()
-            if not inactive:
-                raise Exception("Cannot determine inactive window")
-            else:
-                dst = str(inactive.get_active_browser().path)
+            opr_count, src, dst = self.get_oper_details(prefix="Move ", folders=folders,
+                                                        files=files, source_path=b.path,
+                                                        dest_path=self.get_inactive_win().get_active_browser().path,
+                                                        oper_id=cn.ID_MOVE)
             with dialogs.CopyMoveDlg(self, title="Move", opr_count=opr_count, src=src, dst=dst) as dlg:
                 if dlg.show_modal() == wx.ID_OK:
+                    path, name = dlg.get_path_and_name()
                     self.run_in_thread(target=b.shell_move,
-                                       args=(folders + files, dlg.get_dst(), dlg.cb_rename.IsChecked()))
+                                       args=(folders + files, path, dlg.cb_rename.IsChecked()))
         else:
             self.show_message("No items selected")
 
@@ -395,31 +399,63 @@ class MainFrame(wx.Frame):
                     if dlg.cb_open.IsChecked():
                         b.open_file(path)
 
+    def get_oper_details(self, prefix, folders, files, source_path, dest_path, oper_id):
+        all = folders + files
+        dest_path = Path(dest_path)
+        source_path = Path(source_path)
+        src = "From: " + str(source_path) + " to"
+        if len(all) == 0:
+            name = source_path.name
+            opr_count = prefix + str(name)
+            dst = str(dest_path.joinpath(name)) + ".lnk"
+        elif len(all) == 1:
+            full_name = Path(all[0])
+            name = full_name.name
+            stem = full_name.stem
+            opr_count = prefix + str(name)
+            if oper_id == cn.ID_CREATE_SHORTCUT:
+                dst = str(dest_path.joinpath(name)) + ".lnk"
+            elif oper_id == cn.ID_COPY2SAME:
+                dst = str(source_path.joinpath(name))
+            else:
+                dst = str(dest_path)
+        else:
+            oper_desc = ""
+            if folders:
+                opr_desc = str(len(folders)) + " folder(s)"
+                if files:
+                    opr_desc += " and " + str(len(files)) + " file(s)"
+            elif files:
+                opr_desc = str(len(files)) + " file(s)"
+            opr_count = prefix + opr_desc
+            dst = str(dest_path)
+
+        return opr_count, src, dst
+
     def on_create_shortcut(self, e):
-        print("Here")
         win = self.get_active_win()
         b = win.get_active_browser()
         folders, files = b.get_selected_files_folders()
-        if folders or files:
-            opr_count = "Create shortcut(s) for " + str(len(folders)) + " folder(s) and " + str(len(files)) + " file(s)"
-            src = "From: " + str(b.path) + " to"
-            inactive = self.get_inactive_win()
-            if not inactive:
-                raise Exception("Cannot determine inactive window")
-            else:
-                dst = str(inactive.get_active_browser().path)
-            with dialogs.CopyMoveDlg(self, title="Create shortcut(s)", opr_count=opr_count, src=src, dst=dst) as dlg:
-                if dlg.show_modal() == wx.ID_OK:
+        opr_count, src, dst = self.get_oper_details(prefix="Create shortcut(s) for ", folders=folders,
+                                                    files=files, source_path=b.path,
+                                                    dest_path=self.get_inactive_win().get_active_browser().path,
+                                                    oper_id=cn.ID_CREATE_SHORTCUT)
+        with dialogs.CopyMoveDlg(self, title="Create shortcut(s)", opr_count=opr_count, src=src, dst=dst) as dlg:
+            if dlg.show_modal() == wx.ID_OK:
+                path, name = dlg.get_path_and_name()
+                if len(folders + files) > 0:
                     for f in folders:
-                        b.shell_shortcut(path=dlg.get_dst(),
-                                         lnk_name=f.name + ".lnk",
+                        b.shell_shortcut(path=path,
+                                         lnk_name=name if name else f.name + ".lnk",
                                          target=os.path.join(b.path, f.name))
                     for f in files:
-                        b.shell_shortcut(path=dlg.get_dst(),
-                                         lnk_name=f.name + ".lnk",
+                        b.shell_shortcut(path=path,
+                                         lnk_name=name if name else f.name + ".lnk",
                                          target=os.path.join(b.path, f.name))
-        else:
-            self.show_message("No items selected")
+                else:
+                    b.shell_shortcut(path=path,
+                                     lnk_name=name,
+                                     target=os.path.join(b.path, ""))
 
 
     def on_copy2same(self, e):

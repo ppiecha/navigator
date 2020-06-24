@@ -106,7 +106,7 @@ class BrowserCtrl(aui.AuiNotebook):
 
     def add_tab(self, tab_conf, select=False):
         self.Freeze()
-        tab = BrowserPnl(self, self.frame, self.im_list, tab_conf)
+        tab = BrowserPnl(self, self.frame, self.im_list, tab_conf, self.is_left)
         self.AddPage(page=tab, caption="tab", select=select)
         self.Thaw()
 
@@ -146,18 +146,16 @@ class BrowserCtrl(aui.AuiNotebook):
 
 
 class BrowserPnl(wx.Panel):
-    def __init__(self, parent, frame, im_list, conf):
+    def __init__(self, parent, frame, im_list, tab_conf, is_left):
         super().__init__(parent=parent)
         self.parent = parent
         self.frame = frame
-        self.path_pnl = path_pnl.PathPanel(self, self.frame)
-        # self.path_pnl = dir_label.DirLabel(self, self.frame)
-        self.browser = Browser(self, frame, im_list, conf)
+        self.path_pnl = path_pnl.PathPanel(self, self.frame, is_left)
+        self.browser = Browser(self, frame, im_list, tab_conf)
         self.filter_pnl = filter_pnl.FilterPnl(self, self.frame, self.browser)
         self.browser.set_references(self.path_pnl, self.filter_pnl)
         self.path_pnl.hist_menu.set_browser(self.browser)
-        self.browser.open_dir(conf.last_path)
-        # self.browser.SetFocus()
+        self.browser.open_dir(tab_conf.last_path)
         self.top_down_sizer = wx.BoxSizer(wx.VERTICAL)
         self.top_down_sizer.Add(self.path_pnl, flag=wx.EXPAND)
         self.top_down_sizer.Add(self.browser, flag=wx.EXPAND, proportion=1)
@@ -303,12 +301,15 @@ class Browser(wx.ListCtrl, ListCtrlAutoWidthMixin):
     def OnGetItemText(self, item, col):
 
         def gci(item, col):
-            if col == cn.CN_COL_DATE:
-                return util.format_date(self.dir_cache[item][col])
-            elif col == cn.CN_COL_SIZE:
-                return util.format_size(self.dir_cache[item][col])
+            if 0 <= item < len(self.dir_cache):
+                if col == cn.CN_COL_DATE:
+                    return util.format_date(self.dir_cache[item][col])
+                elif col == cn.CN_COL_SIZE:
+                    return util.format_size(self.dir_cache[item][col])
+                else:
+                    return self.dir_cache[item][col]
             else:
-                return self.dir_cache[item][col]
+                return ""
 
         if item == 0:
             if not self.root:
@@ -854,7 +855,7 @@ class Browser(wx.ListCtrl, ListCtrlAutoWidthMixin):
             return False
 
     def shell_shortcut(self, path, lnk_name, target, args=None, desc=None, start_in=None):
-        winshell.CreateShortcut(Path=str(os.path.join(path, lnk_name)),
+        winshell.CreateShortcut(Path=str(os.path.join(path, lnk_name) if lnk_name else path),
                                 Target=str(target),
                                 Arguments=str(args),
                                 Description=str(desc),
@@ -869,7 +870,7 @@ class Browser(wx.ListCtrl, ListCtrlAutoWidthMixin):
         if file_names:
             pidls = []
             for item in file_names:
-                pidl = parent_folder.ParseDisplayName(hwnd, None, file_names[0])[1]
+                pidl = parent_folder.ParseDisplayName(hwnd, None, item)[1]
                 pidls.append(pidl)
             context_menu = parent_folder.GetUIObjectOf(hwnd, pidls, shell.IID_IContextMenu, 0)[1]
             print(parent_folder.GetDisplayNameOf(pidls[0], shellcon.SHGDN_FORPARSING | shellcon.SHGDN_FORADDRESSBAR))

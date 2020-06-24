@@ -10,13 +10,13 @@ import controls
 
 
 class PathPanel(wx.Panel):
-    def __init__(self, parent, frame):
+    def __init__(self, parent, frame, is_left):
         super().__init__(parent=parent)
         self.parent = parent
         self.frame = frame
+        self.is_left = is_left
+        self.tool_dlg = None
         self._read_only = True
-        # self.drive_combo = DriveCombo(self, self.frame)
-        # self.drive_combo = DrivePopup(self, size=(50, 23))
         self.drive_combo = self.get_drive_combo()
         self.path_lbl = dir_label.DirLabel(self, self.frame)
         self.path_edit = PathEdit(self, self.frame)
@@ -92,12 +92,11 @@ class PathPanel(wx.Panel):
         return False
 
     def on_links(self, e):
-        with links.LinkDlg(self.frame, link_pages=None) as dlg:
-            dlg.show_modal()
-
-        # subprocess.Popen(["pythonw", str(cn.CN_VIEWER_APP)], shell=False, cwd=cn.CN_VIEWER_APP.parent)
-        # out, _ = p.communicate("Navigator test".encode())
-        # self.parent.browser.shell_copy("C:\\Temp\\Back lab", "c:\\Temp\\py\\temp2", auto_rename=True)
+        if not self.tool_dlg:
+            self.tool_dlg = links.LinkDlg(self.frame, is_left=self.is_left,
+                                          is_read_only=False if wx.GetKeyState(wx.WXK_CONTROL) else True)
+        self.tool_dlg.show()
+        self.tool_dlg.SetFocus()
 
     def on_history(self, event):
         self.hist_menu.update()

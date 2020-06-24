@@ -9,7 +9,7 @@ from pathlib import Path
 import controls
 
 class BasicDlg(wx.Dialog):
-    def __init__(self, frame, title, size=None, style=wx.DEFAULT_DIALOG_STYLE, border=10):
+    def __init__(self, frame, title, size=(500, 500), style=wx.DEFAULT_DIALOG_STYLE, border=10):
         super().__init__(parent=frame, title=title, size=size if size else wx.DefaultSize, style=style)
 
         self.SetAcceleratorTable(wx.AcceleratorTable([wx.AcceleratorEntry(flags=wx.ACCEL_NORMAL,
@@ -314,7 +314,8 @@ class CopyMoveDlg(BasicDlg):
         self.ctrl_sizer.Add(self.cb_rename, flag=wx.TOP, border=5)
 
     def on_dir_btn(self, e):
-        dir = wx.DirSelector(message="Select directory", default_path=self.get_dst())
+        path, name = self.get_path_and_name()
+        dir = wx.DirSelector(message="Select directory", default_path=str(path))
         if dir:
             self.ed_dst.SetValue(dir)
 
@@ -323,8 +324,12 @@ class CopyMoveDlg(BasicDlg):
         self.ed_dst.SetFocus()
         self.ed_dst.SelectAll()
 
-    def get_dst(self):
-        return self.ed_dst.GetValue()
+    def get_path_and_name(self):
+        path = Path(self.ed_dst.GetValue())
+        if path.suffix:
+            return path.parent, path.name
+        else:
+            return path, ""
 
     def show_modal(self):
         self.main_sizer.Fit(self)
