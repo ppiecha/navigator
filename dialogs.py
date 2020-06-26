@@ -269,7 +269,7 @@ class NewItemDlg(TextEditDlg):
 
     def show_modal(self):
         self.select_all()
-        super().show_modal()
+        return super().show_modal()
 
 
 class NewFolderDlg(NewItemDlg):
@@ -308,7 +308,7 @@ class RenameDlg(TextEditDlg):
     def show_modal(self):
         self.set_focus()
         self.ed_new_name.smart_select()
-        super().show_modal()
+        return super().show_modal()
 
 
 class CopyMoveDlg(BasicDlg):
@@ -350,7 +350,7 @@ class CopyMoveDlg(BasicDlg):
     def show_modal(self):
         self.ed_dst.SetFocus()
         self.ed_dst.SetInsertionPointEnd()
-        super().show_modal()
+        return super().show_modal()
 
 
 
