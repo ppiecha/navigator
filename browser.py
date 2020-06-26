@@ -326,6 +326,8 @@ class Browser(wx.ListCtrl, ListCtrlAutoWidthMixin):
     def OnGetItemImage(self, item):
         if item == 0 and not self.root:
             return self.frame.img_go_up
+        if item > len(self.dir_cache):
+            return -1
         if self.dir_cache[item - 1 if not self.root else item][cn.CN_COL_ISDIR]:
             return self.frame.img_folder
         else:
@@ -517,9 +519,7 @@ class Browser(wx.ListCtrl, ListCtrlAutoWidthMixin):
                                [part.strip() for part in pattern.split(";") if part.strip()]))
         self.conf.pattern = pattern
         self.open_dir(self.path, sel_dir=cn.CN_GO_BACK)
-        if self.select_first_one():
-            if "*" not in pattern:
-                self.frame.app_conf.add_search_hist_item(hist.lower())
+        self.select_first_one()
 
     def sort_by_column(self, sort_key, desc, reread=True):
 
@@ -871,7 +871,7 @@ class Browser(wx.ListCtrl, ListCtrlAutoWidthMixin):
         winshell.CreateShortcut(Path=str(os.path.join(path, lnk_name) if lnk_name else path),
                                 Target=str(target),
                                 Arguments=str(args),
-                                Description=str(desc),
+                                Description="Shortcut to " + str(target),
                                 StartIn=str(start_in))
 
 

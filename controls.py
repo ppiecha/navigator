@@ -3,6 +3,17 @@ import wx.lib.buttons as buttons
 import constants as cn
 
 
+class FileNameEdit(wx.TextCtrl):
+    def __init__(self, parent, value, size):
+        super().__init__(parent=parent, value=value, size=size)
+
+    def smart_select(self):
+        parts = self.GetValue().split(".")
+        print(parts, len(parts[0]))
+        if len(parts) > 0:
+            self.SetSelection(0, len(parts[0]))
+
+
 class ToolBtn(buttons.ThemedGenBitmapButton):
     def __init__(self, parent, im_file, def_ctrl=[], size=(24, 24)):
         super().__init__(parent, -1, wx.Bitmap(im_file, wx.BITMAP_TYPE_PNG), size=size)

@@ -27,18 +27,7 @@ class DirWatcher(Thread):
         self.dir_name = str(dir_name)
         self.dir_items = dir_items
         self.file_items = file_items
-        # self.change_handle = None
         try:
-            # win32file.ReadDirectoryChangesW
-            # hDir = win32file.CreateFile(
-            #     self.dir_name,
-            #     FILE_LIST_DIRECTORY,
-            #     win32con.FILE_SHARE_READ | win32con.FILE_SHARE_WRITE | win32con.FILE_SHARE_DELETE,
-            #     None,
-            #     win32con.OPEN_EXISTING,
-            #     win32con.FILE_FLAG_BACKUP_SEMANTICS,
-            #     None
-            # )
             self.change_handle = win32file.FindFirstChangeNotification(
                                             self.dir_name,
                                             0,

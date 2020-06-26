@@ -1,4 +1,5 @@
 from pathlib import Path
+import util
 
 
 class BrowserConf:
@@ -73,6 +74,7 @@ class NavigatorConf:
         self.right_active_tab = None
         self.custom_paths = []
         self.search_history = []
+        self.search_hist_limit = 100
 
     def __str__(self):
         return "Left browser: " + str(self.left_browser) + "\n" + "Right browser: " + str(self.right_browser)
@@ -80,9 +82,13 @@ class NavigatorConf:
     def add_search_hist_item(self, item):
         if not [h for h in self.search_history if h.startswith(item)]:
             self.search_history.insert(0, item)
-            if len(self.search_history) > self.history_limit:
-                self.search_history.pop()
+            print("Added search hist", item)
+        util.run_in_thread(self.trim_hist, [self.search_history])
 
     def trim_hist(self, hist):
-        pass
+        # to_delete = list(filter(lambda x:
+        #                         len(list(filter(lambda y:
+        # len([z for z in y.split(";") if z.strip() and z.startswith(x) and len(x) < len(z)]) > 0, hist))) > 0, hist))
+        while len(self.search_history) > self.search_hist_limit:
+            self.search_history.pop()
 

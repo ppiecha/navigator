@@ -239,6 +239,8 @@ class HistMenu(wx.Menu):
         self.browser = None
         self.sorted_items = []
         self.sorted_items_id = {}
+        self.win = wx.PopupTransientWindow
+
 
     def set_browser(self, browser):
         self.browser = browser

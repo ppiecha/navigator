@@ -7,7 +7,12 @@ import os
 import win32api
 import win32file
 from pathlib import Path
+from threading import Thread
 
+
+def run_in_thread(target, args):
+    th = Thread(target=target, args=args)
+    th.start()
 
 def get_drives():
 

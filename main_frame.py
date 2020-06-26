@@ -2,6 +2,7 @@ import wx
 import browser
 import menu
 import constants as cn
+import util
 import config
 import pickle
 import os
@@ -12,12 +13,12 @@ import fnmatch
 import wx.aui as aui
 import dialogs
 import traceback
-from threading import Thread
 import wx.adv
 import sys
 import win32gui
 from win32com.shell import shell, shellcon
 import win32con
+import win32file
 
 class MainFrame(wx.Frame):
     def __init__(self):
@@ -53,10 +54,6 @@ class MainFrame(wx.Frame):
                 self.show_message("Output redirected to UI")
         else:
             pass
-
-    def run_in_thread(self, target, args):
-        th = Thread(target=target, args=args)
-        th.start()
 
     def except_hook(self, type, value, tb):
         message = ''.join(traceback.format_exception(type, value, tb))
@@ -231,7 +228,7 @@ class MainFrame(wx.Frame):
             old_name = selected[0]
             with dialogs.RenameDlg(self, old_name) as dlg:
                 if dlg.show_modal() == wx.ID_OK:
-                    self.run_in_thread(target=b.shell_rename, args=(os.path.join(b.path, old_name),
+                    util.run_in_thread(target=b.shell_rename, args=(os.path.join(b.path, old_name),
                                                                     os.path.join(b.path, dlg.get_new_names()[0]),
                                                                     dlg.cb_rename.IsChecked()))
 
@@ -293,7 +290,7 @@ class MainFrame(wx.Frame):
         win = self.get_active_win()
         b = win.get_active_browser()
         path = b.path
-        self.run_in_thread(self.paste_file, [path])
+        util.run_in_thread(self.paste_file, [path])
         self.show_wait()
         # self.paste_file(path)
         # if wx.TheClipboard.Open():
@@ -330,8 +327,14 @@ class MainFrame(wx.Frame):
             with dialogs.CopyMoveDlg(self, title="Copy", opr_count=opr_count, src=src, dst=dst) as dlg:
                 if dlg.show_modal() == wx.ID_OK:
                     path, name = dlg.get_path_and_name()
-                    self.run_in_thread(target=b.shell_copy,
-                                       args=(folders + files, path, dlg.cb_rename.IsChecked()))
+                    if not name:
+                        print("folder", folders + files, path, name)
+                        util.run_in_thread(target=b.shell_copy,
+                                           args=(folders + files, path, dlg.cb_rename.IsChecked()))
+                    else:
+                        util.run_in_thread(target=win32file.CopyFile,
+                                           args=(str(b.path.joinpath(files[0].name)),
+                                                 str(Path(path, name)), 0))
         else:
             self.show_message("No items selected")
 
@@ -347,7 +350,7 @@ class MainFrame(wx.Frame):
             with dialogs.CopyMoveDlg(self, title="Move", opr_count=opr_count, src=src, dst=dst) as dlg:
                 if dlg.show_modal() == wx.ID_OK:
                     path, name = dlg.get_path_and_name()
-                    self.run_in_thread(target=b.shell_move,
+                    util.run_in_thread(target=b.shell_move,
                                        args=(folders + files, path, dlg.cb_rename.IsChecked()))
         else:
             self.show_message("No items selected")
@@ -381,7 +384,7 @@ class MainFrame(wx.Frame):
                            ", ".join([f.name for f in files]) + "</b>"
             with dialogs.DeleteDlg(self, message) as dlg:
                 if dlg.show_modal() == wx.ID_OK:
-                    self.run_in_thread(target=b.shell_delete, args=(folders + files, dlg.cb_perm.IsChecked()))
+                    util.run_in_thread(target=b.shell_delete, args=(folders + files, dlg.cb_perm.IsChecked()))
         else:
             self.show_message("No items selected")
 
@@ -417,6 +420,8 @@ class MainFrame(wx.Frame):
                 dst = str(dest_path.joinpath(name)) + ".lnk"
             elif oper_id == cn.ID_COPY2SAME:
                 dst = str(source_path.joinpath(name))
+            # elif oper_id == cn.ID_COPY:
+            #     dst = dest_path.joinpath(name)
             else:
                 dst = str(dest_path)
         else:
@@ -459,7 +464,32 @@ class MainFrame(wx.Frame):
 
 
     def on_copy2same(self, e):
-        self.show_message("Copy to the same folder not implemented")
+        win = self.get_active_win()
+        b = win.get_active_browser()
+        folders, files = b.get_selected_files_folders()
+        sel_count = len(folders + files)
+        if sel_count == 0:
+            self.show_message("No items selected")
+        elif sel_count > 1:
+            self.show_message("Select only one item")
+        else:
+            def_name = files[0].name if files else folders[0].name
+            item_type = "file" if files else "folder"
+            with dialogs.NewItemDlg(self, "Copy to the same folder", b.path, def_name,
+                                    label=f"Enter {item_type} name where to copy") as dlg:
+                if dlg.show_modal() == wx.ID_OK:
+                    new_name = dlg.get_new_names()[0]
+                    full_name = b.path.joinpath(new_name)
+                    if item_type == "file":
+                        util.run_in_thread(target=win32file.CopyFile,
+                                           args=(str(b.path.joinpath(files[0].name)),
+                                                 str(full_name), 0))
+                    else:
+                        if not b.shell_new_folder(str(full_name)):
+                            self.show_message(f"Cannot create folder {new_name}")
+                        else:
+                            util.run_in_thread(b.shell_copy, [str(b.path.joinpath(str(folders[0]), "*.*")),
+                                                              str(full_name)])
 
     def select_all(self):
         win = self.get_active_win()
@@ -529,9 +559,11 @@ class DirCache:
         self._dict = {}
 
     def match(self, src, pat_lst):
-        return len(list(filter(lambda x: x, map(lambda x: fnmatch.fnmatch(src, x), pat_lst)))) > 0
+        return len(list(filter(lambda x: fnmatch.fnmatch(src, x), pat_lst))) > 0
+        # return len(list(filter(lambda x: x, map(lambda x: fnmatch.fnmatch(src, x), pat_lst)))) > 0
 
     def get_dir(self, dir_name, conf):
+        # print("size of cache:", sys.getsizeof(self._dict) / 1024.0 / 1024.0, "MB")
         if dir_name not in self._dict.keys():
             self._dict[dir_name] = DirCacheItem(frame=self.frame, dir_name=dir_name)
         pattern = conf.pattern if conf.use_pattern else ["*"]

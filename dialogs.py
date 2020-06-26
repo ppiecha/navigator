@@ -4,7 +4,6 @@ import browser
 import os
 import wx.html as html
 import wx.propgrid as pg
-import util
 from pathlib import Path
 import controls
 
@@ -43,9 +42,9 @@ class BasicDlg(wx.Dialog):
         self.EndModal(wx.ID_CANCEL)
         e.Skip()
 
-    def show_modal(self):
-        self.main_sizer.Fit(self)
-        # self.SetSize(self.GetEffectiveMinSize())
+    def show_modal(self, fit=True):
+        if fit:
+            self.main_sizer.Fit(self)
         self.CenterOnParent()
         return self.ShowModal()
 
@@ -205,7 +204,7 @@ class TextEditDlg(BasicDlg):
     def __init__(self, frame, title, label="", edit_text=""):
         super().__init__(frame=frame, title=title)
         self.lbl_text = wx.StaticText(self, label=label)
-        self.ed_new_name = wx.TextCtrl(parent=self, size=(400, 23), value=edit_text)
+        self.ed_new_name = controls.FileNameEdit(parent=self, size=(400, 23), value=edit_text)
         self.ctrl_sizer.Add(self.lbl_text)
         self.ctrl_sizer.Add(self.ed_new_name, flag=wx.TOP, border=5)
 
@@ -223,25 +222,33 @@ class TextEditDlg(BasicDlg):
         wx.MessageBox(message=message, caption=cn.CN_APP_NAME)
         self.ed_new_name.SetFocus()
         self.ed_new_name.SelectAll()
+        self.ed_new_name.SetInsertionPointEnd()
 
     def get_new_names(self):
         items = self.ed_new_name.GetValue().rstrip(";").split(";")
         return [item.rstrip() for item in items]
 
+    def set_focus(self):
+        self.ed_new_name.SetFocus()
+        self.ed_new_name.SetInsertionPointEnd()
+
+    def select_all(self):
+        self.set_focus()
+        self.ed_new_name.smart_select()
+
     def show_modal(self):
         self.main_sizer.Fit(self)
         self.SetSize(self.GetEffectiveMinSize())
         self.CenterOnParent()
-        self.ed_new_name.SetFocus()
-        self.ed_new_name.SelectAll()
         return self.ShowModal()
 
 
 class NewItemDlg(TextEditDlg):
-    def __init__(self, frame, title, browser_path, def_name):
+    def __init__(self, frame, title, browser_path, def_name, label=""):
         super().__init__(frame=frame, title=title)
         self.browser_path = browser_path
         self.ed_new_name.SetValue(def_name)
+        self.lbl_text.SetLabel(label)
 
     def on_ok(self, e):
         new_names = self.get_new_names()
@@ -259,6 +266,10 @@ class NewItemDlg(TextEditDlg):
         else:
             self.mb(message="New name is empty")
             return
+
+    def show_modal(self):
+        self.select_all()
+        super().show_modal()
 
 
 class NewFolderDlg(NewItemDlg):
@@ -294,13 +305,18 @@ class RenameDlg(TextEditDlg):
         self.cb_rename.SetValue(wx.CHK_CHECKED)
         self.ctrl_sizer.Add(self.cb_rename, flag=wx.TOP, border=5)
 
+    def show_modal(self):
+        self.set_focus()
+        self.ed_new_name.smart_select()
+        super().show_modal()
+
 
 class CopyMoveDlg(BasicDlg):
     def __init__(self, frame, title, opr_count, src, dst):
         super().__init__(frame=frame, title=title)
         self.lbl_opr_count = wx.StaticText(parent=self, label=opr_count)
         self.lbl_from = wx.StaticText(parent=self, label=src)
-        self.ed_dst = wx.TextCtrl(parent=self, value=dst, size=(400, 23))
+        self.ed_dst = controls.FileNameEdit(parent=self, value=str(dst), size=(400, 23))
         self.dir_btn = wx.Button(self, label='...', size=(23, 23))
         self.dir_btn.Bind(wx.EVT_BUTTON, self.on_dir_btn)
         self.dir_sizer = wx.BoxSizer(wx.HORIZONTAL)
@@ -332,12 +348,9 @@ class CopyMoveDlg(BasicDlg):
             return path, ""
 
     def show_modal(self):
-        self.main_sizer.Fit(self)
-        self.CenterOnParent()
-        self.SetFocus()
         self.ed_dst.SetFocus()
-        self.ed_dst.SelectAll()
-        return self.ShowModal()
+        self.ed_dst.SetInsertionPointEnd()
+        super().show_modal()
 
 
 

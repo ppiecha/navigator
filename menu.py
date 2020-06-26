@@ -39,26 +39,6 @@ class MainMenu(wx.MenuBar):
         self.Append(self.file_menu, '&File')
         self.Append(self.edit_menu, '&Edit')
 
-        # self.frame.Bind(wx.EVT_MENU, self.frame.on_create_shortcut, id=ID_CREATE_SHORTCUT)
-        # self.frame.Bind(wx.EVT_MENU, self.frame.on_copy2same, id=ID_COPY2SAME)
-        # self.frame.Bind(wx.EVT_MENU, self.frame.delete, id=ID_DELETE)
-        # self.frame.Bind(wx.EVT_MENU, self.frame.copy_file2clip, id=ID_COPY_FILE)
-        # self.frame.Bind(wx.EVT_MENU, self.frame.paste_files_from_clip, id=ID_PASTE_FILE)
-
-    # def create_menu(self, menu, lst):
-    #     for item in lst:
-    #         new_id = wx.NewId()
-    #         self.menu_items_id[new_id] = item
-    #         self.frame.cmd_ids[item[0]] = new_id
-    #     for id in self.menu_items_id.keys():
-    #         if self.menu_items_id[id][0] in [i[0] for i in lst]:
-    #             new_menu_item = menu.Append(id, item=self.menu_items_id[id][0], kind=self.menu_items_id[id][1])
-    #             if new_menu_item.GetItemLabelText() != "-":
-    #                 entry = wx.AcceleratorEntry(self.menu_items_id[id][3], self.menu_items_id[id][2], id, new_menu_item)
-    #                 new_menu_item.SetAccel(entry)
-    #                 self.entries.append(entry)
-    #                 self.Bind(wx.EVT_MENU, self.on_click, id=id)
-
     def make_menu(self, menu_item, menu_dict):
         for id in menu_dict.keys():
             item = wx.MenuItem(id=id, text=menu_dict[id].name, kind=menu_dict[id].type)
