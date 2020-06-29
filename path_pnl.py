@@ -108,22 +108,8 @@ class PathEdit(wx.TextCtrl):
         super().__init__(parent=parent, style=wx.TE_PROCESS_ENTER)
         self.parent = parent
         self.frame = frame
-
         self.AutoCompleteDirectories()
-
         self.Bind(wx.EVT_KEY_DOWN, self.on_enter)
-        # self.Bind(wx.EVT_SIZE, self.on_size)
-
-    # def on_size(self, e):
-    #     e.Skip()
-    #     self.SetValue(self.get_shortcut(self.get_current_dir()))
-
-    # def get_shortcut(self, text):
-    #     path = Path(text)
-    #     anchor = path.anchor
-    #     rest = self.Ellipsize(str(path)[len(anchor):], wx.ClientDC(self), wx.ELLIPSIZE_START,
-    #                           self.GetSize().GetWidth() - 30)
-    #     return os.path.join(anchor, rest)
 
     def exec_path(self):
         path = Path(self.GetValue())

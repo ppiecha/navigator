@@ -19,6 +19,7 @@ import win32gui
 from win32com.shell import shell, shellcon
 import win32con
 import win32file
+from datetime import datetime
 
 class MainFrame(wx.Frame):
     def __init__(self):
@@ -57,7 +58,20 @@ class MainFrame(wx.Frame):
 
     def except_hook(self, type, value, tb):
         message = ''.join(traceback.format_exception(type, value, tb))
+        self.append_log(message)
         wx.LogError(message)
+
+    def append_log(self, log):
+        now = datetime.now()
+        current_time = now.strftime("%Y-%m-%d %H:%M:%S.%f")
+        txt = []
+        txt.append("-----------------------------------------------------------------------------\n")
+        txt.append(current_time + "\n")
+        txt.append("-----------------------------------------------------------------------------\n")
+        txt.append(log + "\n")
+        with open(cn.CN_APP_LOG, "a+") as f:
+            f.writelines(txt)
+            f.close()
 
     def get_active_win(self):
         win = self.FindFocus()
@@ -338,14 +352,24 @@ class MainFrame(wx.Frame):
         else:
             self.show_message("No items selected")
 
-    def move(self):
+    def move(self, folders=None, files=None, dst_path=""):
         win = self.get_active_win()
         b = win.get_active_browser()
-        folders, files = b.get_selected_files_folders()
+        if folders is not None or files is not None:
+            if folders:
+                path = str(Path(folders[0]).parent)
+            else:
+                path = str(Path(files[0]).parent)
+            dst = dst_path
+        else:
+            path = b.path
+            folders, files = b.get_selected_files_folders()
+            inactive = self.get_inactive_win()
+            dst = str(inactive.get_active_browser().path)
         if folders or files:
             opr_count, src, dst = self.get_oper_details(prefix="Move ", folders=folders,
-                                                        files=files, source_path=b.path,
-                                                        dest_path=self.get_inactive_win().get_active_browser().path,
+                                                        files=files, source_path=path,
+                                                        dest_path=dst,
                                                         oper_id=cn.ID_MOVE)
             with dialogs.CopyMoveDlg(self, title="Move", opr_count=opr_count, src=src, dst=dst) as dlg:
                 if dlg.show_modal() == wx.ID_OK:

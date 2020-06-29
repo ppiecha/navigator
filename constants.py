@@ -17,6 +17,7 @@ CN_GO_BACK = ".."
 CN_APP_PATH = os.path.dirname(os.path.abspath(__file__))
 
 CN_APP_CONFIG = os.path.join(CN_APP_PATH, "config.dat")
+CN_APP_LOG = os.path.join(CN_APP_PATH, "navigator.log")
 
 CN_VIEWER_APP = Path(os.path.join(CN_APP_PATH, "viewer\\viewer.py"))
 

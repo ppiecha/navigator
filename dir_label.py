@@ -49,20 +49,18 @@ class DirLabel(wx.Panel):
     def open_dir(self, dir):
         self.browser_panel.browser.open_dir(dir_name=dir, sel_dir=cn.CN_GO_BACK)
 
+    def get_selected_path(self):
+        if not self.prefix:
+            return self.selected
+        elif not self.suffix:
+            return self.dir_path
+        else:
+            return self.dir_path[:self.dir_path.find(self.suffix)]
+
     def on_left_down(self, event):
-
-        def get_selected_path():
-            if not self.prefix:
-                return self.selected
-            elif not self.suffix:
-                return self.dir_path
-            else:
-                return self.dir_path[:self.dir_path.find(self.suffix)]
-
         self.browser_panel.browser.SetFocus()
-
         if self.selected and "..." not in self.selected:
-            dir = get_selected_path()
+            dir = self.get_selected_path()
             if dir != self.dir_path:
                 self.open_dir(dir)
                 self.dir_path = dir
@@ -74,7 +72,7 @@ class DirLabel(wx.Panel):
         self.dir_path = self._dir_path
 
     def on_menu(self, event):
-        menu = PathMenu(self.frame, self.path_panel, self)
+        menu = PathMenu(self.frame, self.path_panel, self, self.get_selected_path())
         self.frame.PopupMenu(menu)
         del menu
 
@@ -177,6 +175,7 @@ class DirLabel(wx.Panel):
             dc.DrawText(self.dir_label, 0, self.label_top)
 
 
+CN_OPEN = "Open in new tab"
 CN_EDIT = "Edit"
 CN_COPY = "Copy path to clipboard"
 CN_CMD = "Run command prompt"
@@ -184,22 +183,26 @@ CN_DRIVE = "Show drive properties"
 
 
 class PathMenu(wx.Menu):
-    def __init__(self, frame, path_panel, path_label):
+    def __init__(self, frame, path_panel, path_label, selected_path):
         super().__init__()
         self.frame = frame
         self.path_panel = path_panel
         self.path_label = path_label
-        self.menu_items = [CN_EDIT, CN_COPY, CN_CMD, CN_DRIVE]
+        self.selected_path = selected_path
+        self.menu_items = [CN_OPEN, CN_EDIT, CN_COPY, CN_CMD, CN_DRIVE]
         self.menu_items_id = {}
         for item in self.menu_items:
             self.menu_items_id[wx.NewId()] = item
         for id in self.menu_items_id.keys():
-            self.Append(id, item=self.menu_items_id[id])
+            item = self.Append(id, item=self.menu_items_id[id])
+            item.Enable(self.selected_path != "")
             self.Bind(wx.EVT_MENU, self.on_click, id=id)
 
     def on_click(self, event):
         operation = self.menu_items_id[event.GetId()]
-        if operation == CN_EDIT:
+        if operation == CN_OPEN:
+            self.path_panel.parent.parent.add_new_tab(self.selected_path)
+        elif operation == CN_EDIT:
             self.path_panel.read_only = False
         elif operation == CN_COPY:
             self.frame.copy_text2clip([self.path_panel.path_edit.GetValue()])

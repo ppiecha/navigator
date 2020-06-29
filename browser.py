@@ -19,6 +19,7 @@ import pythoncom
 import os
 import winshell
 import dialogs
+import traceback
 
 CN_MAX_HIST_COUNT = 20
 
@@ -96,8 +97,10 @@ class BrowserCtrl(aui.AuiNotebook):
         self.SetSelection(new_index)
 
     def on_tab_right_click(self, e):
-        index = e.GetSelection()
-        menu = TabMenu(self.frame, self, index)
+        pt = wx.GetMousePosition()
+        tab_index, flag = self.HitTest(self.ScreenToClient(pt))
+        print(tab_index)
+        menu = TabMenu(self.frame, self, tab_index)
         self.frame.PopupMenu(menu)
         del menu
 
@@ -117,11 +120,14 @@ class BrowserCtrl(aui.AuiNotebook):
         self.add_tab(tab_conf=tab_conf, select=True)
 
     def close_tab(self, tab_index):
+        print("closing", tab_index)
         self.DeletePage(tab_index)
         del self.conf[tab_index]
 
     def duplicate_tab(self, tab_index):
-        self.add_new_tab(self.conf[tab_index].last_path)
+        # self.add_new_tab(self.get_active_browser().path)
+        #self.add_new_tab(self.conf[tab_index].last_path)
+        self.add_new_tab(self.GetPage(tab_index).browser.path)
 
     def lock_tab(self, tab_index, tab_name=None):
         self.conf[tab_index].lock_tab(user_tab_name=tab_name)
@@ -237,14 +243,18 @@ class Browser(wx.ListCtrl, ListCtrlAutoWidthMixin):
         src_id = self.drag_src.win_id if self.drag_src else -1
         tgt_id = self.drag_tgt.object.win_id
         same_win = src_id == tgt_id
+        item, flags = self.HitTest((x, y))
         if same_win:
+            util.run_in_thread(self.frame.move, ([f for f in file_names if Path(f).is_dir()],
+                                                 [f for f in file_names if Path(f).is_file()],
+                                                 self.path.joinpath(self.GetItemText(item))))
             return True
         else:
             if src_id < 0:
                 self.SetFocus()
             folders = [f for f in file_names if Path(f).exists() and Path(f).is_dir()]
             files = [f for f in file_names if Path(f).exists() and Path(f).is_file()]
-            self.frame.copy(folders, files, str(self.path))
+            util.run_in_thread(self.frame.copy, (folders, files, str(self.path)))
             return True
 
     def on_start_drag(self, e):
@@ -509,6 +519,7 @@ class Browser(wx.ListCtrl, ListCtrlAutoWidthMixin):
         self.add_hist_item(str(value))
         self.root = value.samefile(value.anchor)
         self._path = value
+        traceback.print_stack()
 
     def do_search_folder(self, pattern):
         hist = pattern
@@ -560,7 +571,10 @@ class Browser(wx.ListCtrl, ListCtrlAutoWidthMixin):
                 self.open_file(new_path)
                 self.frame.show_wait()
             elif new_path.is_dir():
-                self.open_dir(dir_name=new_path)
+                if wx.GetKeyState(wx.WXK_CONTROL):
+                    self.page_ctrl.add_new_tab(new_path)
+                else:
+                    self.open_dir(dir_name=new_path)
         del t
 
     def on_db_click(self, event):
@@ -1004,16 +1018,25 @@ class TabMenu(wx.Menu):
             else:
                 self.nb.unlock_tab(tab_index=self.tab_index)
         elif operation == CN_LOCK_RENAME:
-            tab_name=self.nb.conf[self.tab_index].tab_name
+            tab_name = self.nb.conf[self.tab_index].tab_name
             tab_name = tab_name[1:] if tab_name.startswith("*") else tab_name
             with dialogs.LockTabDlg(frame=self.frame,
                                     edit_text=tab_name) as dlg:
                 if dlg.show_modal() == wx.ID_OK:
                     self.nb.lock_tab(tab_index=self.tab_index, tab_name=dlg.get_new_names()[0])
         elif operation == CN_CLOSE_OTHERS:
+            print("current", self.tab_index)
+            win_id = self.nb.GetPage(self.tab_index).browser.win_id
+            print("selected", win_id)
             for index in range(self.nb.GetPageCount() - 1, -1, -1):
-                if index != self.tab_index:
+                del_id = self.nb.GetPage(index).browser.win_id
+                info = self.nb.GetPage(index).browser.path
+                if del_id != win_id:
+                    print(del_id)
                     self.nb.close_tab(index)
+                    self.frame.show_message(str(info))
+            self.frame.show_message(str(self.nb.get_active_browser().path))
+            print("current", self.nb.get_active_browser().win_id, self.nb.GetSelection())
         elif operation == CN_CLOSE:
             self.nb.close_tab(self.tab_index)
 

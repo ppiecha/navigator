@@ -81,7 +81,7 @@ class MainPanel(wx.Panel):
         # Dialog buttons
         self.btn_search = wx.Button(self, id=wx.ID_OK, label="Search")
         self.btn_search.SetDefault()
-        self.btn_cancel = wx.Button(self, id=wx.ID_CANCEL, label="CLose")
+        self.btn_cancel = wx.Button(self, id=wx.ID_CANCEL, label="Close")
 
         self.dlg_sizer.Add(wx.Panel(self), flag=wx.EXPAND, proportion=1)
         self.dlg_sizer.Add(self.btn_search, flag=wx.LEFT, border=5)
