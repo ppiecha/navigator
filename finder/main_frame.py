@@ -1,32 +1,46 @@
 import wx
 import res_frame
-import os
 
 
 class SearchParams:
-    def __init__(self):
-        self.words = []
-        self.search_opt = []
-        self.dirs = []
-        self.ex_dirs = []
-        self.masks = []
+    def __init__(self, words=[], dirs=[], ex_dirs=[], masks=[], case_sensitive=False, whole_words=False,
+                 reg_exp=False, not_contains=False, sub_folders=True):
+        self.words = words
+        self.dirs = dirs
+        self.ex_dirs = ex_dirs
+        self.masks = masks
+        self.case_sensitive = case_sensitive
+        self.whole_words = whole_words
+        self.reg_exp = reg_exp
+        self.not_contains = not_contains
+        self.sub_folders = sub_folders
+
+        self.get_regex_pattern(self.words)
+
+    @staticmethod
+    def get_lst(values):
+        return [value.strip() for value in values.split(";") if value]
+
+    def get_regex_pattern(self, words):
+        if self.whole_words:
+            return [r"\b" + word + r"\b" for word in words]
+        else:
+            return [words]
 
 
 class MainFrame(wx.Frame):
     def __init__(self):
         super().__init__(parent=None, title="Finder", size=(395, 400), style=wx.DEFAULT_DIALOG_STYLE)
-        self.search_params = SearchParams()
-        self.main_panel = MainPanel(parent=self, frame=self, opt=self.search_params)
+        self.main_panel = MainPanel(parent=self, frame=self)
 
         # self.SetMinSize(self.GetEffectiveMinSize())
         self.Center()
 
 
 class MainPanel(wx.Panel):
-    def __init__(self, parent, frame, opt):
+    def __init__(self, parent, frame):
         super().__init__(parent=parent)
         self.frame = frame
-        self.opt = opt
         self.main_sizer = wx.BoxSizer(wx.VERTICAL)
         self.search_sizer = wx.BoxSizer(wx.HORIZONTAL)
         self.options_sizer = wx.GridBagSizer(5, 5)
@@ -51,7 +65,7 @@ class MainPanel(wx.Panel):
 
         self.options_box_sizer.Add(self.options_sizer, flag=wx.EXPAND | wx.ALL, border=5)
 
-        self.directories = wx.ComboBox(self, value=r'c:\Users\pit\Downloads')
+        self.directories = wx.ComboBox(self, value=r'c:\Users\pit\Downloads\wxPython-demo-4.1.0\demo')
         self.btn_dir = wx.Button(self, label="...", size=(23, 23))
         self.exclude = wx.ComboBox(self)
         self.mask = wx.ComboBox(self, value="*.py")
@@ -98,17 +112,18 @@ class MainPanel(wx.Panel):
         self.btn_search.Bind(wx.EVT_BUTTON, self.on_search)
         self.btn_cancel.Bind(wx.EVT_BUTTON, self.on_close)
 
-    def get_params(self, params):
-        params.words = self.search_text.GetValue().split(";")
-        params.dirs = self.directories.GetValue().split(";")
+    def get_params(self):
+        params = SearchParams(words=SearchParams.get_lst(self.search_text.GetValue()),
+                              dirs=SearchParams.get_lst(self.directories.GetValue()),
+                              )
+        return params
 
     def on_close(self, e):
         self.frame.Close()
 
     def on_search(self, e):
-        self.get_params(self.frame.search_params)
-        search_result = res_frame.MainFrame(self.frame, self.frame.search_params)
-        self.frame.Hide()
+        search_result = res_frame.MainFrame(self.frame, self.get_params())
+        self.frame.Iconize()
         search_result.Show()
         search_result.SetFocus()
 

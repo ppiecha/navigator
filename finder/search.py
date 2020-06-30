@@ -4,6 +4,12 @@ import search_tree
 from pathlib import Path
 import search_const as cn
 import re
+import wx
+
+def run_in_thread(target, args):
+    th = Thread(target=target, args=args)
+    th.start()
+    return th
 
 
 class Search(Thread):
@@ -17,6 +23,14 @@ class Search(Thread):
         self.exit = True
 
     def run(self):
+        tree = self.frame.output.tree
+        tree.DeleteAllItems()
+        tree.add_root_node("Search results for {0} in {1}".format(self.opt.words,
+                                                                  [str(Path(dir)) for dir in self.opt.dirs]))
+        tree.SetFocus()
+        tree.SelectItem(tree.root)
+        tree.add_separator()
+        tree.Expand(tree.root)
         dirs_sum = 0
         files_sum = 0
         for dir_item in self.opt.dirs:
@@ -36,46 +50,29 @@ class Search(Thread):
     def set_status(self, text):
         self.frame.SetStatusText(text, 0)
 
+    def call_after(self, fun, arg):
+        wx.CallAfter(fun, arg)
+
     def process_file(self, full_file_name, opt):
         with open(full_file_name, 'r') as f:
             path = Path(full_file_name)
-            if not path.name == "combo.txt":
+            if not path.suffix == ".py":
                 return
-            file_node = search_tree.FileNode(file_full_name=full_file_name)
+            file_node = search_tree.FileNode(file_full_name=full_file_name, opt=opt)
+            line_num = 0
             for line_text in f:
                 line_text = line_text.rstrip("\n")
-                print([word for word in opt.words if len(line_text.partition(word)[1]) > 0])
-                # if list(filter(lambda x: line_text != line_text.partition(x)[0], opt.words)):
-                #     line_text.partition(opt.words[0])
+                if self.find_first(text=line_text, opt=opt):
+                    file_node.add_line(line_num=str(line_num), line_text=line_text)
+                line_num += 1
+            if file_node.lines:
+                run_in_thread(self.call_after, [self.frame.output.tree.add_file_node, file_node])
 
-    def get_regex_pattern(self, words, opt):
-        if cn.OPT_WHOLE_WORD in opt.search_opt:
-            return [r"\b" + word + r"\b" for word in words]
-        else:
-            return [words]
-
-    def find_first(self, text, words, opt):
-        words = self.get_regex_pattern(words=words, opt=opt)
-        flag = re.IGNORECASE if cn.OPT_WHOLE_WORD in opt.search_opt
-        for word in words:
-            if re.search(pattern=word, string=text, flags=)
-
-    def find_words_in_line(self, text, words, opt):
-
-        raw_search_string = r"\b" + search_string + r"\b"
-
-        match_output = re.search(raw_search_string, input_string)
-        ##As noted by @OmPrakesh, if you want to ignore case, uncomment
-        ##the next two lines
-        # match_output = re.search(raw_search_string, input_string,
-        #                         flags=re.IGNORECASE)
-
-        no_match_was_found = (match_output is None)
-        if no_match_was_found:
-            return False
-        else:
-            return True
-
+    def find_first(self, text, opt):
+        for word in opt.words:
+            if re.search(pattern=word, string=text, flags=re.IGNORECASE if not opt.case_sensitive else 0):
+                return True
+        return False
 
         # try:
         #     with open(full_file_name, 'r') as f:
