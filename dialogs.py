@@ -320,13 +320,13 @@ class CopyMoveDlg(BasicDlg):
         self.dir_btn = wx.Button(self, label='...', size=(23, 23))
         self.dir_btn.Bind(wx.EVT_BUTTON, self.on_dir_btn)
         self.dir_sizer = wx.BoxSizer(wx.HORIZONTAL)
-        self.dir_sizer.Add(self.ed_dst, wx.EXPAND)
+        self.dir_sizer.Add(self.ed_dst, flag=wx.EXPAND, proportion=1)
         self.dir_sizer.Add(self.dir_btn)
         self.cb_rename = wx.CheckBox(parent=self, label="Rename on collision")
         self.cb_rename.SetValue(wx.CHK_CHECKED)
         self.ctrl_sizer.Add(self.lbl_opr_count)
         self.ctrl_sizer.Add(self.lbl_from)
-        self.ctrl_sizer.Add(self.dir_sizer, flag=wx.TOP, border=5)
+        self.ctrl_sizer.Add(self.dir_sizer, flag=wx.TOP | wx.EXPAND, border=5, proportion=1)
         self.ctrl_sizer.Add(self.cb_rename, flag=wx.TOP, border=5)
 
     def on_dir_btn(self, e):
@@ -350,6 +350,7 @@ class CopyMoveDlg(BasicDlg):
     def show_modal(self):
         self.ed_dst.SetFocus()
         self.ed_dst.SetInsertionPointEnd()
+        self.ed_dst.smart_select()
         return super().show_modal()
 
 

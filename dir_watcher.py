@@ -31,7 +31,9 @@ class DirWatcher(Thread):
             self.change_handle = win32file.FindFirstChangeNotification(
                                             self.dir_name,
                                             0,
-                                            win32con.FILE_NOTIFY_CHANGE_FILE_NAME | win32con.FILE_NOTIFY_CHANGE_DIR_NAME
+                                            win32con.FILE_NOTIFY_CHANGE_FILE_NAME | win32con.FILE_NOTIFY_CHANGE_DIR_NAME |
+                                            win32con.FILE_NOTIFY_CHANGE_ATTRIBUTES | win32con.FILE_NOTIFY_CHANGE_SIZE |
+                                            win32con.FILE_NOTIFY_CHANGE_LAST_WRITE
                                             )
             self.start()
         except:

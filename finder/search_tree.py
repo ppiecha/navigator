@@ -66,8 +66,8 @@ class SearchTree(CT.CustomTreeCtrl):
         item = self.AppendItem(parentId=self.root, text="{0} {1} matches".format(path.name,
                                                                                  str(matches_count)))
         self.SetItemBold(item)
-        # self.SetItemImage(item, self.im_file)
-        self.SetItemImage(item, self.im_doc)
+        self.SetItemImage(item, self.im_file)
+        # self.SetItemImage(item, self.im_doc)
         self.file_nodes.append(item)
         matches_count = 0
         for line in file_node.lines:

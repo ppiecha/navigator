@@ -78,6 +78,7 @@ class MainFrame(wx.Frame):
         if isinstance(win, browser.Browser):
             return win.page_ctrl
         else:
+            print(type(win))
             raise Exception("Cannot find active page ctrl")
 
     def get_inactive_win(self):
@@ -242,9 +243,10 @@ class MainFrame(wx.Frame):
             old_name = selected[0]
             with dialogs.RenameDlg(self, old_name) as dlg:
                 if dlg.show_modal() == wx.ID_OK:
-                    util.run_in_thread(target=b.shell_rename, args=(os.path.join(b.path, old_name),
-                                                                    os.path.join(b.path, dlg.get_new_names()[0]),
-                                                                    dlg.cb_rename.IsChecked()))
+                    util.run_in_thread(target=browser.Browser.shell_rename,
+                                       args=(os.path.join(b.path, old_name),
+                                             os.path.join(b.path, dlg.get_new_names()[0]),
+                                             dlg.cb_rename.IsChecked()))
 
     def view(self):
         win = self.get_active_win()
@@ -343,7 +345,7 @@ class MainFrame(wx.Frame):
                     path, name = dlg.get_path_and_name()
                     if not name:
                         print("folder", folders + files, path, name)
-                        util.run_in_thread(target=b.shell_copy,
+                        util.run_in_thread(target=browser.Browser.shell_copy,
                                            args=(folders + files, path, dlg.cb_rename.IsChecked()))
                     else:
                         util.run_in_thread(target=win32file.CopyFile,
@@ -353,8 +355,6 @@ class MainFrame(wx.Frame):
             self.show_message("No items selected")
 
     def move(self, folders=None, files=None, dst_path=""):
-        win = self.get_active_win()
-        b = win.get_active_browser()
         if folders is not None or files is not None:
             if folders:
                 path = str(Path(folders[0]).parent)
@@ -362,6 +362,8 @@ class MainFrame(wx.Frame):
                 path = str(Path(files[0]).parent)
             dst = dst_path
         else:
+            win = self.get_active_win()
+            b = win.get_active_browser()
             path = b.path
             folders, files = b.get_selected_files_folders()
             inactive = self.get_inactive_win()
@@ -374,7 +376,7 @@ class MainFrame(wx.Frame):
             with dialogs.CopyMoveDlg(self, title="Move", opr_count=opr_count, src=src, dst=dst) as dlg:
                 if dlg.show_modal() == wx.ID_OK:
                     path, name = dlg.get_path_and_name()
-                    util.run_in_thread(target=b.shell_move,
+                    util.run_in_thread(target=browser.Browser.shell_move,
                                        args=(folders + files, path, dlg.cb_rename.IsChecked()))
         else:
             self.show_message("No items selected")
@@ -408,7 +410,8 @@ class MainFrame(wx.Frame):
                            ", ".join([f.name for f in files]) + "</b>"
             with dialogs.DeleteDlg(self, message) as dlg:
                 if dlg.show_modal() == wx.ID_OK:
-                    util.run_in_thread(target=b.shell_delete, args=(folders + files, dlg.cb_perm.IsChecked()))
+                    util.run_in_thread(target=browser.Browser.shell_delete,
+                                       args=(folders + files, dlg.cb_perm.IsChecked()))
         else:
             self.show_message("No items selected")
 
@@ -512,8 +515,8 @@ class MainFrame(wx.Frame):
                         if not b.shell_new_folder(str(full_name)):
                             self.show_message(f"Cannot create folder {new_name}")
                         else:
-                            util.run_in_thread(b.shell_copy, [str(b.path.joinpath(str(folders[0]), "*.*")),
-                                                              str(full_name)])
+                            util.run_in_thread(browser.Browser.shell_copy, [str(b.path.joinpath(str(folders[0]), "*.*")),
+                                                                            str(full_name)])
 
     def select_all(self):
         win = self.get_active_win()
@@ -586,9 +589,10 @@ class DirCache:
         return len(list(filter(lambda x: fnmatch.fnmatch(src, x), pat_lst))) > 0
         # return len(list(filter(lambda x: x, map(lambda x: fnmatch.fnmatch(src, x), pat_lst)))) > 0
 
-    def get_dir(self, dir_name, conf):
+    def get_dir(self, dir_name, conf, reread_source=False):
         # print("size of cache:", sys.getsizeof(self._dict) / 1024.0 / 1024.0, "MB")
-        if dir_name not in self._dict.keys():
+        if dir_name not in self._dict.keys() or reread_source:
+            print("READ")
             self._dict[dir_name] = DirCacheItem(frame=self.frame, dir_name=dir_name)
         pattern = conf.pattern if conf.use_pattern else ["*"]
         return sorted([d for d in self._dict[dir_name].dir_items if self.match(d[cn.CN_COL_NAME], pattern)],

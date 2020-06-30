@@ -19,7 +19,6 @@ import pythoncom
 import os
 import winshell
 import dialogs
-import traceback
 
 CN_MAX_HIST_COUNT = 20
 
@@ -99,7 +98,6 @@ class BrowserCtrl(aui.AuiNotebook):
     def on_tab_right_click(self, e):
         pt = wx.GetMousePosition()
         tab_index, flag = self.HitTest(self.ScreenToClient(pt))
-        print(tab_index)
         menu = TabMenu(self.frame, self, tab_index)
         self.frame.PopupMenu(menu)
         del menu
@@ -120,9 +118,8 @@ class BrowserCtrl(aui.AuiNotebook):
         self.add_tab(tab_conf=tab_conf, select=True)
 
     def close_tab(self, tab_index):
-        print("closing", tab_index)
-        self.DeletePage(tab_index)
         del self.conf[tab_index]
+        self.DeletePage(tab_index)
 
     def duplicate_tab(self, tab_index):
         # self.add_new_tab(self.get_active_browser().path)
@@ -145,7 +142,6 @@ class BrowserCtrl(aui.AuiNotebook):
             self.frame.app_conf.left_active_tab = self.GetSelection()
         else:
             self.frame.app_conf.right_active_tab = self.GetSelection()
-        e.Skip()
 
     def get_active_browser(self):
         return self.GetCurrentPage().browser
@@ -245,16 +241,16 @@ class Browser(wx.ListCtrl, ListCtrlAutoWidthMixin):
         same_win = src_id == tgt_id
         item, flags = self.HitTest((x, y))
         if same_win:
-            util.run_in_thread(self.frame.move, ([f for f in file_names if Path(f).is_dir()],
-                                                 [f for f in file_names if Path(f).is_file()],
-                                                 self.path.joinpath(self.GetItemText(item))))
+            self.frame.move([f for f in file_names if Path(f).is_dir()],
+                            [f for f in file_names if Path(f).is_file()],
+                            self.path.joinpath(self.GetItemText(item)))
             return True
         else:
             if src_id < 0:
                 self.SetFocus()
             folders = [f for f in file_names if Path(f).exists() and Path(f).is_dir()]
             files = [f for f in file_names if Path(f).exists() and Path(f).is_file()]
-            util.run_in_thread(self.frame.copy, (folders, files, str(self.path)))
+            self.frame.copy(folders, files, str(self.path))
             return True
 
     def on_start_drag(self, e):
@@ -292,7 +288,7 @@ class Browser(wx.ListCtrl, ListCtrlAutoWidthMixin):
         if self.path.samefile(dir_name):
             for item_name in deleted:
                 self.remove_item(item_name=item_name)
-            self.refresh_list(dir_name=dir_name, conf=self.conf, to_select=[])
+            self.refresh_list(dir_name=dir_name, conf=self.conf, to_select=[], reread_source=True)
 
     def get_source_id_in_list(self, item_name):
         print("cache before delete", [item[cn.CN_COL_NAME] for item in self.dir_cache])
@@ -519,7 +515,7 @@ class Browser(wx.ListCtrl, ListCtrlAutoWidthMixin):
         self.add_hist_item(str(value))
         self.root = value.samefile(value.anchor)
         self._path = value
-        traceback.print_stack()
+        # traceback.print_stack()
 
     def do_search_folder(self, pattern):
         hist = pattern
@@ -571,7 +567,9 @@ class Browser(wx.ListCtrl, ListCtrlAutoWidthMixin):
                 self.open_file(new_path)
                 self.frame.show_wait()
             elif new_path.is_dir():
-                if wx.GetKeyState(wx.WXK_CONTROL):
+                if wx.GetKeyState(wx.WXK_CONTROL) and wx.GetKeyState(wx.WXK_SHIFT):
+                    self.frame.get_inactive_win().add_new_tab(new_path)
+                elif wx.GetKeyState(wx.WXK_CONTROL):
                     self.page_ctrl.add_new_tab(new_path)
                 else:
                     self.open_dir(dir_name=new_path)
@@ -654,8 +652,8 @@ class Browser(wx.ListCtrl, ListCtrlAutoWidthMixin):
             self.frame.log_error(str(err))
             self.open_dir(temp)
 
-    def refresh_list(self, dir_name, conf, to_select):
-        self.dir_cache = self.frame.dir_cache.get_dir(dir_name=Path(dir_name), conf=conf)
+    def refresh_list(self, dir_name, conf, to_select, reread_source=False):
+        self.dir_cache = self.frame.dir_cache.get_dir(dir_name=Path(dir_name), conf=conf, reread_source=reread_source)
         self.path = Path(dir_name)
         count = len(self.dir_cache)
         if not self.root:
@@ -668,7 +666,8 @@ class Browser(wx.ListCtrl, ListCtrlAutoWidthMixin):
             self.DeleteAllItems()
         wx.CallAfter(self.update_summary_lbl)
 
-    def shell_copy(self, src, dst, auto_rename=False):
+    @staticmethod
+    def shell_copy(src, dst, auto_rename=False):
         """
         Copy files and directories using Windows shell.
 
@@ -711,7 +710,8 @@ class Browser(wx.ListCtrl, ListCtrlAutoWidthMixin):
 
         return not aborted
 
-    def shell_move(self, src, dst, auto_rename=False):
+    @staticmethod
+    def shell_move(src, dst, auto_rename=False):
         """
         Move files and directories using Windows shell.
 
@@ -754,7 +754,8 @@ class Browser(wx.ListCtrl, ListCtrlAutoWidthMixin):
 
         return not aborted
 
-    def shell_rename(self, src, dst, auto_rename=False):
+    @staticmethod
+    def shell_rename(src, dst, auto_rename=False):
         """
         Rename files and directories using Windows shell.
 
@@ -797,7 +798,8 @@ class Browser(wx.ListCtrl, ListCtrlAutoWidthMixin):
 
         return not aborted
 
-    def shell_delete(self, src, hard_delete):
+    @staticmethod
+    def shell_delete(src, hard_delete):
         """
         Move files and directories using Windows shell.
 
@@ -1025,18 +1027,18 @@ class TabMenu(wx.Menu):
                 if dlg.show_modal() == wx.ID_OK:
                     self.nb.lock_tab(tab_index=self.tab_index, tab_name=dlg.get_new_names()[0])
         elif operation == CN_CLOSE_OTHERS:
-            print("current", self.tab_index)
+            # print("current", self.tab_index)
             win_id = self.nb.GetPage(self.tab_index).browser.win_id
-            print("selected", win_id)
+            # print("selected", win_id)
             for index in range(self.nb.GetPageCount() - 1, -1, -1):
                 del_id = self.nb.GetPage(index).browser.win_id
                 info = self.nb.GetPage(index).browser.path
                 if del_id != win_id:
-                    print(del_id)
+                    # print(del_id)
                     self.nb.close_tab(index)
-                    self.frame.show_message(str(info))
-            self.frame.show_message(str(self.nb.get_active_browser().path))
-            print("current", self.nb.get_active_browser().win_id, self.nb.GetSelection())
+                    # self.frame.show_message(str(info))
+            # self.frame.show_message(str(self.nb.get_active_browser().path))
+            # print("current", self.nb.get_active_browser().win_id, self.nb.GetSelection())
         elif operation == CN_CLOSE:
             self.nb.close_tab(self.tab_index)
 

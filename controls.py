@@ -1,6 +1,7 @@
 import wx
 import wx.lib.buttons as buttons
 import constants as cn
+import os
 
 
 class FileNameEdit(wx.TextCtrl):
@@ -8,17 +9,18 @@ class FileNameEdit(wx.TextCtrl):
         super().__init__(parent=parent, value=value, size=size)
 
     def smart_select(self):
-        parts = self.GetValue().split(".")
-        print(parts, len(parts[0]))
-        if len(parts) > 0:
-            self.SetSelection(0, len(parts[0]))
+        path, sep, name = self.GetValue().rpartition(os.path.sep)
+        name, dot, ext = name.partition(".")
+        if dot:
+            self.SetSelection(len(path) + len(sep), len(path) + len(sep) + len(name))
+        elif not path:
+            self.SelectAll()
 
 
 class ToolBtn(buttons.ThemedGenBitmapButton):
     def __init__(self, parent, im_file, def_ctrl=[], size=(24, 24)):
         super().__init__(parent, -1, wx.Bitmap(im_file, wx.BITMAP_TYPE_PNG), size=size)
         self.def_ctrl = def_ctrl
-
         self.Bind(wx.EVT_SET_FOCUS, self.on_focus)
 
     def AcceptsFocusFromKeyboard(self):
