@@ -25,12 +25,12 @@ class FilterPnl(wx.Panel):
     def select_first_one(self):
         self.browser.select_first_one()
 
-    def disable_filter(self, clear_search=False):
+    def disable_filter(self, clear_search=False, search_pattern=True):
         self.filter_btn.SetValue(False)
         self.browser.conf.use_pattern = False
         if clear_search:
             self.filter.ChangeValue("")
-        else:
+        if search_pattern:
             self.browser.do_search_folder(self.filter.GetValue())
 
     def enable_filter(self):

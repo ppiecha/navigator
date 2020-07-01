@@ -118,6 +118,7 @@ class BrowserCtrl(aui.AuiNotebook):
         self.add_tab(tab_conf=tab_conf, select=True)
 
     def close_tab(self, tab_index):
+        self.GetPage(tab_index).browser.unregister_listener(cn.CN_TOPIC_DIR_CHG)
         del self.conf[tab_index]
         self.DeletePage(tab_index)
 
@@ -270,8 +271,8 @@ class Browser(wx.ListCtrl, ListCtrlAutoWidthMixin):
             self.path_pnl.path_lbl.Refresh()
             self.frame.get_inactive_win().get_active_browser().path_pnl.path_lbl.Refresh()
         else:
-            self.frame.show_message(str(self.path) + " doesn't exist anymore")
-            self.open_dir(Path.home())
+            # self.frame.show_message(str(self.path) + " doesn't exist anymore")
+            self.open_directory(str(self.get_next_dir(self.path)), cn.CN_GO_BACK, self.conf)
         e.Skip()
 
     def on_kill_focus(self, e):
@@ -284,8 +285,11 @@ class Browser(wx.ListCtrl, ListCtrlAutoWidthMixin):
     def register_listener(self, topic):
         pub.subscribe(self.listen_dir_changes, topic)
 
+    def unregister_listener(self, topic):
+        pub.unsubscribe(self.listen_dir_changes, topic)
+
     def listen_dir_changes(self, dir_name, added, deleted):
-        if self.path.samefile(dir_name):
+        if str(self.path) == str(dir_name):
             for item_name in deleted:
                 self.remove_item(item_name=item_name)
             self.refresh_list(dir_name=dir_name, conf=self.conf, to_select=[], reread_source=True)
@@ -378,10 +382,6 @@ class Browser(wx.ListCtrl, ListCtrlAutoWidthMixin):
         menu = ColumnMenu(self, event.GetColumn())
         self.frame.PopupMenu(menu)
         del menu
-
-    def __del__(self):
-        # self.release_watchers()
-        pass
 
     def add_hist_item(self, path):
         if path not in self.history:
@@ -507,7 +507,10 @@ class Browser(wx.ListCtrl, ListCtrlAutoWidthMixin):
 
     @path.setter
     def path(self, value):
-        self.path_pnl.drive_combo.SetValue(value.anchor)
+        try:
+            self.path_pnl.drive_combo.SetValue(value.anchor)
+        except:
+            print("error", value)
         os.chdir(str(value))
         self.conf.last_path = value
         wx.CallAfter(self.set_tab_name, self.conf.tab_name)
@@ -632,10 +635,10 @@ class Browser(wx.ListCtrl, ListCtrlAutoWidthMixin):
 
     def open_directory(self, dir_name, sel_dir, conf):
         if self.path is not None:
-            if self.path.samefile(dir_name):
+            if str(self.path) == str(dir_name):
                 to_select = self.get_selected()
             else:
-                self.filter_pnl.disable_filter(clear_search=False)
+                self.filter_pnl.disable_filter(clear_search=False, search_pattern=False)
                 if sel_dir:
                     to_select = [sel_dir]
                 else:
@@ -654,6 +657,7 @@ class Browser(wx.ListCtrl, ListCtrlAutoWidthMixin):
 
     def refresh_list(self, dir_name, conf, to_select, reread_source=False):
         self.dir_cache = self.frame.dir_cache.get_dir(dir_name=Path(dir_name), conf=conf, reread_source=reread_source)
+        # print("refresh_list", str(dir_name))
         self.path = Path(dir_name)
         count = len(self.dir_cache)
         if not self.root:
@@ -798,8 +802,7 @@ class Browser(wx.ListCtrl, ListCtrlAutoWidthMixin):
 
         return not aborted
 
-    @staticmethod
-    def shell_delete(src, hard_delete):
+    def shell_delete(self, src, hard_delete):
         """
         Move files and directories using Windows shell.
 

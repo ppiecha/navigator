@@ -21,15 +21,15 @@ import win32con
 import win32file
 from datetime import datetime
 
+
 class MainFrame(wx.Frame):
     def __init__(self):
         super().__init__(parent=None, title=cn.CN_APP_NAME, size=(600, 500), style=wx.DEFAULT_FRAME_STYLE)
-        self.cmd_ids = {}
         self.menu_bar = menu.MainMenu(self)
         self.SetMenuBar(self.menu_bar)
-        self.tb = None
         self.app_conf = config.NavigatorConf()
         self.dir_cache = DirCache(self)
+        self.thread_lst = []
         self.SetIcon(wx.Icon(cn.CN_ICON_FILE_NAME))
         self.im_list = wx.ImageList(16, 16)
         self.sizer = None
@@ -201,7 +201,9 @@ class MainFrame(wx.Frame):
     def on_close(self, event):
         self.Hide()
         self.release_resources()
+        print("released")
         self.write_last_conf(cn.CN_APP_CONFIG, self.app_conf)
+        print("write done")
         event.Skip()
 
     def show_message(self, text):
@@ -410,7 +412,7 @@ class MainFrame(wx.Frame):
                            ", ".join([f.name for f in files]) + "</b>"
             with dialogs.DeleteDlg(self, message) as dlg:
                 if dlg.show_modal() == wx.ID_OK:
-                    util.run_in_thread(target=browser.Browser.shell_delete,
+                    util.run_in_thread(target=b.shell_delete,
                                        args=(folders + files, dlg.cb_perm.IsChecked()))
         else:
             self.show_message("No items selected")

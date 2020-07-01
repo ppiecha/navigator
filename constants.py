@@ -34,7 +34,6 @@ ID_NEW_FOLDER = wx.NewId()
 ID_DELETE = wx.NewId()
 ID_SEP = wx.NewId()
 ID_EXIT = wx.NewId()
-# Hidden
 ID_CREATE_SHORTCUT = wx.NewId()
 ID_COPY2SAME = wx.NewId()
 ID_COPY_CLIP = wx.NewId()

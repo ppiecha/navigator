@@ -13,6 +13,7 @@ from threading import Thread
 def run_in_thread(target, args):
     th = Thread(target=target, args=args)
     th.start()
+    return th
 
 def get_drives():
 
