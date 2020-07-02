@@ -201,9 +201,7 @@ class MainFrame(wx.Frame):
     def on_close(self, event):
         self.Hide()
         self.release_resources()
-        print("released")
         self.write_last_conf(cn.CN_APP_CONFIG, self.app_conf)
-        print("write done")
         event.Skip()
 
     def show_message(self, text):
@@ -592,10 +590,10 @@ class DirCache:
         # return len(list(filter(lambda x: x, map(lambda x: fnmatch.fnmatch(src, x), pat_lst)))) > 0
 
     def get_dir(self, dir_name, conf, reread_source=False):
-        # print("size of cache:", sys.getsizeof(self._dict) / 1024.0 / 1024.0, "MB")
-        if dir_name not in self._dict.keys() or reread_source:
-            print("READ")
+        if dir_name not in self._dict.keys():
             self._dict[dir_name] = DirCacheItem(frame=self.frame, dir_name=dir_name)
+        if reread_source:
+            self._dict[dir_name].open_dir(dir_name=dir_name)
         pattern = conf.pattern if conf.use_pattern else ["*"]
         return sorted([d for d in self._dict[dir_name].dir_items if self.match(d[cn.CN_COL_NAME], pattern)],
                       key=itemgetter(conf.sort_key), reverse=conf.sort_desc) + \

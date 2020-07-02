@@ -80,7 +80,8 @@ class BrowserCtrl(aui.AuiNotebook):
         elif isinstance(win, Browser):
             pass
         elif isinstance(win, wx._core.ComboCtrl):
-            self.get_active_browser().SetFocus()
+            if not self.get_active_browser().HasFocus():
+                self.get_active_browser().SetFocus()
         else:
             # print(type(win))
             pass
@@ -232,7 +233,7 @@ class Browser(wx.ListCtrl, ListCtrlAutoWidthMixin):
         self.Bind(wx.EVT_LIST_ITEM_DESELECTED, self.on_deselect)
         self.Bind(wx.EVT_LIST_KEY_DOWN, self.on_key_down)
         self.Bind(wx.EVT_SET_FOCUS, self.on_browser_focus)
-        # self.Bind(wx.EVT_KILL_FOCUS, self.on_kill_focus)
+        self.Bind(wx.EVT_KILL_FOCUS, self.on_kill_focus)
         self.Bind(wx.EVT_LIST_BEGIN_DRAG, self.on_start_drag, id=self.win_id)
         self.register_listener(topic=cn.CN_TOPIC_DIR_CHG)
 
@@ -268,36 +269,36 @@ class Browser(wx.ListCtrl, ListCtrlAutoWidthMixin):
     def on_browser_focus(self, e):
         if self.path.exists():
             os.chdir(str(self.path))
-            self.path_pnl.path_lbl.Refresh()
-            self.frame.get_inactive_win().get_active_browser().path_pnl.path_lbl.Refresh()
+            self.path_pnl.path_lbl._refresh()
+            # self.frame.get_inactive_win().get_active_browser().path_pnl.path_lbl.Refresh()
         else:
-            # self.frame.show_message(str(self.path) + " doesn't exist anymore")
             self.open_directory(str(self.get_next_dir(self.path)), cn.CN_GO_BACK, self.conf)
         e.Skip()
 
     def on_kill_focus(self, e):
-        self.path_pnl.path_lbl.Refresh()
+        self.path_pnl.path_lbl.reset()
         e.Skip()
 
     def __repr__(self):
         return str(self.path)
 
     def register_listener(self, topic):
-        pub.subscribe(self.listen_dir_changes, topic)
+        if not pub.subscribe(self.listen_dir_changes, topic):
+            raise Exception("Cannot register watchdir listener")
 
     def unregister_listener(self, topic):
-        pub.unsubscribe(self.listen_dir_changes, topic)
+        if not pub.unsubscribe(self.listen_dir_changes, topic):
+            raise Exception("Cannot unregister watchdir listener")
 
     def listen_dir_changes(self, dir_name, added, deleted):
         if str(self.path) == str(dir_name):
-            for item_name in deleted:
-                self.remove_item(item_name=item_name)
+            # for item_name in deleted:
+            #     self.remove_item(item_name=item_name)
             self.refresh_list(dir_name=dir_name, conf=self.conf, to_select=[], reread_source=True)
 
     def get_source_id_in_list(self, item_name):
         print("cache before delete", [item[cn.CN_COL_NAME] for item in self.dir_cache])
         index = [item[cn.CN_COL_NAME] for item in self.dir_cache].index(item_name)
-        # index = self.dir_cache.index(item_name)
         return index if self.root else index + 1
 
     def remove_item(self, item_name):
@@ -374,7 +375,7 @@ class Browser(wx.ListCtrl, ListCtrlAutoWidthMixin):
     def show_hide_cols(self, column_conf):
         for col in column_conf.keys():
             if column_conf[col]:
-                self.SetColumnWidth(col + 1, 80)
+                self.SetColumnWidth(col + 1, 105)
             else:
                 self.SetColumnWidth(col + 1, 0)
 

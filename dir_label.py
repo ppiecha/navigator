@@ -13,6 +13,8 @@ class DirLabel(wx.Panel):
         self.browser_panel = parent.parent
         self.frame = frame
         self._dir_path = None
+        self.force = False
+        self.last_label = ""
         self.dir_label = None
         self.label_top = None
         self.prefix = None
@@ -35,7 +37,7 @@ class DirLabel(wx.Panel):
         self.prefix = ""
         self.selected = ""
         self.suffix = ""
-        self.Refresh()
+        self._refresh()
 
     def is_active(self):
         return self.browser_panel.browser.HasFocus()
@@ -45,6 +47,7 @@ class DirLabel(wx.Panel):
 
     def on_focus_lost(self, e):
         self.reset()
+        e.Skip()
 
     def open_dir(self, dir):
         self.browser_panel.browser.open_dir(dir_name=dir, sel_dir=cn.CN_GO_BACK)
@@ -65,7 +68,7 @@ class DirLabel(wx.Panel):
                 self.open_dir(dir)
                 self.dir_path = dir
                 self.suffix = ""
-                self.Refresh()
+                self._refresh()
         event.Skip()
 
     def on_size(self, e):
@@ -88,7 +91,7 @@ class DirLabel(wx.Panel):
             self.selected = selected
             self.suffix = suffix
             # print(prefix, selected, suffix)
-            self.Refresh()
+            self._refresh()
 
         event.Skip()
 
@@ -137,42 +140,50 @@ class DirLabel(wx.Panel):
         else:
             return prefix, "", ""
 
+    def _refresh(self):
+        self.force = True
+        self.Refresh()
+
     def OnPaint(self, e):
         dc = wx.BufferedPaintDC(self)
         self.draw(dc)
 
     def draw(self, dc):
-        # Background
-        brush = wx.Brush(self.GetBackgroundColour())
-        dc.SetBackground(brush)
-        dc.Clear()
-        # Text
-        size = dc.GetTextExtent(self.dir_label)
-        # self.label_top = (self.GetSize().GetHeight() - size.GetHeight()) / 2
-        # print("label top", self.label_top)
-        self.label_top = 1
-        if self.is_active():
-            brush = wx.Brush(wx.SystemSettings.GetColour(wx.SYS_COLOUR_GRADIENTINACTIVECAPTION))
-            pen = wx.Pen(wx.SystemSettings.GetColour(wx.SYS_COLOUR_GRADIENTINACTIVECAPTION))
-            dc.SetBrush(brush)
-            dc.SetPen(pen)
-            dc.DrawRectangle(0, self.label_top, self.GetSize().GetWidth(), size.GetHeight()+1)
-        start = 0
-        if self.selected:
-            if self.prefix:
-                dc.SetFont(self.def_font)
-                text = self.prefix + os.path.sep if not self.prefix.endswith(os.path.sep) else self.prefix
-                dc.DrawText(text, start, self.label_top)
-                start += dc.GetTextExtent(text).GetWidth()
-            dc.SetFont(self.link_font)
-            dc.DrawText(self.selected, start, self.label_top)
-            start += dc.GetTextExtent(self.selected).GetWidth()
-            if self.suffix:
-                dc.SetFont(self.def_font)
-                text = os.path.sep + self.suffix if not self.selected.endswith(os.path.sep) else self.suffix
-                dc.DrawText(text, start, self.label_top)
-        else:
-            dc.DrawText(self.dir_label, 0, self.label_top)
+        if self.dir_label != self.last_label or self.selected or self.force:
+            self.last_label = self.dir_label
+            self.force = False
+            # Background
+            brush = wx.Brush(self.GetBackgroundColour())
+            dc.SetBackground(brush)
+            dc.Clear()
+            # Text
+            size = dc.GetTextExtent(self.dir_label)
+            # self.label_top = (self.GetSize().GetHeight() - size.GetHeight()) / 2
+            # print("label top", self.label_top)
+            self.label_top = 1
+            if self.is_active():
+                brush = wx.Brush(wx.SystemSettings.GetColour(wx.SYS_COLOUR_GRADIENTACTIVECAPTION))
+                pen = wx.Pen(wx.SystemSettings.GetColour(wx.SYS_COLOUR_GRADIENTACTIVECAPTION))
+                dc.SetBrush(brush)
+                dc.SetPen(pen)
+                dc.DrawRectangle(0, self.label_top, self.GetSize().GetWidth(), size.GetHeight()+1)
+            start = 0
+            if self.selected:
+                if self.prefix:
+                    dc.SetFont(self.def_font)
+                    text = self.prefix + os.path.sep if not self.prefix.endswith(os.path.sep) else self.prefix
+                    dc.DrawText(text, start, self.label_top)
+                    start += dc.GetTextExtent(text).GetWidth()
+                dc.SetFont(self.link_font)
+                dc.DrawText(self.selected, start, self.label_top)
+                start += dc.GetTextExtent(self.selected).GetWidth()
+                if self.suffix:
+                    dc.SetFont(self.def_font)
+                    text = os.path.sep + self.suffix if not self.selected.endswith(os.path.sep) else self.suffix
+                    dc.DrawText(text, start, self.label_top)
+            else:
+                dc.DrawText(self.dir_label, 0, self.label_top)
+
 
 
 CN_OPEN = "Open in new tab"
@@ -195,7 +206,7 @@ class PathMenu(wx.Menu):
             self.menu_items_id[wx.NewId()] = item
         for id in self.menu_items_id.keys():
             item = self.Append(id, item=self.menu_items_id[id])
-            item.Enable(self.selected_path != "")
+            # item.Enable(self.selected_path != "")
             self.Bind(wx.EVT_MENU, self.on_click, id=id)
 
     def on_click(self, event):

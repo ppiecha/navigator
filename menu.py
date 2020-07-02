@@ -15,18 +15,6 @@ class MainMenu(wx.MenuBar):
     def __init__(self, frame):
         super().__init__()
 
-        self.edit_lst = [
-            [SELECT_ALL, wx.ITEM_NORMAL, ord("A"), wx.ACCEL_CTRL, None],
-            [INVERT_SEL, wx.ITEM_NORMAL, ord("A"), wx.ACCEL_SHIFT + wx.ACCEL_CTRL, None],
-            ["-", wx.ITEM_SEPARATOR, None, None, None],
-            [COPY_PATH, wx.ITEM_NORMAL, wx.WXK_F4, wx.ACCEL_NORMAL, None],
-            [COPY_SEL_NAMES, wx.ITEM_NORMAL, wx.WXK_F5, wx.ACCEL_NORMAL, None],
-            [COPY_SEL_NAMES_AND_PATHS, wx.ITEM_NORMAL, wx.WXK_F6, wx.ACCEL_NORMAL, None],
-            # [NEW_FOLDER, wx.ITEM_NORMAL, wx.WXK_F7, wx.ACCEL_NORMAL, None],
-            # [DELETE, wx.ITEM_NORMAL, wx.WXK_F8, wx.ACCEL_NORMAL, None],
-            # ["-", wx.ITEM_SEPARATOR, None, None, None],
-            # [EXIT, wx.ITEM_NORMAL, wx.WXK_F4, wx.ACCEL_ALT, None]
-        ]
         self.frame = frame
         self.menu_items_id = {}
         self.entries = []
@@ -38,6 +26,8 @@ class MainMenu(wx.MenuBar):
 
         self.Append(self.file_menu, '&File')
         self.Append(self.edit_menu, '&Edit')
+
+        self.frame.SetAcceleratorTable(wx.AcceleratorTable(self.entries))
 
     def make_menu(self, menu_item, menu_dict):
         for id in menu_dict.keys():
