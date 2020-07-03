@@ -38,12 +38,14 @@ ID_CREATE_SHORTCUT = wx.NewId()
 ID_COPY2SAME = wx.NewId()
 ID_COPY_CLIP = wx.NewId()
 ID_PASTE_CLIP = wx.NewId()
-
 # EDIT
 ID_SELECT_ALL = wx.NewId()
 ID_INVERT_SEL = wx.NewId()
 ID_COPY_SEL_NAMES = wx.NewId()
 ID_COPY_SEL_NAMES_AND_PATHS = wx.NewId()
+# CMD
+ID_TARGET_EQ_SRC = wx.NewId()
+ID_SWAP_WIN = wx.NewId()
 
 
 class MItem:
@@ -87,6 +89,13 @@ dt_edit = {
                                           acc_type=wx.ACCEL_SHIFT + wx.ACCEL_CTRL),
     ID_COPY_SEL_NAMES_AND_PATHS:    MItem(id=ID_COPY_SEL_NAMES_AND_PATHS, name="Copy selected names with path",
                                           key=ord("C"), acc_type=wx.ACCEL_SHIFT),
+}
+
+dt_cmd = {
+    ID_TARGET_EQ_SRC:               MItem(id=ID_TARGET_EQ_SRC, name="Target = Source", key=ord("T"),
+                                          acc_type=wx.ACCEL_CTRL),
+    ID_SWAP_WIN:                    MItem(id=ID_SWAP_WIN, name="Swap path in tabs", key=ord("T"),
+                                          acc_type=wx.ACCEL_SHIFT + wx.ACCEL_CTRL)
 }
 
 

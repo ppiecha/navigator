@@ -23,9 +23,12 @@ class MainMenu(wx.MenuBar):
         self.make_menu(self.file_menu, cn.dt_file)
         self.edit_menu = wx.Menu()
         self.make_menu(self.edit_menu, cn.dt_edit)
+        self.cmd_menu = wx.Menu()
+        self.make_menu(self.cmd_menu, cn.dt_cmd)
 
         self.Append(self.file_menu, '&File')
         self.Append(self.edit_menu, '&Edit')
+        self.Append(self.cmd_menu, '&Command')
 
         self.frame.SetAcceleratorTable(wx.AcceleratorTable(self.entries))
 
@@ -78,6 +81,18 @@ class MainMenu(wx.MenuBar):
             self.frame.copy_sel2clip()
         elif id == cn.ID_COPY_SEL_NAMES_AND_PATHS:
             self.frame.copy_sel2clip_with_path()
+        # Cmd
+        elif id == cn.ID_TARGET_EQ_SRC:
+            if str(self.frame.get_inactive_win().get_active_browser().path) != \
+               str(self.frame.get_active_win().get_active_browser().path):
+                self.frame.get_inactive_win().get_active_browser().open_dir(
+                    self.frame.get_active_win().get_active_browser().path)
+        elif id == cn.ID_SWAP_WIN:
+            act = self.frame.get_active_win().get_active_browser().path
+            in_act = self.frame.get_inactive_win().get_active_browser().path
+            if str(act) != str(in_act):
+                self.frame.get_active_win().get_active_browser().open_dir(in_act)
+                self.frame.get_inactive_win().get_active_browser().open_dir(act)
 
 
     def on_click(self, event):

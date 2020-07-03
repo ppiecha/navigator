@@ -511,7 +511,6 @@ class Browser(wx.ListCtrl, ListCtrlAutoWidthMixin):
         self.add_hist_item(str(value))
         self.root = value.samefile(value.anchor)
         self._path = value
-        # traceback.print_stack()
 
     def do_search_folder(self, pattern):
         hist = pattern
@@ -650,7 +649,6 @@ class Browser(wx.ListCtrl, ListCtrlAutoWidthMixin):
 
     def refresh_list(self, dir_name, conf, to_select, reread_source=False):
         self.dir_cache = self.frame.dir_cache.get_dir(dir_name=Path(dir_name), conf=conf, reread_source=reread_source)
-        # print("refresh_list", str(dir_name))
         self.path = Path(dir_name)
         count = len(self.dir_cache)
         if not self.root:
