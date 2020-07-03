@@ -191,7 +191,7 @@ CN_OPEN = "Open in new tab"
 CN_OPEN_OW = "Open in new tab in opposite window"
 CN_SEP = "-"
 CN_EDIT = "Edit"
-CN_COPY = "Copy path to clipboard"
+CN_COPY = "Copy full path to clipboard"
 CN_CMD = "Run command prompt"
 CN_DRIVE = "Show drive properties"
 
@@ -219,7 +219,7 @@ class PathMenu(wx.Menu):
         if operation == CN_OPEN:
             self.path_panel.parent.parent.add_new_tab(self.selected_path)
         elif operation == CN_OPEN_OW:
-            self.frame.get_inactive_win.add_new_tab(self.selected_path)
+            self.frame.get_inactive_win().add_new_tab(self.selected_path)
         elif operation == CN_EDIT:
             self.path_panel.read_only = False
         elif operation == CN_COPY:
