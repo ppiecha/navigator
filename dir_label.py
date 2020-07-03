@@ -75,6 +75,7 @@ class DirLabel(wx.Panel):
         self.dir_path = self._dir_path
 
     def on_menu(self, event):
+        self.browser_panel.browser.SetFocus()
         menu = PathMenu(self.frame, self.path_panel, self, self.get_selected_path())
         self.frame.PopupMenu(menu)
         del menu
@@ -187,6 +188,8 @@ class DirLabel(wx.Panel):
 
 
 CN_OPEN = "Open in new tab"
+CN_OPEN_OW = "Open in new tab in opposite window"
+CN_SEP = "-"
 CN_EDIT = "Edit"
 CN_COPY = "Copy path to clipboard"
 CN_CMD = "Run command prompt"
@@ -200,25 +203,32 @@ class PathMenu(wx.Menu):
         self.path_panel = path_panel
         self.path_label = path_label
         self.selected_path = selected_path
-        self.menu_items = [CN_OPEN, CN_EDIT, CN_COPY, CN_CMD, CN_DRIVE]
+        self.menu_items = [CN_OPEN, CN_OPEN_OW, CN_SEP, CN_EDIT, CN_COPY, CN_SEP, CN_CMD, CN_DRIVE]
         self.menu_items_id = {}
         for item in self.menu_items:
             self.menu_items_id[wx.NewId()] = item
         for id in self.menu_items_id.keys():
-            item = self.Append(id, item=self.menu_items_id[id])
-            # item.Enable(self.selected_path != "")
-            self.Bind(wx.EVT_MENU, self.on_click, id=id)
+            if self.menu_items_id[id] == CN_SEP:
+                self.AppendSeparator()
+            else:
+                item = self.Append(id, item=self.menu_items_id[id])
+                self.Bind(wx.EVT_MENU, self.on_click, id=id)
 
     def on_click(self, event):
         operation = self.menu_items_id[event.GetId()]
         if operation == CN_OPEN:
             self.path_panel.parent.parent.add_new_tab(self.selected_path)
+        elif operation == CN_OPEN_OW:
+            self.frame.get_inactive_win.add_new_tab(self.selected_path)
         elif operation == CN_EDIT:
             self.path_panel.read_only = False
         elif operation == CN_COPY:
             self.frame.copy_text2clip([self.path_panel.path_edit.GetValue()])
         elif operation == CN_CMD:
+            curr_path = os.getcwd()
+            os.chdir(self.selected_path)
             subprocess.Popen(["start", "cmd"], shell=True)
+            os.chdir(curr_path)
         elif operation == CN_DRIVE:
             self.show_drive_props(Path(self.path_panel.path_edit.GetValue()).anchor.rstrip("\\"))
 

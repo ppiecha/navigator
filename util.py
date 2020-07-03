@@ -10,10 +10,11 @@ from pathlib import Path
 from threading import Thread
 
 
-def run_in_thread(target, args):
+def run_in_thread(target, args, lst=None):
     th = Thread(target=target, args=args)
     th.start()
-    return th
+    if lst is not None:
+        lst.append(th)
 
 def get_drives():
 

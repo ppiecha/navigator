@@ -73,12 +73,12 @@ class Filter(wx.SearchCtrl):
         self.parent = parent
         self.ShowSearchButton(False)
         self.ShowCancelButton(False)
-        self.AutoComplete(self.frame.app_conf.search_history)
+        # self.AutoComplete(self.frame.app_conf.search_history)
 
         self.Bind(wx.EVT_KILL_FOCUS, self.on_kill_focus)
 
     def on_kill_focus(self, e):
-        self.frame.app_conf.add_search_hist_item(self.GetValue().lower())
+        # self.frame.app_conf.add_search_hist_item(self.GetValue().lower())
         e.Skip()
 
 

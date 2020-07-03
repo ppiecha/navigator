@@ -7,13 +7,19 @@ import wx.propgrid as pg
 from pathlib import Path
 import controls
 
+CN_ID_LOWER = wx.NewId()
+CN_ID_UPPER = wx.NewId()
+
 class BasicDlg(wx.Dialog):
     def __init__(self, frame, title, size=(500, 500), style=wx.DEFAULT_DIALOG_STYLE, border=10):
         super().__init__(parent=frame, title=title, size=size if size else wx.DefaultSize, style=style)
 
-        self.SetAcceleratorTable(wx.AcceleratorTable([wx.AcceleratorEntry(flags=wx.ACCEL_NORMAL,
-                                                                          keyCode=wx.WXK_ESCAPE,
-                                                                          cmd=wx.ID_CANCEL)]))
+        self.entries = []
+        self.entries.append(wx.AcceleratorEntry(flags=wx.ACCEL_NORMAL, keyCode=wx.WXK_ESCAPE, cmd=wx.ID_CANCEL))
+        self.entries.append(wx.AcceleratorEntry(flags=wx.ACCEL_CTRL, keyCode=ord("L"), cmd=CN_ID_LOWER))
+        self.entries.append(wx.AcceleratorEntry(flags=wx.ACCEL_CTRL, keyCode=ord("U"), cmd=CN_ID_UPPER))
+
+        self.SetAcceleratorTable(wx.AcceleratorTable(self.entries))
 
         # Sizers
         self.ctrl_sizer = wx.BoxSizer(wx.VERTICAL)
@@ -37,6 +43,28 @@ class BasicDlg(wx.Dialog):
 
         self.SetSizer(self.main_sizer)
 
+        self.Bind(event=wx.EVT_MENU, handler=self.on_lower, id=CN_ID_LOWER)
+        self.Bind(event=wx.EVT_MENU, handler=self.on_upper, id=CN_ID_UPPER)
+
+    @staticmethod
+    def change_case(ctrl, upper=True):
+        sel = ctrl.GetStringSelection()
+        if sel:
+            start, stop = ctrl.GetSelection()
+            val = ctrl.GetValue()
+            begin, mid, end = val[:start], val[start:stop], val[stop:]
+            mid = mid.upper() if upper else mid.lower()
+            ctrl.ChangeValue(begin + mid + end)
+            ctrl.SetSelection(start, stop)
+        else:
+            ctrl.ChangeValue(ctrl.GetValue().upper() if upper else ctrl.GetValue().lower())
+
+
+    def on_lower(self, e):
+        pass
+
+    def on_upper(self, e):
+        pass
 
     def on_cancel(self, e):
         self.EndModal(wx.ID_CANCEL)
@@ -242,6 +270,11 @@ class TextEditDlg(BasicDlg):
         self.CenterOnParent()
         return self.ShowModal()
 
+    def on_lower(self, e):
+        BasicDlg.change_case(self.ed_new_name, upper=False)
+
+    def on_upper(self, e):
+        BasicDlg.change_case(self.ed_new_name, upper=True)
 
 class NewItemDlg(TextEditDlg):
     def __init__(self, frame, title, browser_path, def_name, label=""):
@@ -312,7 +345,7 @@ class RenameDlg(TextEditDlg):
 
 
 class CopyMoveDlg(BasicDlg):
-    def __init__(self, frame, title, opr_count, src, dst):
+    def __init__(self, frame, title, opr_count, src, dst, show_cb=True):
         super().__init__(frame=frame, title=title)
         self.lbl_opr_count = wx.StaticText(parent=self, label=opr_count)
         self.lbl_from = wx.StaticText(parent=self, label=src)
@@ -324,6 +357,7 @@ class CopyMoveDlg(BasicDlg):
         self.dir_sizer.Add(self.dir_btn)
         self.cb_rename = wx.CheckBox(parent=self, label="Rename on collision")
         self.cb_rename.SetValue(wx.CHK_CHECKED)
+        self.cb_rename.Show(show_cb)
         self.ctrl_sizer.Add(self.lbl_opr_count)
         self.ctrl_sizer.Add(self.lbl_from)
         self.ctrl_sizer.Add(self.dir_sizer, flag=wx.TOP | wx.EXPAND, border=5, proportion=1)
@@ -352,6 +386,14 @@ class CopyMoveDlg(BasicDlg):
         self.ed_dst.SetInsertionPointEnd()
         self.ed_dst.smart_select()
         return super().show_modal()
+
+    def on_lower(self, e):
+        BasicDlg.change_case(self.ed_dst, upper=False)
+
+    def on_upper(self, e):
+        BasicDlg.change_case(self.ed_dst, upper=True)
+
+
 
 
 

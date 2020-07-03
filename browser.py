@@ -99,6 +99,7 @@ class BrowserCtrl(aui.AuiNotebook):
     def on_tab_right_click(self, e):
         pt = wx.GetMousePosition()
         tab_index, flag = self.HitTest(self.ScreenToClient(pt))
+        self.GetPage(self.GetSelection()).browser.SetFocus()
         menu = TabMenu(self.frame, self, tab_index)
         self.frame.PopupMenu(menu)
         del menu
@@ -109,7 +110,7 @@ class BrowserCtrl(aui.AuiNotebook):
     def add_tab(self, tab_conf, select=False):
         self.Freeze()
         tab = BrowserPnl(self, self.frame, self.im_list, tab_conf, self.is_left)
-        self.AddPage(page=tab, caption="tab", select=select)
+        self.AddPage(page=tab, caption=tab_conf.tab_name, select=select)
         self.Thaw()
 
     def add_new_tab(self, dir_name):
@@ -124,9 +125,7 @@ class BrowserCtrl(aui.AuiNotebook):
         self.DeletePage(tab_index)
 
     def duplicate_tab(self, tab_index):
-        # self.add_new_tab(self.get_active_browser().path)
-        #self.add_new_tab(self.conf[tab_index].last_path)
-        self.add_new_tab(self.GetPage(tab_index).browser.path)
+        self.add_new_tab(dir_name=self.GetPage(tab_index).browser.path)
 
     def lock_tab(self, tab_index, tab_name=None):
         self.conf[tab_index].lock_tab(user_tab_name=tab_name)
@@ -391,11 +390,7 @@ class Browser(wx.ListCtrl, ListCtrlAutoWidthMixin):
                 self.history.pop()
 
     def on_select(self, event):
-        # index = self.FindItem(-1, cn.CN_GO_BACK)
-        # if index >= 0:
-        #     self.Select(index, on=0)
-        # print("selected")
-        wx.CallAfter(self.update_summary_lbl)
+        self.update_summary_lbl()
         event.Skip()
 
     def on_deselect(self, e):
@@ -508,14 +503,11 @@ class Browser(wx.ListCtrl, ListCtrlAutoWidthMixin):
 
     @path.setter
     def path(self, value):
-        try:
-            self.path_pnl.drive_combo.SetValue(value.anchor)
-        except:
-            print("error", value)
+        self.path_pnl.drive_combo.SetValue(value.anchor)
         os.chdir(str(value))
         self.conf.last_path = value
-        wx.CallAfter(self.set_tab_name, self.conf.tab_name)
-        wx.CallAfter(self.path_pnl.set_value, str(value))
+        self.set_tab_name(self.conf.tab_name)
+        self.path_pnl.set_value(str(value))
         self.add_hist_item(str(value))
         self.root = value.samefile(value.anchor)
         self._path = value
@@ -665,11 +657,11 @@ class Browser(wx.ListCtrl, ListCtrlAutoWidthMixin):
             count += 1
         self.SetItemCount(count)
         if count:
-            wx.CallAfter(self.Refresh)
-            wx.CallAfter(self.set_selection, to_select)
+            self.Refresh()
+            self.set_selection(to_select)
         else:
             self.DeleteAllItems()
-        wx.CallAfter(self.update_summary_lbl)
+        self.update_summary_lbl()
 
     @staticmethod
     def shell_copy(src, dst, auto_rename=False):
@@ -990,9 +982,11 @@ class ColumnMenu(wx.Menu):
 
 
 CN_DUPL = "Duplicate this tab"
+CN_DUPL_OW = "Duplicate this tab in opposite window"
 CN_LOCK = "Lock tab"
 CN_LOCK_RENAME = "Rename/Lock tab"
-CN_CLOSE_OTHERS = "Close other tabs"
+CN_CLOSE_DUPL = "Close duplicated tabs"
+CN_CLOSE_OTHERS = "Close all other tabs"
 CN_CLOSE = "Close tab"
 CN_SEP = "-"
 
@@ -1003,8 +997,10 @@ class TabMenu(wx.Menu):
         self.frame = frame
         self.nb = nb
         self.tab_index = tab_index
-        self.menu_items = [(CN_DUPL, wx.ITEM_NORMAL), (CN_LOCK, wx.ITEM_CHECK), (CN_LOCK_RENAME, wx.ITEM_NORMAL),
-                           (CN_CLOSE_OTHERS, wx.ITEM_NORMAL), ("-", wx.ITEM_SEPARATOR), (CN_CLOSE, wx.ITEM_NORMAL)]
+        self.menu_items = [(CN_DUPL, wx.ITEM_NORMAL), (CN_DUPL_OW, wx.ITEM_NORMAL), (CN_SEP, wx.ITEM_SEPARATOR),
+                           (CN_LOCK, wx.ITEM_CHECK), (CN_LOCK_RENAME, wx.ITEM_NORMAL), (CN_SEP, wx.ITEM_SEPARATOR),
+                           (CN_CLOSE_DUPL, wx.ITEM_NORMAL), (CN_CLOSE_OTHERS, wx.ITEM_NORMAL),
+                           (CN_CLOSE, wx.ITEM_NORMAL)]
         self.menu_items_id = {}
         for item in self.menu_items:
             self.menu_items_id[wx.NewId()] = item
@@ -1018,6 +1014,8 @@ class TabMenu(wx.Menu):
         operation = self.menu_items_id[event.GetId()][0]
         if operation == CN_DUPL:
             self.nb.duplicate_tab(self.tab_index)
+        elif operation == CN_DUPL_OW:
+            self.frame.get_inactive_win().add_new_tab(dir_name=self.nb.GetPage(self.tab_index).browser.path)
         elif operation == CN_LOCK:
             if event.IsChecked():
                 self.nb.lock_tab(tab_index=self.tab_index, tab_name=None)
@@ -1030,19 +1028,24 @@ class TabMenu(wx.Menu):
                                     edit_text=tab_name) as dlg:
                 if dlg.show_modal() == wx.ID_OK:
                     self.nb.lock_tab(tab_index=self.tab_index, tab_name=dlg.get_new_names()[0])
+        elif operation == CN_CLOSE_DUPL:
+            ids = []
+            visited = []
+            for index in range(self.nb.GetPageCount() - 1):
+                ids.append((index, self.nb.GetPage(index).browser.win_id,
+                            str(self.nb.GetPage(index).browser.path)))
+            for tab_index, id, path in ids:
+                if path not in visited:
+                    for index in range(self.nb.GetPageCount() - 1, tab_index, -1):
+                        if self.nb.GetPage(index).browser.win_id != id and \
+                                str(self.nb.GetPage(index).browser.path) == path:
+                            self.nb.close_tab(index)
+                        visited.append(path)
         elif operation == CN_CLOSE_OTHERS:
-            # print("current", self.tab_index)
             win_id = self.nb.GetPage(self.tab_index).browser.win_id
-            # print("selected", win_id)
             for index in range(self.nb.GetPageCount() - 1, -1, -1):
-                del_id = self.nb.GetPage(index).browser.win_id
-                info = self.nb.GetPage(index).browser.path
-                if del_id != win_id:
-                    # print(del_id)
+                if self.nb.GetPage(index).browser.win_id != win_id:
                     self.nb.close_tab(index)
-                    # self.frame.show_message(str(info))
-            # self.frame.show_message(str(self.nb.get_active_browser().path))
-            # print("current", self.nb.get_active_browser().win_id, self.nb.GetSelection())
         elif operation == CN_CLOSE:
             self.nb.close_tab(self.tab_index)
 

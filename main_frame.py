@@ -199,9 +199,10 @@ class MainFrame(wx.Frame):
         self.splitter.SetSashPosition(size.x / 2)
 
     def on_close(self, event):
-        self.Hide()
-        self.release_resources()
         self.write_last_conf(cn.CN_APP_CONFIG, self.app_conf)
+        if not self.release_resources():
+            event.Veto()
+            return
         event.Skip()
 
     def show_message(self, text):
@@ -228,8 +229,14 @@ class MainFrame(wx.Frame):
         self.show_message(message)
 
     def release_resources(self):
+        for th in self.thread_lst:
+            if th.is_alive():
+                self.show_message("Some background tasks are running still")
+                return False
+        self.Hide()
         self.dir_cache.release_resources()
         del self.im_list
+        return True
 
     # COMMANDS
 
@@ -246,7 +253,8 @@ class MainFrame(wx.Frame):
                     util.run_in_thread(target=browser.Browser.shell_rename,
                                        args=(os.path.join(b.path, old_name),
                                              os.path.join(b.path, dlg.get_new_names()[0]),
-                                             dlg.cb_rename.IsChecked()))
+                                             dlg.cb_rename.IsChecked()),
+                                       lst=self.thread_lst)
 
     def view(self):
         win = self.get_active_win()
@@ -306,7 +314,7 @@ class MainFrame(wx.Frame):
         win = self.get_active_win()
         b = win.get_active_browser()
         path = b.path
-        util.run_in_thread(self.paste_file, [path])
+        util.run_in_thread(self.paste_file, [path], lst=self.thread_lst)
         self.show_wait()
         # self.paste_file(path)
         # if wx.TheClipboard.Open():
@@ -344,13 +352,14 @@ class MainFrame(wx.Frame):
                 if dlg.show_modal() == wx.ID_OK:
                     path, name = dlg.get_path_and_name()
                     if not name:
-                        print("folder", folders + files, path, name)
                         util.run_in_thread(target=browser.Browser.shell_copy,
-                                           args=(folders + files, path, dlg.cb_rename.IsChecked()))
+                                           args=(folders + files, path, dlg.cb_rename.IsChecked()),
+                                           lst=self.thread_lst)
                     else:
                         util.run_in_thread(target=win32file.CopyFile,
                                            args=(str(b.path.joinpath(files[0].name)),
-                                                 str(Path(path, name)), 0))
+                                                 str(Path(path, name)), 0),
+                                           lst=self.thread_lst)
         else:
             self.show_message("No items selected")
 
@@ -377,7 +386,8 @@ class MainFrame(wx.Frame):
                 if dlg.show_modal() == wx.ID_OK:
                     path, name = dlg.get_path_and_name()
                     util.run_in_thread(target=browser.Browser.shell_move,
-                                       args=(folders + files, path, dlg.cb_rename.IsChecked()))
+                                       args=(folders + files, path, dlg.cb_rename.IsChecked()),
+                                       lst=self.thread_lst)
         else:
             self.show_message("No items selected")
 
@@ -411,7 +421,8 @@ class MainFrame(wx.Frame):
             with dialogs.DeleteDlg(self, message) as dlg:
                 if dlg.show_modal() == wx.ID_OK:
                     util.run_in_thread(target=b.shell_delete,
-                                       args=(folders + files, dlg.cb_perm.IsChecked()))
+                                       args=(folders + files, dlg.cb_perm.IsChecked()),
+                                       lst=self.thread_lst)
         else:
             self.show_message("No items selected")
 
@@ -472,7 +483,12 @@ class MainFrame(wx.Frame):
                                                     files=files, source_path=b.path,
                                                     dest_path=self.get_inactive_win().get_active_browser().path,
                                                     oper_id=cn.ID_CREATE_SHORTCUT)
-        with dialogs.CopyMoveDlg(self, title="Create shortcut(s)", opr_count=opr_count, src=src, dst=dst) as dlg:
+        with dialogs.CopyMoveDlg(self,
+                                 title="Create shortcut(s)",
+                                 opr_count=opr_count,
+                                 src=src,
+                                 dst=dst,
+                                 show_cb=False) as dlg:
             if dlg.show_modal() == wx.ID_OK:
                 path, name = dlg.get_path_and_name()
                 if len(folders + files) > 0:
@@ -510,13 +526,16 @@ class MainFrame(wx.Frame):
                     if item_type == "file":
                         util.run_in_thread(target=win32file.CopyFile,
                                            args=(str(b.path.joinpath(files[0].name)),
-                                                 str(full_name), 0))
+                                                 str(full_name), 0),
+                                           lst=self.thread_lst)
                     else:
                         if not b.shell_new_folder(str(full_name)):
                             self.show_message(f"Cannot create folder {new_name}")
                         else:
-                            util.run_in_thread(browser.Browser.shell_copy, [str(b.path.joinpath(str(folders[0]), "*.*")),
-                                                                            str(full_name)])
+                            util.run_in_thread(target=browser.Browser.shell_copy,
+                                               args=[str(b.path.joinpath(str(folders[0]), "*.*")),
+                                                                         str(full_name)],
+                                               lst=self.thread_lst)
 
     def select_all(self):
         win = self.get_active_win()
