@@ -20,6 +20,7 @@ from win32com.shell import shell, shellcon
 import win32con
 import win32file
 from datetime import datetime
+import subprocess
 
 
 class MainFrame(wx.Frame):
@@ -557,6 +558,26 @@ class MainFrame(wx.Frame):
         b = win.get_active_browser()
         folders, files = b.get_selected_files_folders()
         self.copy_text2clip([str(f) for f in folders] + [str(f) for f in files])
+
+    def target_eq_source(self):
+        if str(self.get_inactive_win().get_active_browser().path) != \
+                str(self.get_active_win().get_active_browser().path):
+            self.get_inactive_win().get_active_browser().open_dir(
+                self.get_active_win().get_active_browser().path)
+
+    def swap_wins(self):
+        act = self.get_active_win().get_active_browser().path
+        in_act = self.get_inactive_win().get_active_browser().path
+        if str(act) != str(in_act):
+            self.get_active_win().get_active_browser().open_dir(in_act)
+            self.get_inactive_win().get_active_browser().open_dir(act)
+
+    def _search(self, path="", words=[]):
+        args = ["pythonw", str(cn.CN_FINDER_APP), str(path)]
+        subprocess.Popen(args, shell=False, cwd=cn.CN_FINDER_APP.parent)
+
+    def search(self):
+        self._search(self.get_active_win().get_active_browser().path)
 
 
 class CmdBtn(wx.Button):

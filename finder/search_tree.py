@@ -18,19 +18,21 @@ def find_words_in_line(text, opt):
 
 
 class SearchTree(CT.CustomTreeCtrl):
-    def __init__(self, parent, main_frame):
+    def __init__(self, parent, frame):
         super().__init__(parent=parent, agwStyle=wx.TR_DEFAULT_STYLE |
                                                  wx.TR_HAS_VARIABLE_ROW_HEIGHT |
                                                  wx.TR_FULL_ROW_HIGHLIGHT)
                                                  # wx.TR_ELLIPSIZE_LONG_ITEMS)
+        self.frame = frame
         self.root = None
         self.file_nodes = []
+        self.dir_nodes = []
         # self.SetHilightFocusColour(wx.SystemSettings.GetColour(wx.SYS_COLOUR_LISTBOX))
         # self.SetHilightNonFocusColour(self.GetBackgroundColour())
         self.EnableSelectionVista()
         # self.SetBorderPen(self.GetConnectionPen())
         # self.SetSeparatorColour(self.GetConnectionPen().GetColour())
-        self.SetDoubleBuffered(True)
+        # self.SetDoubleBuffered(True)
 
         # Image list
         il = wx.ImageList(16, 16)
@@ -40,12 +42,53 @@ class SearchTree(CT.CustomTreeCtrl):
         self.im_doc = il.Add(wx.Bitmap(cn.CN_IM_NEW_DOC, wx.BITMAP_TYPE_PNG))
         self.AssignImageList(il)
 
-        self.Bind(wx.dataview.EVT_TREELIST_SELECTION_CHANGED, self.on_select)
+        # self.Bind(wx.dataview.EVT_TREELIST_SELECTION_CHANGED, self.on_select)
+        self.Bind(wx.EVT_TREE_ITEM_GETTOOLTIP, self.on_tooltip)
+        self.Bind(wx.EVT_TREE_ITEM_COLLAPSING, self.on_collapse)
+        self.Bind(wx.EVT_TREE_ITEM_EXPANDING, self.on_expand)
+        self.Bind(wx.EVT_TREE_SEL_CHANGED, self.on_sel_changed)
+        self.Bind(wx.EVT_TREE_ITEM_ACTIVATED, self.on_db_click)
+        self.Bind(wx.EVT_TREE_ITEM_RIGHT_CLICK, self.on_right_click)
 
-    def on_select(self, e):
-        self.SetItemTextColour(e.GetItem(), wx.BLACK)
-        print("sel")
+    def on_db_click(self, e):
+        print("activated")
+
+    def on_right_click(self, e):
+        print("menu")
+
+    def on_collapse(self, e):
+        item = e.GetItem()
+        data = item.GetData()
+        if isinstance(data, FileNode):
+            for child in item.GetChildren():
+                win = child.GetWindow()
+                if win:
+                    win.Hide()
         e.Skip()
+
+    def on_expand(self, e):
+        e.Skip()
+
+    def on_sel_changed(self, e):
+        e.Skip()
+
+    def on_tooltip(self, e):
+        data = e.GetItem().GetData()
+        if isinstance(data, FileNode):
+            e.SetToolTip(data.file_full_name)
+        elif isinstance(data, DirNode):
+            e.SetToolTip(data.dir)
+
+    def clear_list(self):
+        self.DeleteAllItems()
+        self.file_nodes.clear()
+        self.dir_nodes.clear()
+
+    def collapse_all(self):
+        self.Freeze()
+        for node in self.file_nodes:
+            self.Collapse(node)
+        self.Thaw()
 
     def add_root_node(self, root_text):
         self.root = self.AddRoot(root_text)
@@ -53,37 +96,65 @@ class SearchTree(CT.CustomTreeCtrl):
         self.SetItemImage(self.root, self.im_search)
         return self.root
 
+    def init_tree(self, params=None):
+        self.clear_list()
+        self.add_root_node("Search results")
+        # self.add_root_node("Search results for {0} in {1}".format(self.opt.words,
+        #                                                           [str(Path(dir).name) for dir in self.opt.dirs]))
+        self.SetFocus()
+        self.SelectItem(self.root)
+
     def add_separator(self):
-        self.AppendSeparator(self.root)
+        pass
+        # self.AppendSeparator(self.root)
 
     def update_node_text(self, node, text):
         self.SetItemText(node, text)
 
-    def add_file_node(self, file_node):
-        # self.Freeze()
-        matches_count = 0
-        path = Path(file_node.file_full_name)
-        item = self.AppendItem(parentId=self.root, text="{0} {1} matches".format(path.name,
-                                                                                 str(matches_count)))
-        self.SetItemBold(item)
-        self.SetItemImage(item, self.im_file)
-        # self.SetItemImage(item, self.im_doc)
-        self.file_nodes.append(item)
-        matches_count = 0
-        for line in file_node.lines:
-            child, matches = self.add_line_node(parent_node=item,
-                                                line_num=line.line_num,
-                                                line_text=line.line_text,
-                                                opt=file_node.opt)
-            matches_count += matches
-        self.update_node_text(node=item,
-                              text="{0} {1} matches".format(path.name,
-                                                            str(matches_count)))
-        self.add_separator()
-        # self.Thaw()
+    def find_dir_node(self, dir):
+        for node in self.dir_nodes:
+            if node.GetData().dir == dir:
+                return node
+        return self.add_dir_node(DirNode(dir=dir))
+
+    def add_dir_node(self, dir_node):
+        path = Path(dir_node.dir)
+        item = self.AppendItem(parentId=self.root, text=path.name)
+        item.SetData(dir_node)
+        self.SetItemImage(item, self.im_folder)
+        self.dir_nodes.append(item)
         return item
 
+    def add_file_node(self, file_node, dir_node=None):
+
+        def add_gui_nodes(lines):
+            path = Path(file_node.file_full_name)
+            item = self.AppendItem(parentId=self.root, text="", image=self.im_file, data=file_node)
+            self.file_nodes.append(item)
+            matches_count = 0
+            for index, line in enumerate(lines):
+                child, matches = self.add_line_node(parent_node=item,
+                                                    line_num=line.line_num,
+                                                    line_text=line.line_text,
+                                                    opt=file_node.opt)
+                # item.Insert(child=child, index=index)
+                matches_count += matches
+            if matches_count == 1:
+                item.SetText(text="{0} {1} match".format(path.name, str(matches_count)))
+            elif matches_count > 1:
+                item.SetText(text="{0} {1} matches".format(path.name, str(matches_count)))
+            else:
+                item.SetText(text=path.name)
+            if not self.IsExpanded(self.root):
+                self.Expand(self.root)
+            # self.Refresh()
+            # self.frame.finder.app.Yield()
+            # self.frame.finder.app.ProcessPendingEvents()
+
+        add_gui_nodes(file_node.lines)
+
     def add_line_node(self, parent_node, line_num, line_text, opt):
+
         matches = find_words_in_line(line_text, opt)
         matches_count = 0
         html_text = line_text
@@ -96,10 +167,8 @@ class SearchTree(CT.CustomTreeCtrl):
                 html_text = html_text[:start] + "<b>" + html_text[start:stop] + "</b>" + html_text[stop:]
                 cnt += 1
             # html_text = ("<b>" + word + "</b>").join([part for part in line_text.split(word)])
-        item = self.AppendItem(parentId=parent_node, text="Line " + line_num + ":")
-        # self.SetItemImage(item, self.im_doc)
-        win = HtmlLabel(parent=self, line_item=item, text=html_text)
-        self.SetItemWindow(item, win)
+        item = self.AppendItem(parentId=parent_node, text="Line " + line_num + ":", data=parent_node)
+        item.SetWindow(HtmlLabel(parent=self, line_item=item, text=html_text))
         return item, matches_count
 
 
@@ -122,9 +191,14 @@ class FileNode:
         self.lines.append(line_node)
 
 
+class DirNode:
+    def __init__(self, dir):
+        self.dir = dir
+
+
 class HtmlLabel(html.HtmlWindow):
     def __init__(self, parent, line_item, text):
-        super().__init__(parent=parent, style=wx.NO_FULL_REPAINT_ON_RESIZE | html.HW_SCROLLBAR_NEVER)
+        super().__init__(parent=parent, style=html.HW_SCROLLBAR_NEVER)
         self.tree = parent
         self.line_item = line_item
         self.font = parent.GetFont()

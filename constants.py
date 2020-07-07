@@ -20,6 +20,7 @@ CN_APP_CONFIG = os.path.join(CN_APP_PATH, "config.dat")
 CN_APP_LOG = os.path.join(CN_APP_PATH, "navigator.log")
 
 CN_VIEWER_APP = Path(os.path.join(CN_APP_PATH, "viewer\\viewer.py"))
+CN_FINDER_APP = Path(os.path.join(CN_APP_PATH, "finder\\finder.py"))
 
 CN_ICON_FILE_NAME = os.path.join(CN_APP_PATH, "img\\navigator.ico")
 
@@ -46,6 +47,7 @@ ID_COPY_SEL_NAMES_AND_PATHS = wx.NewId()
 # CMD
 ID_TARGET_EQ_SRC = wx.NewId()
 ID_SWAP_WIN = wx.NewId()
+ID_SEARCH = wx.NewId()
 
 
 class MItem:
@@ -95,7 +97,10 @@ dt_cmd = {
     ID_TARGET_EQ_SRC:               MItem(id=ID_TARGET_EQ_SRC, name="Target = Source", key=ord("T"),
                                           acc_type=wx.ACCEL_CTRL),
     ID_SWAP_WIN:                    MItem(id=ID_SWAP_WIN, name="Swap path in tabs", key=ord("T"),
-                                          acc_type=wx.ACCEL_SHIFT + wx.ACCEL_CTRL)
+                                          acc_type=wx.ACCEL_SHIFT + wx.ACCEL_CTRL),
+    wx.NewId():                     MItem(id=ID_SEP, name="-", type=wx.ITEM_SEPARATOR),
+    ID_SEARCH:                      MItem(id=ID_SEARCH, name="Search", key=ord("F"),
+                                          acc_type=wx.ACCEL_CTRL)
 }
 
 

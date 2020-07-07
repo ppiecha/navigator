@@ -83,16 +83,13 @@ class MainMenu(wx.MenuBar):
             self.frame.copy_sel2clip_with_path()
         # Cmd
         elif id == cn.ID_TARGET_EQ_SRC:
-            if str(self.frame.get_inactive_win().get_active_browser().path) != \
-               str(self.frame.get_active_win().get_active_browser().path):
-                self.frame.get_inactive_win().get_active_browser().open_dir(
-                    self.frame.get_active_win().get_active_browser().path)
+            self.frame.target_eq_source()
         elif id == cn.ID_SWAP_WIN:
-            act = self.frame.get_active_win().get_active_browser().path
-            in_act = self.frame.get_inactive_win().get_active_browser().path
-            if str(act) != str(in_act):
-                self.frame.get_active_win().get_active_browser().open_dir(in_act)
-                self.frame.get_inactive_win().get_active_browser().open_dir(act)
+            self.frame.swap_wins()
+        elif id == cn.ID_SEARCH:
+            self.frame.search()
+
+
 
 
     def on_click(self, event):
