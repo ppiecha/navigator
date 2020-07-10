@@ -26,13 +26,16 @@ class Search(Thread):
 
     def do_search(self):
         opt = self.opt
+        tree = self.frame.output.tree
         self.denied_items.clear()
         dirs_sum = 0
         files_sum = 0
         for dir_item in opt.dirs:
-            for root, dirs, files in os.walk(dir_item):
+            tree.add_search_node(search_tree.SearchNode(path=dir_item))
+            for root, dirs, files in os.walk(Path(dir_item)):
+                print(root)
                 if root not in opt.ex_dirs:
-                    self.set_status(root)
+                    self.set_status(Path(root).name)
                     dir_lst = [dir for dir in dirs
                                if dir.lower() not in opt.ex_dirs and self.match(dir, opt.dirs_pattern)]
                     file_lst = [file for file in files
@@ -43,17 +46,18 @@ class Search(Thread):
                     for dir in dir_lst:
                         if not opt.words:
                             dir_node = search_tree.DirNode(dir=os.path.join(root, dir))
-                            wx.CallAfter(self.frame.output.tree.add_dir_node, dir_node)
+                            wx.CallAfter(tree.add_dir_node, tree.search_nodes[dir_item], dir_node)
                     for file in file_lst:
+                        self.set_status(Path(file).name)
                         if opt.words:
-                            self.process_file(os.path.join(root, file), opt)
+                            self.process_file(os.path.join(root, file), opt, tree, tree.search_nodes[dir_item])
                         else:
                             file_node = search_tree.FileNode(file_full_name=os.path.join(root, file), opt=opt)
-                            wx.CallAfter(self.frame.output.tree.add_file_node, file_node)
+                            wx.CallAfter(tree.add_file_node, tree.search_nodes[dir_item], file_node)
                         if self.event.is_set():
                             return False
 
-        self.set_status("Searched " + str(dirs_sum) + " folders " + str(files_sum) + " files ")
+        self.set_status("Searched " + "{:,}".format(dirs_sum) + " folders " + "{:,}".format(files_sum) + " files ")
         self.event.set()
         return True
 
@@ -69,14 +73,9 @@ class Search(Thread):
         if text != self.frame.GetStatusBar().GetStatusText(0):
             wx.CallAfter(self.frame.SetStatusText, text, 0)
 
-    def call_after(self, fun, arg):
-        wx.CallAfter(fun, arg)
-
-    def process_file(self, full_file_name, opt):
-        # print(full_file_name)
+    def process_file(self, full_file_name, opt, tree, search_node):
         try:
             with open(full_file_name, 'r') as f:
-                path = Path(full_file_name)
                 file_node = search_tree.FileNode(file_full_name=full_file_name, opt=opt)
                 line_num = 0
                 for line_text in f:
@@ -85,8 +84,7 @@ class Search(Thread):
                         file_node.add_line(line_num=str(line_num), line_text=line_text)
                     line_num += 1
                 if file_node.lines:
-                    # wx.CallAfter(self.frame.output.tree.add_file_node, file_node)
-                    wx.CallAfter(self.frame.output.tree.add_file_node, file_node)
+                    wx.CallAfter(tree.add_file_node, search_node, file_node)
         except UnicodeDecodeError:
             pass
         except PermissionError:

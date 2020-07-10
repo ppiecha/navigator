@@ -1,8 +1,12 @@
 import os
+import sys
+from pathlib import Path
 
 CN_APP_NAME = "Finder"
 CN_APP_RESULTS = "Finder results"
 CN_APP_PATH = os.path.dirname(os.path.abspath(__file__))
+
+sys.path.append(str(Path(CN_APP_PATH).parent))
 
 CN_ICON_FILE_NAME = os.path.join(CN_APP_PATH, "img\\finder.ico")
 

@@ -2,11 +2,11 @@ import wx
 import os
 import constants as cn
 from pathlib import Path
-import util
 import dir_label
 import links
 import dialogs
 import controls
+from lib4py import shell as sh
 
 
 class PathPanel(wx.Panel):
@@ -120,7 +120,7 @@ class PathEdit(wx.TextCtrl):
                     if not str(path).endswith(os.path.sep):
                         self.SetValue(str(path) + os.path.sep)
             else:
-                self.open_file(path)
+                sh.start_file(path)
         else:
             # args = self.GetValue().split()
             # args = [a.trim() for a in args]
@@ -144,10 +144,10 @@ class PathEdit(wx.TextCtrl):
         self.parent.parent.browser.open_dir(dir_name=dir, sel_dir=cn.CN_GO_BACK)
 
     def open_file(self, file_name):
-        self.parent.parent.browser.open_file(file_name)
+        sh.start_file(file_name)
 
     def context_menu(self, path, item_names):
-        self.parent.parent.browser.get_context_menu(path, item_names)
+        sh.get_context_menu(path, item_names)
 
     def get_current_dir(self):
         if hasattr(self.parent.parent, 'browser'):
@@ -292,7 +292,7 @@ class ListCtrlComboPopup(wx.ComboPopup):
     # use self.GetCombo if needed to get to the ComboCtrl instance.
     def Init(self):
         self.item = -1
-        self.lc_drives = util.get_drives()
+        self.lc_drives = sh.get_drives()
         self.lc_cols = ["Path", "Name", "Type", "Full Path"]
 
     # Create the popup child control.  Return true for success.

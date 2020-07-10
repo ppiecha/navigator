@@ -3,22 +3,16 @@ from pathlib import Path
 import util
 import constants as cn
 import path_pnl
-import win32gui
-from win32com.shell import shell, shellcon
-import win32api
-import win32con
 from wx.lib.mixins.listctrl import ListCtrlAutoWidthMixin
 import filter_pnl
 import time
 import wx.aui as aui
-import win32file
 import config
 from pubsub import pub
 import subprocess
-import pythoncom
 import os
-import winshell
 import dialogs
+from lib4py import shell as sh
 
 CN_MAX_HIST_COUNT = 20
 
@@ -291,8 +285,6 @@ class Browser(wx.ListCtrl, ListCtrlAutoWidthMixin):
 
     def listen_dir_changes(self, dir_name, added, deleted):
         if str(self.path) == str(dir_name):
-            # for item_name in deleted:
-            #     self.remove_item(item_name=item_name)
             self.refresh_list(dir_name=dir_name, conf=self.conf, to_select=[], reread_source=True)
 
     def get_source_id_in_list(self, item_name):
@@ -476,11 +468,11 @@ class Browser(wx.ListCtrl, ListCtrlAutoWidthMixin):
             pass
         else:
             if self.GetFirstSelected() < 0:
-                self.get_context_menu(str(self.path), [])
+                sh.get_context_menu(str(self.path), [])
             else:
                 items = self.get_selected()
                 # items = [str(self.path.joinpath(item)) for item in self.get_selected()]
-                self.get_context_menu(str(self.path), self.get_selected())
+                sh.get_context_menu(str(self.path), self.get_selected())
 
     def set_references(self, path_pnl, filter_pnl):
         self.path_pnl = path_pnl
@@ -554,12 +546,12 @@ class Browser(wx.ListCtrl, ListCtrlAutoWidthMixin):
         else:
             new_path = Path(os.path.join(self.path, item_name))
             if new_path.suffix.lower() == ".lnk":
-                lnk = ShellShortcut()
+                lnk = sh.Shortcut()
                 res = lnk.load(str(new_path))
                 new_path = Path(res)
                 del lnk
             if new_path.is_file():
-                self.open_file(new_path)
+                sh.start_file(new_path)
                 self.frame.show_wait()
             elif new_path.is_dir():
                 if wx.GetKeyState(wx.WXK_CONTROL) and wx.GetKeyState(wx.WXK_SHIFT):
@@ -579,35 +571,11 @@ class Browser(wx.ListCtrl, ListCtrlAutoWidthMixin):
         # Caching
         if extension in self.extension_images:
             return self.extension_images[extension]
-        bmp = util.extension_to_bitmap(extension)
+        bmp = sh.extension_to_bitmap(extension)
         index = self.image_list.Add(bmp)
         self.SetImageList(self.image_list, wx.IMAGE_LIST_SMALL)
         self.extension_images[extension] = index
         return index
-
-    def open_file(self, file_name):
-        # hwnd = win32gui.GetForegroundWindow()
-        # desktopFolder = shell.SHGetDesktopFolder()
-        # eaten, parentPidl, attr = desktopFolder.ParseDisplayName(hwnd, None, str(self.path))
-        # parentFolder = desktopFolder.BindToObject(parentPidl, None, shell.IID_IShellFolder)
-        # eaten, pidl, attr = parentFolder.ParseDisplayName(hwnd, None, file_name.name)
-        dict = shell.ShellExecuteEx(fMask=shellcon.SEE_MASK_NOCLOSEPROCESS,
-                                    nShow=win32con.SW_NORMAL,
-                                    lpVerb="Open",
-                                    lpFile=str(file_name))
-        # print(dict)
-        # hh = dict['hInstApp']
-        # ret = win32event.WaitForSingleObject(hh, -1)
-        # print(ret)
-        # pidl = shell.SHGetSpecialFolderLocation(0, shellcon.CSIDL_DESKTOP)
-        # print("The desktop is at", shell.SHGetPathFromIDList(pidl))
-        # shell.ShellExecuteEx(fMask=shellcon.SEE_MASK_NOCLOSEPROCESS,
-        #                      nShow=win32con.SW_NORMAL,
-        #                      lpClass="folder",
-        #                      lpVerb="explore",
-        #                      lpIDList=pidl)
-        # win32api.ShellExecute(0, "open", str(file_name), "", '', 1)
-        # win32api.ShellExecute(0, "open", "notepad", "", '.', 1)
 
     def get_next_dir(self, path):
         if path.exists():
@@ -661,193 +629,6 @@ class Browser(wx.ListCtrl, ListCtrlAutoWidthMixin):
             self.DeleteAllItems()
         self.update_summary_lbl()
 
-    @staticmethod
-    def shell_copy(src, dst, auto_rename=False):
-        """
-        Copy files and directories using Windows shell.
-
-        :param src: Path or a list of paths to copy. Filename portion of a path
-                    (but not directory portion) can contain wildcards ``*`` and
-                    ``?``.
-        :param dst: destination directory.
-        :param auto_rename: if ''False'' then overwrite else auto rename
-        :returns: ``True`` if the operation completed successfully,
-                  ``False`` if it was aborted by user (completed partially).
-        :raises: ``WindowsError`` if anything went wrong. Typically, when source
-                 file was not found.
-
-        .. seealso:
-            `SHFileperation on MSDN <http://msdn.microsoft.com/en-us/library/windows/desktop/bb762164(v=vs.85).aspx>`
-        """
-        if isinstance(src, str):  # in Py3 replace basestring with str
-            src = os.path.abspath(src)
-        else:  # iterable
-            src = '\0'.join(os.path.abspath(path) for path in src)
-
-        flags = shellcon.FOF_NOCONFIRMMKDIR
-        if auto_rename:
-            flags = flags | shellcon.FOF_RENAMEONCOLLISION
-
-        result, aborted = shell.SHFileOperation((
-            0,
-            shellcon.FO_COPY,
-            src,
-            os.path.abspath(dst),
-            flags,
-            None,
-            None))
-
-        if not aborted and result != 0:
-            # Note: raising a WindowsError with correct error code is quite
-            # difficult due to SHFileOperation historical idiosyncrasies.
-            # Therefore we simply pass a message.
-            wx.CallAfter(wx.LogError, "Cannot copy. Windows error - SHFileOperation failed: 0x%08x" % result)
-
-        return not aborted
-
-    @staticmethod
-    def shell_move(src, dst, auto_rename=False):
-        """
-        Move files and directories using Windows shell.
-
-        :param src: Path or a list of paths to copy. Filename portion of a path
-                    (but not directory portion) can contain wildcards ``*`` and
-                    ``?``.
-        :param dst: destination directory.
-        :param auto_rename: if ''False'' then overwrite else auto rename
-        :returns: ``True`` if the operation completed successfully,
-                  ``False`` if it was aborted by user (completed partially).
-        :raises: ``WindowsError`` if anything went wrong. Typically, when source
-                 file was not found.
-
-        .. seealso:
-            `SHFileperation on MSDN <http://msdn.microsoft.com/en-us/library/windows/desktop/bb762164(v=vs.85).aspx>`
-        """
-        if isinstance(src, str):  # in Py3 replace basestring with str
-            src = os.path.abspath(src)
-        else:  # iterable
-            src = '\0'.join(os.path.abspath(path) for path in src)
-
-        flags = shellcon.FOF_NOCONFIRMMKDIR
-        if auto_rename:
-            flags = flags | shellcon.FOF_RENAMEONCOLLISION
-
-        result, aborted = shell.SHFileOperation((
-            0,
-            shellcon.FO_MOVE,
-            src,
-            os.path.abspath(dst),
-            flags,
-            None,
-            None))
-
-        if not aborted and result != 0:
-            # Note: raising a WindowsError with correct error code is quite
-            # difficult due to SHFileOperation historical idiosyncrasies.
-            # Therefore we simply pass a message.
-            wx.CallAfter(wx.LogError, "Cannot copy. Windows error - SHFileOperation failed: 0x%08x" % result)
-
-        return not aborted
-
-    @staticmethod
-    def shell_rename(src, dst, auto_rename=False):
-        """
-        Rename files and directories using Windows shell.
-
-        :param src: Path or a list of paths to copy. Filename portion of a path
-                    (but not directory portion) can contain wildcards ``*`` and
-                    ``?``.
-        :param dst: destination directory.
-        :param auto_rename: if ''False'' then overwrite else auto rename
-        :returns: ``True`` if the operation completed successfully,
-                  ``False`` if it was aborted by user (completed partially).
-        :raises: ``WindowsError`` if anything went wrong. Typically, when source
-                 file was not found.
-
-        .. seealso:
-            `SHFileperation on MSDN <http://msdn.microsoft.com/en-us/library/windows/desktop/bb762164(v=vs.85).aspx>`
-        """
-        if isinstance(src, str):  # in Py3 replace basestring with str
-            src = os.path.abspath(src)
-        else:  # iterable
-            src = '\0'.join(os.path.abspath(path) for path in src)
-
-        flags = shellcon.FOF_NOCONFIRMMKDIR | shellcon.FOF_SILENT
-        if auto_rename:
-            flags = flags | shellcon.FOF_RENAMEONCOLLISION
-
-        result, aborted = shell.SHFileOperation((
-            0,
-            shellcon.FO_RENAME,
-            src,
-            os.path.abspath(dst),
-            flags,
-            None,
-            None))
-
-        if not aborted and result != 0:
-            # Note: raising a WindowsError with correct error code is quite
-            # difficult due to SHFileOperation historical idiosyncrasies.
-            # Therefore we simply pass a message.
-            wx.CallAfter(wx.LogError, "Cannot rename. Windows error - SHFileOperation failed: 0x%08x" % result)
-
-        return not aborted
-
-    def shell_delete(self, src, hard_delete):
-        """
-        Move files and directories using Windows shell.
-
-        :param src: Path or a list of paths to copy. Filename portion of a path
-                    (but not directory portion) can contain wildcards ``*`` and
-                    ``?``.
-        :returns: ``True`` if the operation completed successfully,
-                  ``False`` if it was aborted by user (completed partially).
-        :raises: ``WindowsError`` if anything went wrong. Typically, when source
-                 file was not found.
-
-        .. seealso:
-            `SHFileperation on MSDN <http://msdn.microsoft.com/en-us/library/windows/desktop/bb762164(v=vs.85).aspx>`
-        """
-        for f in src:
-            if f.is_dir():
-                self.frame.dir_cache.delete_cache_item(dir_name=str(f))
-
-        if isinstance(src, str):  # in Py3 replace basestring with str
-            src = os.path.abspath(src)
-        else:  # iterable
-            src = '\0'.join(os.path.abspath(path) for path in src)
-
-        flags = 0  # shellcon.FOF_SILENT
-
-        if not hard_delete:
-            flags |= shellcon.FOF_ALLOWUNDO
-
-        result, aborted = shell.SHFileOperation((
-            0,
-            shellcon.FO_DELETE,
-            src,
-            None,
-            flags,  # Flags
-            None,
-            None))
-
-        if not aborted and result != 0:
-            # Note: raising a WindowsError with correct error code is quite
-            # difficult due to SHFileOperation historical idiosyncrasies.
-            # Therefore we simply pass a message.
-            wx.CallAfter(wx.LogError, "Cannot delete. Windows error - SHFileOperation failed: 0x%08x" % result)
-            # raise WindowsError('SHFileOperation failed: 0x%08x' % result)
-
-        return not aborted
-
-    def shell_new_folder(self, folder_name):
-        try:
-            win32file.CreateDirectory(folder_name, None)
-            return True
-        except Exception as e:
-            self.frame.log_error(folder_name + " can't be created. " + str(e))
-            return False
-
     def shell_viewer(self, folders, files):
         args = ["pythonw", str(cn.CN_VIEWER_APP), "-r"]
         if files:
@@ -860,83 +641,6 @@ class Browser(wx.ListCtrl, ListCtrlAutoWidthMixin):
                 self.frame.show_message("Selected one folder")
         else:
             self.frame.show_message("No items selected")
-
-    def shell_new_file(self, file_name):
-        try:
-            handle = win32file.CreateFile(str(file_name),
-                                          win32file.GENERIC_WRITE,
-                                          win32file.FILE_SHARE_READ | win32file.FILE_SHARE_WRITE |
-                                          win32file.FILE_SHARE_DELETE,
-                                          None,
-                                          win32con.CREATE_NEW,
-                                          win32con.FILE_ATTRIBUTE_NORMAL,
-                                          None)
-            handle.Close()
-            return True
-        except Exception as e:
-            self.frame.log_error(str(file_name) + " can't be created. " + str(e))
-            return False
-
-    def shell_shortcut(self, path, lnk_name, target, args=None, desc=None, start_in=None):
-        winshell.CreateShortcut(Path=str(os.path.join(path, lnk_name) if lnk_name else path),
-                                Target=str(target),
-                                Arguments=str(args),
-                                Description="Shortcut to " + str(target),
-                                StartIn=str(start_in))
-
-
-    def get_context_menu(self, path, file_names):
-        desktop_folder = shell.SHGetDesktopFolder()
-        hwnd = win32gui.GetForegroundWindow()
-        parent_pidl = shell.SHILCreateFromPath(path, 0)[0]
-        parent_folder = desktop_folder.BindToObject(parent_pidl, None, shell.IID_IShellFolder)
-        if file_names:
-            pidls = []
-            for item in file_names:
-                pidl = parent_folder.ParseDisplayName(hwnd, None, item)[1]
-                pidls.append(pidl)
-            context_menu = parent_folder.GetUIObjectOf(hwnd, pidls, shell.IID_IContextMenu, 0)[1]
-            print(parent_folder.GetDisplayNameOf(pidls[0], shellcon.SHGDN_FORPARSING | shellcon.SHGDN_FORADDRESSBAR))
-        else:
-            item = Path(path)
-            path = item.parent
-            parent_pidl = shell.SHILCreateFromPath(str(path), 0)[0]
-            parent_folder = desktop_folder.BindToObject(parent_pidl, None, shell.IID_IShellFolder)
-            pidl = parent_folder.ParseDisplayName(hwnd, None, item.name)[1]
-            context_menu = parent_folder.GetUIObjectOf(hwnd, [pidl], shell.IID_IContextMenu, 0)[1]
-            # context_menu = parent_folder.CreateViewObject(hwnd, shell.IID_IContextMenu)
-        cm_plus = None
-        if context_menu:
-            try:
-                cm_plus = context_menu.QueryInterface(shell.IID_IContextMenu3, None)
-            except Exception as e:
-                pass
-                try:
-                    cm_plus = context_menu.QueryInterface(shell.IID_IContextMenu2, None)
-                except Exception as e:
-                    pass
-        else:
-            raise Exception("Unable to get context menu interface")
-        if cm_plus:
-            context_menu.Release()
-            context_menu = cm_plus
-        menu = win32gui.CreatePopupMenu()
-        context_menu.QueryContextMenu(menu, 0, 1, 0x7FFF, shellcon.CMF_EXPLORE | shellcon.CMF_ITEMMENU |
-                                      shellcon.CMF_EXTENDEDVERBS)
-        x, y = win32gui.GetCursorPos()
-        flags = win32gui.TPM_LEFTALIGN | win32gui.TPM_RETURNCMD
-        cmd = win32gui.TrackPopupMenu(menu, flags, x, y, 0, hwnd, None)
-        if cmd:
-            ci = (0,  # Mask
-                  hwnd,  # hwnd
-                  cmd - 1,  # Verb
-                  "",  # Parameters
-                  "",  # Directory
-                  win32con.SW_SHOWNORMAL,  # Show
-                  0,  # HotKey
-                  None  # Icon
-                  )
-            context_menu.InvokeCommand(ci)
 
 
 class ColumnMenu(wx.Menu):
@@ -1048,23 +752,7 @@ class TabMenu(wx.Menu):
             self.nb.close_tab(self.tab_index)
 
 
-class ShellShortcut:
-    def __init__(self):
-        self._base = pythoncom.CoCreateInstance(shell.CLSID_ShellLink,
-                                                None,
-                                                pythoncom.CLSCTX_INPROC_SERVER,
-                                                shell.IID_IShellLink)
 
-    def load(self, filename):
-        self._base.QueryInterface(pythoncom.IID_IPersistFile).Load(filename)
-        return self._base.GetPath(shell.SLGP_RAWPATH)[0]
-
-    def save(self, filename):
-        self._base.QueryInterface(pythoncom.IID_IPersistFile).Save(filename, 0)
-
-    def __getattr__(self, name):
-        if name != "_base":
-            return getattr(self._base, name)
 
 
 

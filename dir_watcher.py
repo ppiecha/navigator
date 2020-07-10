@@ -74,6 +74,8 @@ class DirWatcher(Thread):
                 del self.file_items[index]
             except ValueError as e:
                 pass
+            self.frame.dir_cache.delete_cache_item(dir_name=str(Path(self.dir_name).joinpath(item)))
+            # print("deleting cache", str(Path(self.dir_name).joinpath(item)))
 
         for item in added:
             new_one = [item.name.lower(),
@@ -87,10 +89,5 @@ class DirWatcher(Thread):
             else:
                 self.file_items.append(new_one)
 
-        # print(added, deleted, self.dir_items)
-        # Create the event
-        # evt = cn.DirChangedCommandEvent(cn.ID_CMD1, dir_name="dir from thread", added=added, deleted=deleted)
-        # Post the event
-        # wx.CallAfter(wx.PostEvent, self.frame, evt)
         added = [item.name for item in added]
         pub.sendMessage(cn.CN_TOPIC_DIR_CHG, dir_name=Path(self.dir_name), added=added, deleted=deleted)

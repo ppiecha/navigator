@@ -88,9 +88,8 @@ class MainMenu(wx.MenuBar):
             self.frame.swap_wins()
         elif id == cn.ID_SEARCH:
             self.frame.search()
-
-
-
+        elif id == cn.ID_REREAD:
+            self.frame.reread_source()
 
     def on_click(self, event):
         self.exec_cmd_id(event.GetId())

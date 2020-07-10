@@ -1,10 +1,11 @@
-from pathlib import Path
-import wx
-import search_tree
-import search_const as cn
-import search
-import wx.lib.buttons as buttons
 import threading
+
+import wx
+import wx.lib.buttons as buttons
+
+import search
+import search_const as cn
+import search_tree
 
 
 class MainFrame(wx.Frame):
@@ -21,6 +22,10 @@ class MainFrame(wx.Frame):
         self.Center()
 
         self.Bind(wx.EVT_CLOSE, self.on_close)
+        # self.Bind(wx.EVT_IDLE, self.on_idle)
+
+    def on_idle(self, e):
+        print("on idle")
 
     def change_icon(self, event):
         if event.is_set():

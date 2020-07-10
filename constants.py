@@ -48,6 +48,7 @@ ID_COPY_SEL_NAMES_AND_PATHS = wx.NewId()
 ID_TARGET_EQ_SRC = wx.NewId()
 ID_SWAP_WIN = wx.NewId()
 ID_SEARCH = wx.NewId()
+ID_REREAD = wx.NewId()
 
 
 class MItem:
@@ -100,6 +101,9 @@ dt_cmd = {
                                           acc_type=wx.ACCEL_SHIFT + wx.ACCEL_CTRL),
     wx.NewId():                     MItem(id=ID_SEP, name="-", type=wx.ITEM_SEPARATOR),
     ID_SEARCH:                      MItem(id=ID_SEARCH, name="Search", key=ord("F"),
+                                          acc_type=wx.ACCEL_CTRL),
+    wx.NewId():                     MItem(id=ID_SEP, name="-", type=wx.ITEM_SEPARATOR),
+    ID_REREAD:                      MItem(id=ID_REREAD, name="Reread source", key=ord("R"),
                                           acc_type=wx.ACCEL_CTRL)
 }
 

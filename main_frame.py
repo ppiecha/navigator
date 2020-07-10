@@ -15,12 +15,9 @@ import dialogs
 import traceback
 import wx.adv
 import sys
-import win32gui
-from win32com.shell import shell, shellcon
-import win32con
-import win32file
 from datetime import datetime
 import subprocess
+from lib4py import shell as sh
 
 
 class MainFrame(wx.Frame):
@@ -251,7 +248,7 @@ class MainFrame(wx.Frame):
             old_name = selected[0]
             with dialogs.RenameDlg(self, old_name) as dlg:
                 if dlg.show_modal() == wx.ID_OK:
-                    util.run_in_thread(target=browser.Browser.shell_rename,
+                    util.run_in_thread(target=sh.rename,
                                        args=(os.path.join(b.path, old_name),
                                              os.path.join(b.path, dlg.get_new_names()[0]),
                                              dlg.cb_rename.IsChecked()),
@@ -288,34 +285,11 @@ class MainFrame(wx.Frame):
             else:
                 self.show_message("Cannot copy selected items")
 
-    def paste_file(self, path):
-        desktop_folder = shell.SHGetDesktopFolder()
-        hwnd = win32gui.GetForegroundWindow()
-        item = Path(path)
-        path = item.parent
-        parent_pidl = shell.SHILCreateFromPath(str(path), 0)[0]
-        parent_folder = desktop_folder.BindToObject(parent_pidl, None, shell.IID_IShellFolder)
-        pidl = parent_folder.ParseDisplayName(hwnd, None, item.name)[1]
-        context_menu = parent_folder.GetUIObjectOf(hwnd, [pidl], shell.IID_IContextMenu, 0)[1]
-        menu = win32gui.CreatePopupMenu()
-        context_menu.QueryContextMenu(menu, 0, 1, 0x7FFF, shellcon.CMF_EXPLORE | shellcon.CMF_ITEMMENU |
-                                      shellcon.CMF_EXTENDEDVERBS)
-        ci = (0,  # Mask
-              hwnd,  # hwnd
-              "Paste",  # Verb
-              "",  # Parameters
-              "",  # Directory
-              win32con.SW_SHOWNORMAL,  # Show
-              0,  # HotKey
-              None  # Icon
-              )
-        context_menu.InvokeCommand(ci)
-
     def paste_files_from_clip(self, e):
         win = self.get_active_win()
         b = win.get_active_browser()
         path = b.path
-        util.run_in_thread(self.paste_file, [path], lst=self.thread_lst)
+        util.run_in_thread(sh.paste_file, [path], lst=self.thread_lst)
         self.show_wait()
         # self.paste_file(path)
         # if wx.TheClipboard.Open():
@@ -353,11 +327,11 @@ class MainFrame(wx.Frame):
                 if dlg.show_modal() == wx.ID_OK:
                     path, name = dlg.get_path_and_name()
                     if not name:
-                        util.run_in_thread(target=browser.Browser.shell_copy,
+                        util.run_in_thread(target=sh.copy,
                                            args=(folders + files, path, dlg.cb_rename.IsChecked()),
                                            lst=self.thread_lst)
                     else:
-                        util.run_in_thread(target=win32file.CopyFile,
+                        util.run_in_thread(target=sh.copy_file(),
                                            args=(str(b.path.joinpath(files[0].name)),
                                                  str(Path(path, name)), 0),
                                            lst=self.thread_lst)
@@ -386,7 +360,7 @@ class MainFrame(wx.Frame):
             with dialogs.CopyMoveDlg(self, title="Move", opr_count=opr_count, src=src, dst=dst) as dlg:
                 if dlg.show_modal() == wx.ID_OK:
                     path, name = dlg.get_path_and_name()
-                    util.run_in_thread(target=browser.Browser.shell_move,
+                    util.run_in_thread(target=sh.move,
                                        args=(folders + files, path, dlg.cb_rename.IsChecked()),
                                        lst=self.thread_lst)
         else:
@@ -405,7 +379,10 @@ class MainFrame(wx.Frame):
                     for part in Path(f).parts:
                         path = path.joinpath(part.rstrip())
                         if not path.exists():
-                            b.shell_new_folder(str(path))
+                            try:
+                                sh.new_folder(str(path))
+                            except Exception as e:
+                                self.log_error(f"Cannot create folder {path.name}\n{str(e)}")
 
     def delete(self, e):
         win = self.get_active_win()
@@ -421,7 +398,7 @@ class MainFrame(wx.Frame):
                            ", ".join([f.name for f in files]) + "</b>"
             with dialogs.DeleteDlg(self, message) as dlg:
                 if dlg.show_modal() == wx.ID_OK:
-                    util.run_in_thread(target=b.shell_delete,
+                    util.run_in_thread(target=sh.delete,
                                        args=(folders + files, dlg.cb_perm.IsChecked()),
                                        lst=self.thread_lst)
         else:
@@ -437,9 +414,12 @@ class MainFrame(wx.Frame):
                 file_names = dlg.get_new_names()
                 for f in file_names:
                     path = b.path.joinpath(f)
-                    b.shell_new_file(path)
+                    try:
+                        sh.new_file(str(path))
+                    except Exception as e:
+                        self.log_error(f"Cannot create file {path.name}\n{str(e)}")
                     if dlg.cb_open.IsChecked():
-                        b.open_file(path)
+                        sh.start_file(path)
 
     def get_oper_details(self, prefix, folders, files, source_path, dest_path, oper_id):
         all = folders + files
@@ -494,17 +474,17 @@ class MainFrame(wx.Frame):
                 path, name = dlg.get_path_and_name()
                 if len(folders + files) > 0:
                     for f in folders:
-                        b.shell_shortcut(path=path,
-                                         lnk_name=name if name else f.name + ".lnk",
-                                         target=os.path.join(b.path, f.name))
+                        sh.Shortcut.new_shortcut(path=path,
+                                                 lnk_name=name if name else f.name + ".lnk",
+                                                 target=os.path.join(b.path, f.name))
                     for f in files:
-                        b.shell_shortcut(path=path,
-                                         lnk_name=name if name else f.name + ".lnk",
-                                         target=os.path.join(b.path, f.name))
+                        sh.Shortcut.new_shortcut(path=path,
+                                                 lnk_name=name if name else f.name + ".lnk",
+                                                 target=os.path.join(b.path, f.name))
                 else:
-                    b.shell_shortcut(path=path,
-                                     lnk_name=name,
-                                     target=os.path.join(b.path, ""))
+                    sh.Shortcut.new_shortcut(path=path,
+                                             lnk_name=name,
+                                             target=os.path.join(b.path, ""))
 
 
     def on_copy2same(self, e):
@@ -525,15 +505,17 @@ class MainFrame(wx.Frame):
                     new_name = dlg.get_new_names()[0]
                     full_name = b.path.joinpath(new_name)
                     if item_type == "file":
-                        util.run_in_thread(target=win32file.CopyFile,
+                        util.run_in_thread(target=sh.copy_file(),
                                            args=(str(b.path.joinpath(files[0].name)),
                                                  str(full_name), 0),
                                            lst=self.thread_lst)
                     else:
-                        if not b.shell_new_folder(str(full_name)):
-                            self.show_message(f"Cannot create folder {new_name}")
+                        try:
+                            sh.new_folder(str(full_name))
+                        except Exception as e:
+                            self.log_error(f"Cannot create folder {new_name}\n{str(e)}")
                         else:
-                            util.run_in_thread(target=browser.Browser.shell_copy,
+                            util.run_in_thread(target=sh.copy,
                                                args=[str(b.path.joinpath(str(folders[0]), "*.*")),
                                                                          str(full_name)],
                                                lst=self.thread_lst)
@@ -578,6 +560,10 @@ class MainFrame(wx.Frame):
 
     def search(self):
         self._search(self.get_active_win().get_active_browser().path)
+
+    def reread_source(self):
+        act = self.get_active_win().get_active_browser()
+        act.refresh_list(dir_name=str(act.path), conf=act.conf, to_select=[], reread_source=True)
 
 
 class CmdBtn(wx.Button):
@@ -631,8 +617,10 @@ class DirCache:
 
     def get_dir(self, dir_name, conf, reread_source=False):
         if dir_name not in self._dict.keys():
+            # print("R E A D", dir_name)
             self._dict[dir_name] = DirCacheItem(frame=self.frame, dir_name=dir_name)
         if reread_source:
+            # print("R E A D - refresh cache", dir_name)
             self._dict[dir_name].open_dir(dir_name=dir_name)
         pattern = conf.pattern if conf.use_pattern else ["*"]
         return sorted([d for d in self._dict[dir_name].dir_items if self.match(d[cn.CN_COL_NAME], pattern)],
@@ -654,6 +642,7 @@ class DirCache:
             if th.is_alive():
                 th.terminate()
                 th.join()
+
 
         lst = list(self._dict.keys())
         for item in lst:

@@ -28,6 +28,7 @@ class MainFrame(wx.Frame):
             opts = [opt for opt in sys.argv[1:] if opt.startswith("-")]
             args = [arg for arg in sys.argv[1:] if not arg.startswith("-")]
             self.main_panel.directories.SetValue(args[0])
+            self.main_panel.search_text.Clear()
         else:
             pass
 
@@ -46,7 +47,7 @@ class MainPanel(wx.Panel):
         self.dir_sizer = wx.GridBagSizer(5, 5)
         self.dlg_sizer = wx.BoxSizer(wx.HORIZONTAL)
 
-        self.search_text = wx.ComboBox(self, value="")
+        self.search_text = wx.ComboBox(self, value="combo")
         self.search_text_sizer.Add(wx.StaticText(self, label="Text to find"), flag=wx.RIGHT | wx.ALIGN_CENTER_VERTICAL,
                                    border=5)
         self.search_text_sizer.Add(self.search_text, flag=wx.EXPAND, proportion=1)
@@ -73,10 +74,10 @@ class MainPanel(wx.Panel):
 
         self.options_box_sizer.Add(self.options_sizer, flag=wx.EXPAND | wx.ALL, border=5)
 
-        self.directories = wx.ComboBox(self, value=r'c:\Users\pit\Downloads\wxPython-demo-4.1.0\demo')
+        self.directories = wx.ComboBox(self, value=r'c:\Users\pit')
         self.btn_dir = wx.Button(self, label="...", size=(23, 23))
         self.exclude = wx.ComboBox(self, value="")
-        self.mask = wx.ComboBox(self, value="*.sql;*.pkb;*.pks")
+        self.mask = wx.ComboBox(self, value="*.sql;*.pkb;*.pks;*.py")
         # self.sub_dirs = wx.CheckBox(self, label="Search subdirectories")
         # self.file_names = wx.CheckBox(self, label="Search also in folder and file names")
         dir_bord = 0
