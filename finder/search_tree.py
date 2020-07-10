@@ -128,7 +128,11 @@ class SearchTree(CT.CustomTreeCtrl):
 
     def add_dir_node(self, search_node, dir_node):
         path = Path(dir_node.dir)
+        path_dir = str(path.parent.relative_to(Path(search_node.GetData().path)))
+        path_dir = path_dir if path_dir != "." else path.parent.name
         item = self.AppendItem(parentId=search_node, text=path.name)
+        item.SetWindow(SearchLabel(self, path_dir))
+        item.SetWindowEnabled(False)
         item.SetData(dir_node)
         self.SetItemImage(item, self.im_folder)
         self.dir_nodes.append(item)
@@ -139,11 +143,10 @@ class SearchTree(CT.CustomTreeCtrl):
         def add_gui_nodes(lines):
             path = Path(file_node.file_full_name)
             file_dir = str(path.parent.relative_to(Path(search_node.GetData().path)))
-            # win = wx.StaticText(parent=self, label=file_dir)
-            win = wx.TextCtrl(parent=self, value=file_dir,
-                              size=(self.GetTextExtent(file_dir).GetWidth() + 10, 23))
-            item = self.AppendItem(parentId=search_node, text="", image=self.get_image_id(path.suffix), data=file_node,
-                                   wnd=win)
+            file_dir = file_dir if file_dir != "." else path.parent.name
+            file_suffix = path.suffix if path.suffix else '$%#'
+            item = self.AppendItem(parentId=search_node, text="", image=self.get_image_id(file_suffix), data=file_node)
+            item.SetWindow(SearchLabel(self, file_dir))
             item.SetWindowEnabled(False)
             self.file_nodes.append(item)
             matches_count = 0
@@ -252,5 +255,9 @@ class HtmlLabel(html.HtmlWindow):
         dc = wx.WindowDC(self.tree)
         width, height = dc.GetTextExtent(self.ToText())
         self.SetSize(width, height)
+
+class SearchLabel(wx.TextCtrl):
+    def __init__(self, parent, label):
+        super().__init__(parent=parent, value=label, size=(parent.GetTextExtent(label).GetWidth() + 10, 23))
 
 

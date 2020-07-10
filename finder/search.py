@@ -33,16 +33,16 @@ class Search(Thread):
         for dir_item in opt.dirs:
             tree.add_search_node(search_tree.SearchNode(path=dir_item))
             for root, dirs, files in os.walk(Path(dir_item)):
-                print(root)
                 if root not in opt.ex_dirs:
+                    # print(root)
                     self.set_status(Path(root).name)
+                    dirs_sum += len(dirs)
+                    files_sum += len(files)
                     dir_lst = [dir for dir in dirs
                                if dir.lower() not in opt.ex_dirs and self.match(dir, opt.dirs_pattern)]
                     file_lst = [file for file in files
                                 if self.match(file, opt.masks)
                                 and self.match(file, opt.dirs_pattern)]
-                    dirs_sum += len(dirs)
-                    files_sum += len(files)
                     for dir in dir_lst:
                         if not opt.words:
                             dir_node = search_tree.DirNode(dir=os.path.join(root, dir))
@@ -56,6 +56,9 @@ class Search(Thread):
                             wx.CallAfter(tree.add_file_node, tree.search_nodes[dir_item], file_node)
                         if self.event.is_set():
                             return False
+                else:
+                    dirs.clear()
+                    files.clear()
 
         self.set_status("Searched " + "{:,}".format(dirs_sum) + " folders " + "{:,}".format(files_sum) + " files ")
         self.event.set()
