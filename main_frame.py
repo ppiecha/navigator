@@ -325,20 +325,24 @@ class MainFrame(wx.Frame):
                                                         oper_id=cn.ID_COPY)
             with dialogs.CopyMoveDlg(self, title="Copy", opr_count=opr_count, src=src, dst=dst) as dlg:
                 if dlg.show_modal() == wx.ID_OK:
-                    path, name = dlg.get_path_and_name()
-                    if not name:
+                    dst_path, dst_name = dlg.get_path_and_name()
+                    if not dst_name:
                         util.run_in_thread(target=sh.copy,
-                                           args=(folders + files, path, dlg.cb_rename.IsChecked()),
+                                           args=(folders + files, dst_path, dlg.cb_rename.IsChecked()),
                                            lst=self.thread_lst)
                     else:
-                        util.run_in_thread(target=sh.copy_file(),
-                                           args=(str(b.path.joinpath(files[0].name)),
-                                                 str(Path(path, name)), 0),
+
+                        util.run_in_thread(target=sh.copy_file,
+                                           args=(str(path.joinpath(files[0].name)),
+                                                 str(dst_path.joinpath(dst_name)),
+                                                 dlg.cb_rename.IsChecked()),
                                            lst=self.thread_lst)
         else:
             self.show_message("No items selected")
 
     def move(self, folders=None, files=None, dst_path=""):
+        win = self.get_active_win()
+        b = win.get_active_browser()
         if folders is not None or files is not None:
             if folders:
                 path = str(Path(folders[0]).parent)
@@ -346,8 +350,6 @@ class MainFrame(wx.Frame):
                 path = str(Path(files[0]).parent)
             dst = dst_path
         else:
-            win = self.get_active_win()
-            b = win.get_active_browser()
             path = b.path
             folders, files = b.get_selected_files_folders()
             inactive = self.get_inactive_win()
@@ -359,10 +361,17 @@ class MainFrame(wx.Frame):
                                                         oper_id=cn.ID_MOVE)
             with dialogs.CopyMoveDlg(self, title="Move", opr_count=opr_count, src=src, dst=dst) as dlg:
                 if dlg.show_modal() == wx.ID_OK:
-                    path, name = dlg.get_path_and_name()
-                    util.run_in_thread(target=sh.move,
-                                       args=(folders + files, path, dlg.cb_rename.IsChecked()),
-                                       lst=self.thread_lst)
+                    dst_path, dst_name = dlg.get_path_and_name()
+                    if not dst_name:
+                        util.run_in_thread(target=sh.move,
+                                           args=(folders + files, dst_path, dlg.cb_rename.IsChecked()),
+                                           lst=self.thread_lst)
+                    else:
+                        util.run_in_thread(target=sh.move_file,
+                                           args=(str(path.joinpath(files[0].name)),
+                                                 str(dst_path.joinpath(dst_name)),
+                                                 dlg.cb_rename.IsChecked()),
+                                           lst=self.thread_lst)
         else:
             self.show_message("No items selected")
 
@@ -439,8 +448,8 @@ class MainFrame(wx.Frame):
                 dst = str(dest_path.joinpath(name)) + ".lnk"
             elif oper_id == cn.ID_COPY2SAME:
                 dst = str(source_path.joinpath(name))
-            # elif oper_id == cn.ID_COPY:
-            #     dst = dest_path.joinpath(name)
+            elif oper_id in (cn.ID_COPY, cn.ID_MOVE) and full_name.is_file():
+                dst = str(dest_path.joinpath(name))
             else:
                 dst = str(dest_path)
         else:

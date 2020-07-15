@@ -9,6 +9,7 @@ import pythoncom
 import winshell
 import win32gui
 import threading
+import fnmatch
 
 
 def copy(src, dst, auto_rename=False):
@@ -203,9 +204,46 @@ def new_file(file_name):
         raise e
 
 
-def copy_file(src, tgt):
+def get_new_name(full_name):
+
+    path = Path(full_name)
+    if not path.exists():
+        return full_name
+    else:
+        if fnmatch.fnmatch(path.stem, "*(*)"):
+            start = path.stem.rfind("(")
+            stop = path.stem.rfind(")")
+            print(path.stem[start:stop+1])
+            try:
+                num = int(path.stem[start+1:stop])
+            except:
+                return str(path.parent.joinpath(path.stem)) + "(1)" + path.suffix
+            else:
+                return str(path.parent.joinpath(path.stem[:start])) + str(num + 1) + ")" + path.suffix
+        else:
+            _name = str(path.parent.joinpath(path.stem)) + "(1)" + path.suffix
+            if Path(_name).exists():
+                get_new_name(_name)
+            else:
+                return str(path.parent.joinpath(path.stem)) + "(1)" + path.suffix
+
+
+def copy_file(src, tgt, _rename):
     try:
         win32file.CopyFile(src, tgt, 0)
+    except Exception as e:
+        raise e
+
+
+def move_file(src, tgt, _rename):
+    flags = win32file.MOVEFILE_COPY_ALLOWED
+    if rename:
+        tgt = get_new_name(tgt)
+        print(tgt)
+    else:
+        flags = flags | win32file.MOVEFILE_REPLACE_EXISTING
+    try:
+        win32file.MoveFileEx(src, tgt, flags)
     except Exception as e:
         raise e
 

@@ -7,6 +7,8 @@ from pathlib import Path
 import re
 import wx.dataview
 from lib4py import shell as sh
+from pubsub import pub
+from threading import Thread
 
 
 def find_words_in_line(text, opt):
@@ -53,6 +55,53 @@ class SearchTree(CT.CustomTreeCtrl):
         self.Bind(wx.EVT_TREE_ITEM_ACTIVATED, self.on_db_click)
         self.Bind(wx.EVT_TREE_ITEM_RIGHT_CLICK, self.on_right_click)
 
+        self.register_topic(cn.CN_TOPIC_ADD_NODE)
+        self.register_topic(cn.CN_TOPIC_UPDATE_STATUS)
+        self.register_topic(cn.CN_TOPIC_SEARCH_COMPLETED)
+
+    def register_topic(self, topic):
+        if topic == cn.CN_TOPIC_ADD_NODE:
+            if not pub.subscribe(self.listen_for_nodes, topic):
+                raise Exception("Cannot register {topic}")
+        elif topic == cn.CN_TOPIC_UPDATE_STATUS:
+            if not pub.subscribe(self.listen_for_status, topic):
+                raise Exception("Cannot register {topic}")
+        elif topic == cn.CN_TOPIC_SEARCH_COMPLETED:
+            if not pub.subscribe(self.listen_for_end, topic):
+                raise Exception("Cannot register {topic}")
+
+    def listen_for_status(self, status):
+        wx.CallAfter(self.frame.SetStatusText, status, 0)
+
+    def listen_for_nodes(self, search_dir, node):
+        wx.CallAfter(self.add_node, search_dir, node)
+
+    def run_safe(self, search_dir, node):
+        wx.CallAfter(self.search_ended, search_dir, node)
+
+    def run_in_thread(self, target, args):
+        th = Thread(target=target, args=args, daemon=True)
+        th.start()
+        return th
+
+    def listen_for_end(self, search_dir, node):
+        self.run_in_thread(self.run_safe, [search_dir, node])
+
+    def search_ended(self, search_dir, node):
+        f_cnt = len(self.file_nodes)
+        d_cnt = len(self.dir_nodes)
+        if f_cnt + d_cnt > 0:
+            search_node = self.search_nodes[search_dir]
+            if f_cnt == 0:
+                stat = f" {d_cnt} folder(s)"
+            elif d_cnt == 0:
+                stat = f" {f_cnt} file(s)"
+            else:
+                stat = f" {d_cnt} folders and {f_cnt} files"
+            self.update_node_text(search_node, search_node.GetText() + stat)
+        else:
+            self.add_node(search_dir, node)
+
     def get_image_id(self, extension):
         """Get the id in the image list for the extension.
         Will add the image if not there already"""
@@ -70,7 +119,14 @@ class SearchTree(CT.CustomTreeCtrl):
         e.Skip()
 
     def on_right_click(self, e):
-        print("menu")
+        item = e.GetItem()
+        data = item.GetData()
+        if isinstance(data, FileNode):
+            path = Path(data.file_full_name)
+            sh.get_context_menu(str(path.parent), [path.name])
+        elif isinstance(data, DirNode):
+            sh.get_context_menu(data.dir, [])
+        e.Skip()
 
     def on_collapse(self, e):
         item = e.GetItem()
@@ -126,6 +182,29 @@ class SearchTree(CT.CustomTreeCtrl):
         item.SetBold(True)
         self.search_nodes[search_node.path] = item
 
+    def add_final_node(self, search_node, node):
+        item = self.AppendItem(parentId=search_node, text=node.text)
+        item.SetBold(True)
+        if not self.IsExpanded(search_node):
+            self.Expand(search_node)
+
+    def add_node(self, search_dir, node):
+        if node is not None:
+            if search_dir in self.search_nodes.keys():
+                search_node = self.search_nodes[search_dir]
+                if isinstance(node, DirNode):
+                    self.add_dir_node(search_node=search_node, dir_node=node)
+                elif isinstance(node, FileNode):
+                    self.add_file_node(search_node=search_node, file_node=node)
+                elif isinstance(node, FinalNode):
+                    self.add_final_node(search_node=search_node, node=node)
+            else:
+                raise Exception(f"Cannot find search node for {search_dir}")
+        else:
+            self.add_search_node(search_node=SearchNode(path=search_dir))
+        # self.Update()
+        # wx.Yield()
+
     def add_dir_node(self, search_node, dir_node):
         path = Path(dir_node.dir)
         path_dir = str(path.parent.relative_to(Path(search_node.GetData().path)))
@@ -165,10 +244,6 @@ class SearchTree(CT.CustomTreeCtrl):
                 item.SetText(text=path.name)
             if not self.IsExpanded(search_node):
                 self.Expand(search_node)
-            self.Update()
-            wx.Yield()
-            # self.frame.finder.app.Yield()
-            # self.frame.finder.app.ProcessPendingEvents()
 
         add_gui_nodes(file_node.lines)
 
@@ -220,6 +295,9 @@ class SearchNode:
     def __init__(self, path):
         self.path = path
 
+class FinalNode:
+    def __init__(self, text):
+        self.text = text
 
 class HtmlLabel(html.HtmlWindow):
     def __init__(self, parent, line_item, text):

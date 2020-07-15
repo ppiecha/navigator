@@ -15,5 +15,8 @@ CN_IM_NEW_FOLDER = os.path.join(CN_APP_PATH, "img\\new_folder.png")
 CN_IM_NEW_FILE = os.path.join(CN_APP_PATH, "img\\new_file.png")
 CN_IM_NEW_DOC = os.path.join(CN_APP_PATH, "img\\new_document.png")
 CN_IM_STOP = os.path.join(CN_APP_PATH, "img\\stop.png")
+CN_TOPIC_ADD_NODE = "ADD_NODE"
+CN_TOPIC_UPDATE_STATUS = "UPDATE_STATUS"
+CN_TOPIC_SEARCH_COMPLETED = "SEARCH_COMPLETED"
 
 
