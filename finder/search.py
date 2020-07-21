@@ -39,14 +39,10 @@ class Search(Thread):
                                 if self.match(file, opt.masks)
                                 and self.match(file, opt.dirs_pattern)]
                     for dir in dir_lst:
-                        if self.event.is_set():
-                            return False
                         if not opt.words:
                             dir_node = search_tree.DirNode(dir=os.path.join(root, dir))
                             pub.sendMessage(cn.CN_TOPIC_ADD_NODE, search_dir=dir_item, node=dir_node)
                     for file in file_lst:
-                        if self.event.is_set():
-                            return False
                         if opt.words:
                             self.process_file(dir_item=dir_item, full_file_name=os.path.join(root, file), opt=opt)
                         else:

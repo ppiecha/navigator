@@ -10,6 +10,7 @@ ID_SPLITTER = wx.NewId()
 # DirChangedCommandEvent, EVT_DIR_CHANGED_COMMAND_EVENT = wx.lib.newevent.NewCommandEvent()
 
 CN_APP_NAME = "Navigator"
+CN_APP_NAME_VIEWER = "Code viewer"
 CN_TOOL_NAME = "Assistant"
 
 CN_GO_BACK = ".."
@@ -148,6 +149,7 @@ CN_TOPIC_DIR_CHG = "DIR_CHANGED"
 
 def q(text):
     return '"' + str(text) + '"'
+
 
 
 

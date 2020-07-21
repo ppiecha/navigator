@@ -188,15 +188,16 @@ class SearchTree(CT.CustomTreeCtrl):
         if not self.IsExpanded(search_node):
             self.Expand(search_node)
 
-    def add_node(self, search_dir, node):
-        if node is not None:
+    def add_node(self, search_dir, nodes):
+        if nodes:
             if search_dir in self.search_nodes.keys():
                 search_node = self.search_nodes[search_dir]
-                if isinstance(node, DirNode):
+                if isinstance(nodes[0], DirNode):
+                    map(self.add_dir_node)
                     self.add_dir_node(search_node=search_node, dir_node=node)
-                elif isinstance(node, FileNode):
+                elif isinstance(nodes[0], FileNode):
                     self.add_file_node(search_node=search_node, file_node=node)
-                elif isinstance(node, FinalNode):
+                elif isinstance(nodes[0], FinalNode):
                     self.add_final_node(search_node=search_node, node=node)
             else:
                 raise Exception(f"Cannot find search node for {search_dir}")

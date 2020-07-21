@@ -13,6 +13,7 @@ import subprocess
 import os
 import dialogs
 from lib4py import shell as sh
+import viewer
 
 CN_MAX_HIST_COUNT = 20
 
@@ -630,17 +631,19 @@ class Browser(wx.ListCtrl, ListCtrlAutoWidthMixin):
         self.update_summary_lbl()
 
     def shell_viewer(self, folders, files):
-        args = ["pythonw", str(cn.CN_VIEWER_APP), "-r"]
-        if files:
-            args.extend([str(f) for f in files])
-            subprocess.Popen(args, shell=False, cwd=cn.CN_VIEWER_APP.parent)
-        elif folders:
-            if len(folders) == 1:
-                self.frame.show_message("Show folder properties")
-            else:
-                self.frame.show_message("Selected one folder")
-        else:
-            self.frame.show_message("No items selected")
+        vim = viewer.MainFrame(self.frame, str(files[0]))
+        vim.Show()
+        # args = ["pythonw", str(cn.CN_VIEWER_APP), "-r"]
+        # if files:
+        #     args.extend([str(f) for f in files])
+        #     subprocess.Popen(args, shell=False, cwd=cn.CN_VIEWER_APP.parent)
+        # elif folders:
+        #     if len(folders) == 1:
+        #         self.frame.show_message("Show folder properties")
+        #     else:
+        #         self.frame.show_message("Selected one folder")
+        # else:
+        #     self.frame.show_message("No items selected")
 
 
 class ColumnMenu(wx.Menu):

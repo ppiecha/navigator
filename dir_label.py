@@ -217,16 +217,20 @@ class PathMenu(wx.Menu):
     def on_click(self, event):
         operation = self.menu_items_id[event.GetId()]
         if operation == CN_OPEN:
-            self.path_panel.parent.parent.add_new_tab(self.selected_path)
+            self.path_panel.parent.parent.add_new_tab(self.selected_path
+                                                      if self.selected_path
+                                                      else self.path_panel.path_edit.GetValue())
         elif operation == CN_OPEN_OW:
-            self.frame.get_inactive_win().add_new_tab(self.selected_path)
+            self.frame.get_inactive_win().add_new_tab(self.selected_path
+                                                      if self.selected_path
+                                                      else self.path_panel.path_edit.GetValue())
         elif operation == CN_EDIT:
             self.path_panel.read_only = False
         elif operation == CN_COPY:
             self.frame.copy_text2clip([self.path_panel.path_edit.GetValue()])
         elif operation == CN_CMD:
             curr_path = os.getcwd()
-            os.chdir(self.selected_path)
+            os.chdir(self.selected_path if self.selected_path else self.path_panel.path_edit.GetValue())
             subprocess.Popen(["start", "cmd"], shell=True)
             os.chdir(curr_path)
         elif operation == CN_DRIVE:
