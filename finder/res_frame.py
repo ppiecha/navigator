@@ -14,7 +14,7 @@ class MainFrame(wx.Frame):
         self.SetDoubleBuffered(True)
         self.SetIcon(wx.Icon(cn.CN_ICON_FILE_NAME))
         self.finder = finder
-        self.status_bar = self.CreateStatusBar(1)
+        self.status_bar = self.CreateStatusBar(number=1, style=wx.STB_ELLIPSIZE_MIDDLE)
         self.search_params = None
         self.search_thread = None
         self.output = MainPanel(frame=self)
@@ -22,10 +22,6 @@ class MainFrame(wx.Frame):
         self.Center()
 
         self.Bind(wx.EVT_CLOSE, self.on_close)
-        # self.Bind(wx.EVT_IDLE, self.on_idle)
-
-    def on_idle(self, e):
-        print("on idle")
 
     def change_icon(self, event):
         if event.is_set():

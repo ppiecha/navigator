@@ -47,12 +47,12 @@ class MainPanel(wx.Panel):
         self.dir_sizer = wx.GridBagSizer(5, 5)
         self.dlg_sizer = wx.BoxSizer(wx.HORIZONTAL)
 
-        self.search_text = wx.ComboBox(self, value="combo")
+        self.search_text = wx.ComboBox(self, value="combobox")
         self.search_text_sizer.Add(wx.StaticText(self, label="Text to find"), flag=wx.RIGHT | wx.ALIGN_CENTER_VERTICAL,
                                    border=5)
         self.search_text_sizer.Add(self.search_text, flag=wx.EXPAND, proportion=1)
 
-        self.search_dir = wx.ComboBox(self, value="")
+        self.search_dir = wx.ComboBox(self, value="combobox")
         self.search_dir_sizer.Add(wx.StaticText(self, label="File/folder  "), flag=wx.RIGHT | wx.ALIGN_CENTER_VERTICAL,
                                   border=5)
         self.search_dir_sizer.Add(self.search_dir, flag=wx.EXPAND, proportion=1)

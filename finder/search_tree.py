@@ -73,8 +73,8 @@ class SearchTree(CT.CustomTreeCtrl):
     def listen_for_status(self, status):
         wx.CallAfter(self.frame.SetStatusText, status, 0)
 
-    def listen_for_nodes(self, search_dir, node):
-        wx.CallAfter(self.add_node, search_dir, node)
+    def listen_for_nodes(self, search_dir, nodes):
+        wx.CallAfter(self.add_nodes, search_dir, nodes)
 
     def run_safe(self, search_dir, node):
         wx.CallAfter(self.search_ended, search_dir, node)
@@ -100,7 +100,7 @@ class SearchTree(CT.CustomTreeCtrl):
                 stat = f" {d_cnt} folders and {f_cnt} files"
             self.update_node_text(search_node, search_node.GetText() + stat)
         else:
-            self.add_node(search_dir, node)
+            self.add_nodes(search_dir, [node])
 
     def get_image_id(self, extension):
         """Get the id in the image list for the extension.
@@ -158,14 +158,14 @@ class SearchTree(CT.CustomTreeCtrl):
         self.search_nodes.clear()
 
     def collapse_all(self):
-        self.Freeze()
         for node in self.file_nodes:
             self.Collapse(node)
-        self.Thaw()
 
     def init_tree(self, params=None):
         self.clear_list()
         self.AddRoot("root")
+        wx.Yield()
+
 
     def update_node_text(self, node, text):
         self.SetItemText(node, text)
@@ -188,23 +188,23 @@ class SearchTree(CT.CustomTreeCtrl):
         if not self.IsExpanded(search_node):
             self.Expand(search_node)
 
-    def add_node(self, search_dir, nodes):
+    def add_nodes(self, search_dir, nodes):
         if nodes:
             if search_dir in self.search_nodes.keys():
                 search_node = self.search_nodes[search_dir]
                 if isinstance(nodes[0], DirNode):
-                    map(self.add_dir_node)
-                    self.add_dir_node(search_node=search_node, dir_node=node)
+                    [self.add_dir_node(search_node, d) for d in nodes]
                 elif isinstance(nodes[0], FileNode):
-                    self.add_file_node(search_node=search_node, file_node=node)
+                    [self.add_file_node(search_node, f) for f in nodes]
                 elif isinstance(nodes[0], FinalNode):
-                    self.add_final_node(search_node=search_node, node=node)
+                    self.add_final_node(search_node=search_node, node=nodes[0])
             else:
                 raise Exception(f"Cannot find search node for {search_dir}")
         else:
             self.add_search_node(search_node=SearchNode(path=search_dir))
-        # self.Update()
+        self.Update()
         # wx.Yield()
+        wx.GetApp().ProcessPendingEvents()
 
     def add_dir_node(self, search_node, dir_node):
         path = Path(dir_node.dir)
