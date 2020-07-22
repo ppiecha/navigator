@@ -7,6 +7,7 @@ from pathlib import Path
 import re
 import wx.dataview
 from lib4py import shell as sh
+from html3 import HTML
 from pubsub import pub
 from threading import Thread
 
@@ -88,6 +89,7 @@ class SearchTree(CT.CustomTreeCtrl):
         self.run_in_thread(self.run_safe, [search_dir, node])
 
     def search_ended(self, search_dir, node):
+        self.frame.change_icon(self.frame.search_thread.event)
         f_cnt = len(self.file_nodes)
         d_cnt = len(self.dir_nodes)
         if f_cnt + d_cnt > 0:
@@ -131,7 +133,7 @@ class SearchTree(CT.CustomTreeCtrl):
     def on_collapse(self, e):
         item = e.GetItem()
         data = item.GetData()
-        if isinstance(data, FileNode):
+        if isinstance(data, (FileNode, SearchNode)):
             for child in item.GetChildren():
                 win = child.GetWindow()
                 if win:
@@ -177,7 +179,9 @@ class SearchTree(CT.CustomTreeCtrl):
         return self.add_dir_node(DirNode(dir=dir))
 
     def add_search_node(self, search_node):
-        item = self.AppendItem(parentId=self.GetRootItem(), text=f"Search result in {Path(search_node.path).name}",
+        item = self.AppendItem(parentId=self.GetRootItem(),
+                               text=f"Search result in {Path(search_node.path).name} " +
+                                    "for " + ",".join(self.frame.search_params.words),
                                data=search_node)
         item.SetBold(True)
         self.search_nodes[search_node.path] = item
@@ -249,7 +253,6 @@ class SearchTree(CT.CustomTreeCtrl):
         add_gui_nodes(file_node.lines)
 
     def add_line_node(self, parent_node, line_num, line_text, opt):
-
         matches = find_words_in_line(line_text, opt)
         matches_count = 0
         html_text = line_text
@@ -261,7 +264,6 @@ class SearchTree(CT.CustomTreeCtrl):
                 stop = s2 + cnt * 7
                 html_text = html_text[:start] + "<b>" + html_text[start:stop] + "</b>" + html_text[stop:]
                 cnt += 1
-            # html_text = ("<b>" + word + "</b>").join([part for part in line_text.split(word)])
         item = self.AppendItem(parentId=parent_node, text="Line " + line_num + ":", data=parent_node)
         item.SetWindow(HtmlLabel(parent=self, line_item=item, text=html_text))
         item.SetWindowEnabled(False)
@@ -296,9 +298,11 @@ class SearchNode:
     def __init__(self, path):
         self.path = path
 
+
 class FinalNode:
     def __init__(self, text):
         self.text = text
+
 
 class HtmlLabel(html.HtmlWindow):
     def __init__(self, parent, line_item, text):
@@ -320,7 +324,7 @@ class HtmlLabel(html.HtmlWindow):
 
     def init(self):
         self.SetDefaultHTMLCursor(html.HtmlWindowInterface.HTMLCursor_Text, wx.Cursor(wx.CURSOR_ARROW))
-        self.template = '''<html><body text="#000000" bgcolor=":bgcolor"><p>:text</p></body></html>'''
+        self.template = '''<html><body text="#000000" bgcolor=":bgcolor"><pre><code>$text</code></pre></body></html>'''
         self.template = self.template.replace(":bgcolor",
                                               self.tree.GetBackgroundColour().GetAsString(wx.C2S_HTML_SYNTAX))
         font = self.font
@@ -328,15 +332,16 @@ class HtmlLabel(html.HtmlWindow):
         self.SetBorders(0)
 
     def set_value(self, value):
-        self.line_text = self.template.replace(":text", value)
+        self.line_text = self.template.replace("$text", value)
         # print(self.line_text)
         self.SetPage(source=self.line_text)
         dc = wx.WindowDC(self.tree)
         width, height = dc.GetTextExtent(self.ToText())
         self.SetSize(width, height)
 
+
 class SearchLabel(wx.TextCtrl):
     def __init__(self, parent, label):
-        super().__init__(parent=parent, value=label, size=(parent.GetTextExtent(label).GetWidth() + 10, 23))
+        super().__init__(parent=parent, value=label, size=(parent.GetTextExtent(label).GetWidth() + 12, 23))
 
 

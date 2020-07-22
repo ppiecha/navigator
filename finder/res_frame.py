@@ -1,8 +1,6 @@
 import threading
-
 import wx
 import wx.lib.buttons as buttons
-
 import search
 import search_const as cn
 import search_tree
@@ -45,11 +43,8 @@ class MainFrame(wx.Frame):
 
     def cancel_search_thread(self):
         self.search_thread.event.set()
-        print("event set")
         if self.search_thread.is_alive():
-            print("alive before join")
             self.search_thread.join()
-        print("event stopped")
         self.change_icon(self.search_thread.event)
 
     def on_close(self, e):

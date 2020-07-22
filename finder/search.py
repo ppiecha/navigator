@@ -59,11 +59,8 @@ class Search(threading.Thread):
                                           for f in file_lst]
                     if file_nodes:
                         pub.sendMessage(cn.CN_TOPIC_ADD_NODE, search_dir=dir_item, nodes=file_nodes)
-                else:
-                    dirs.clear()
-                    files.clear()
-            final_node = search_tree.FinalNode(text="No data found")
-            pub.sendMessage(cn.CN_TOPIC_SEARCH_COMPLETED, search_dir=dir_item, node=final_node)
+            pub.sendMessage(cn.CN_TOPIC_SEARCH_COMPLETED, search_dir=dir_item,
+                            node=search_tree.FinalNode(text="No data found"))
         self.set_status("Searched " + "{:,}".format(dirs_sum) + " folder(s) " + "{:,}".format(files_sum) + " file(s) ")
         self.event.set()
         return True
@@ -79,7 +76,7 @@ class Search(threading.Thread):
         try:
             with open(full_file_name, 'r') as f:
                 file_node = search_tree.FileNode(file_full_name=full_file_name, opt=opt)
-                line_num = 0
+                line_num = 1
                 for line_text in f:
                     if event.is_set():
                         return False
