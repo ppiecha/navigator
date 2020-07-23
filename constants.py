@@ -137,6 +137,9 @@ CN_IM_NEW_SHORTCUT = os.path.join(CN_APP_PATH, "img\\new_shortcut.png")
 # CN_IM_DELETE = os.path.join(CN_APP_PATH, "img\\delete.png")
 # CN_IM_NEW_FILE = os.path.join(CN_APP_PATH, "img\\new_file.png")
 # CN_IM_EDITOR = os.path.join(CN_APP_PATH, "img\\editor.png")
+CN_IM_SEARCH_DOWN = os.path.join(CN_APP_PATH, "img\\search_down.png")
+CN_IM_SEARCH_UP = os.path.join(CN_APP_PATH, "img\\search_up.png")
+CN_IM_CLOSE = os.path.join(CN_APP_PATH, "img\\delete.png")
 
 CN_COL_LNAME = 0
 CN_COL_DATE = 1
