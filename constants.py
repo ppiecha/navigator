@@ -5,9 +5,6 @@ from pathlib import Path
 
 
 ID_SPLITTER = wx.NewId()
-# ID_CMD1 = wx.NewIdRef()
-# DirChangedEvent, EVT_DIR_CHANGED_EVENT = wx.lib.newevent.NewEvent()
-# DirChangedCommandEvent, EVT_DIR_CHANGED_COMMAND_EVENT = wx.lib.newevent.NewCommandEvent()
 
 CN_APP_NAME = "Navigator"
 CN_APP_NAME_VIEWER = "Code viewer"
@@ -24,6 +21,10 @@ CN_VIEWER_APP = Path(os.path.join(CN_APP_PATH, "viewer\\viewer.py"))
 CN_FINDER_APP = Path(os.path.join(CN_APP_PATH, "finder\\finder.py"))
 
 CN_ICON_FILE_NAME = os.path.join(CN_APP_PATH, "img\\navigator.ico")
+CN_ICON_CODE_VIEWER = os.path.join(CN_APP_PATH, "img\\code_viewer.ico")
+
+# Messages
+CN_NO_ITEMS_SEL = "No items selected"
 
 # File
 ID_NEW_FILE = wx.NewId()

@@ -18,6 +18,8 @@ import sys
 from datetime import datetime
 import subprocess
 from lib4py import shell as sh
+from code_viewer import viewer
+from finder import main_frame as finder
 
 
 class MainFrame(wx.Frame):
@@ -32,6 +34,8 @@ class MainFrame(wx.Frame):
         self.im_list = wx.ImageList(16, 16)
         self.sizer = None
         self.wait = None
+        self.vim = viewer.MainFrame(nav_frame=self)
+        self.finder = finder.MainFrame(app=wx.GetApp(), nav_frame=self)
 
         self.InitUI()
         self.process_args()
@@ -197,6 +201,9 @@ class MainFrame(wx.Frame):
         self.splitter.SetSashPosition(size.x / 2)
 
     def on_close(self, event):
+        self.vim.Destroy()
+        self.finder.res_frame.Destroy()
+        self.finder.Destroy()
         self.write_last_conf(cn.CN_APP_CONFIG, self.app_conf)
         if not self.release_resources():
             event.Veto()
@@ -338,7 +345,7 @@ class MainFrame(wx.Frame):
                                                  dlg.cb_rename.IsChecked()),
                                            lst=self.thread_lst)
         else:
-            self.show_message("No items selected")
+            self.show_message(cn.CN_NO_ITEMS_SEL)
 
     def move(self, folders=None, files=None, dst_path=""):
         win = self.get_active_win()
@@ -373,7 +380,7 @@ class MainFrame(wx.Frame):
                                                  dlg.cb_rename.IsChecked()),
                                            lst=self.thread_lst)
         else:
-            self.show_message("No items selected")
+            self.show_message(cn.CN_NO_ITEMS_SEL)
 
     def new_folder(self):
         win = self.get_active_win()
@@ -411,7 +418,7 @@ class MainFrame(wx.Frame):
                                        args=(folders + files, dlg.cb_perm.IsChecked()),
                                        lst=self.thread_lst)
         else:
-            self.show_message("No items selected")
+            self.show_message(cn.CN_NO_ITEMS_SEL)
 
     def new_file(self):
         win = self.get_active_win()
@@ -502,7 +509,7 @@ class MainFrame(wx.Frame):
         folders, files = b.get_selected_files_folders()
         sel_count = len(folders + files)
         if sel_count == 0:
-            self.show_message("No items selected")
+            self.show_message(cn.CN_NO_ITEMS_SEL)
         elif sel_count > 1:
             self.show_message("Select only one item")
         else:
@@ -564,8 +571,9 @@ class MainFrame(wx.Frame):
             self.get_inactive_win().get_active_browser().open_dir(act)
 
     def _search(self, path="", words=[]):
-        args = ["pythonw", str(cn.CN_FINDER_APP), str(path)]
-        subprocess.Popen(args, shell=False, cwd=cn.CN_FINDER_APP.parent)
+        self.finder.show(search_path=path)
+        # args = ["pythonw", str(cn.CN_FINDER_APP), str(path)]
+        # subprocess.Popen(args, shell=False, cwd=cn.CN_FINDER_APP.parent)
 
     def search(self):
         self._search(self.get_active_win().get_active_browser().path)

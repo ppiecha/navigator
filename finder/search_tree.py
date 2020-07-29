@@ -7,9 +7,9 @@ from pathlib import Path
 import re
 import wx.dataview
 from lib4py import shell as sh
-from html3 import HTML
 from pubsub import pub
 from threading import Thread
+from code_viewer import high_code
 
 
 def find_words_in_line(text, opt):
@@ -23,12 +23,12 @@ def find_words_in_line(text, opt):
 
 
 class SearchTree(CT.CustomTreeCtrl):
-    def __init__(self, parent, frame):
+    def __init__(self, parent, res_frame):
         super().__init__(parent=parent, agwStyle=wx.TR_DEFAULT_STYLE |
                                                  wx.TR_HAS_VARIABLE_ROW_HEIGHT |
                                                  wx.TR_FULL_ROW_HIGHLIGHT |
                                                  wx.TR_HIDE_ROOT)
-        self.frame = frame
+        self.res_frame = res_frame
         self.file_nodes = []
         self.dir_nodes = []
         self.search_nodes = {}
@@ -72,7 +72,7 @@ class SearchTree(CT.CustomTreeCtrl):
                 raise Exception("Cannot register {topic}")
 
     def listen_for_status(self, status):
-        wx.CallAfter(self.frame.SetStatusText, status, 0)
+        wx.CallAfter(self.res_frame.SetStatusText, status, 0)
 
     def listen_for_nodes(self, search_dir, nodes):
         wx.CallAfter(self.add_nodes, search_dir, nodes)
@@ -88,21 +88,33 @@ class SearchTree(CT.CustomTreeCtrl):
     def listen_for_end(self, search_dir, node):
         self.run_in_thread(self.run_safe, [search_dir, node])
 
-    def search_ended(self, search_dir, node):
-        self.frame.change_icon(self.frame.search_thread.event)
+    def go_to_node(self, node):
+        self.SelectItem(node)
+
+    def update_search_node(self, search_dir, node):
         f_cnt = len(self.file_nodes)
         d_cnt = len(self.dir_nodes)
+        search_node = self.search_nodes[search_dir]
         if f_cnt + d_cnt > 0:
-            search_node = self.search_nodes[search_dir]
             if f_cnt == 0:
+                if node:
+                    self.go_to_node(self.dir_nodes[0])
                 stat = f" {d_cnt} folder(s)"
             elif d_cnt == 0:
+                if node:
+                    self.go_to_node(self.file_nodes[0])
                 stat = f" {f_cnt} file(s)"
             else:
                 stat = f" {d_cnt} folders and {f_cnt} files"
-            self.update_node_text(search_node, search_node.GetText() + stat)
         else:
-            self.add_nodes(search_dir, [node])
+            stat = " no matches found"
+        self.update_node_text(search_node, self.get_search_node_text(search_dir=search_dir) + stat)
+
+    def search_ended(self, search_dir, node):
+        self.res_frame.change_icon(self.res_frame.search_thread.event)
+        self.update_search_node(search_dir=search_dir, node=node)
+        # else:
+        #     self.add_nodes(search_dir, [node])
 
     def get_image_id(self, extension):
         """Get the id in the image list for the extension.
@@ -117,7 +129,20 @@ class SearchTree(CT.CustomTreeCtrl):
         return index
 
     def on_db_click(self, e):
-        print("activated")
+        data = self.GetSelection().GetData()
+        if isinstance(data, FileNode):
+            path = Path(data.file_full_name)
+            self.res_frame.nav_frame.return_focus()
+            self.res_frame.nav_frame.get_active_win().get_active_browser().open_dir(dir_name=path.parent,
+                                                                                    sel_dir=path.name)
+        if isinstance(data, LineNode):
+            high_opt = high_code.HighOptions(words=self.res_frame.search_params.words,
+                                             case_sensitive=self.res_frame.search_params.case_sensitive,
+                                             whole_words=self.res_frame.search_params.whole_words,
+                                             match=data.file_node.get_match_num(data.line_num,
+                                                                                self.res_frame.search_params.words[0]),
+                                             lines=data.line_num)
+            self.res_frame.nav_frame.vim.show_file(file_name=data.file_full_name, high_opt=high_opt)
         e.Skip()
 
     def on_right_click(self, e):
@@ -144,6 +169,18 @@ class SearchTree(CT.CustomTreeCtrl):
         e.Skip()
 
     def on_sel_changed(self, e):
+        data = e.GetItem().GetData()
+        if isinstance(data, LineNode):
+            high_opt = high_code.HighOptions(words=self.res_frame.search_params.words,
+                                             case_sensitive=self.res_frame.search_params.case_sensitive,
+                                             whole_words=self.res_frame.search_params.whole_words,
+                                             match=1,
+                                             lines=[int(data.line_num)])
+            self.res_frame.output.preview.browser.show_part(file_name=data.file_full_name,
+                                                        high_opt=high_opt,
+                                                        line_delta=1)
+        else:
+            self.res_frame.output.preview.browser.clear()
         e.Skip()
 
     def on_tooltip(self, e):
@@ -168,7 +205,6 @@ class SearchTree(CT.CustomTreeCtrl):
         self.AddRoot("root")
         wx.Yield()
 
-
     def update_node_text(self, node, text):
         self.SetItemText(node, text)
 
@@ -178,17 +214,19 @@ class SearchTree(CT.CustomTreeCtrl):
                 return node
         return self.add_dir_node(DirNode(dir=dir))
 
+    def get_search_node_text(self, search_dir):
+        return ", ".join(self.res_frame.search_params.words) + f" in {Path(search_dir).name}"
+
     def add_search_node(self, search_node):
         item = self.AppendItem(parentId=self.GetRootItem(),
-                               text=f"Search result in {Path(search_node.path).name} " +
-                                    "for " + ",".join(self.frame.search_params.words),
+                               text=self.get_search_node_text(search_dir=search_node.path),
                                data=search_node)
-        item.SetBold(True)
+        # item.SetBold(True)
         self.search_nodes[search_node.path] = item
 
     def add_final_node(self, search_node, node):
         item = self.AppendItem(parentId=search_node, text=node.text)
-        item.SetBold(True)
+        # item.SetBold(True)
         if not self.IsExpanded(search_node):
             self.Expand(search_node)
 
@@ -206,9 +244,10 @@ class SearchTree(CT.CustomTreeCtrl):
                 raise Exception(f"Cannot find search node for {search_dir}")
         else:
             self.add_search_node(search_node=SearchNode(path=search_dir))
-        self.Update()
-        # wx.Yield()
-        wx.GetApp().ProcessPendingEvents()
+        self.update_search_node(search_dir=search_dir, node=None)
+        # self.Update()
+        wx.Yield()
+        # wx.GetApp().ProcessPendingEvents()
 
     def add_dir_node(self, search_node, dir_node):
         path = Path(dir_node.dir)
@@ -239,7 +278,7 @@ class SearchTree(CT.CustomTreeCtrl):
                                                     line_num=line.line_num,
                                                     line_text=line.line_text,
                                                     opt=file_node.opt)
-                # item.Insert(child=child, index=index)
+                file_node.lines[index] = child.GetData()
                 matches_count += matches
             if matches_count == 1:
                 item.SetText(text="{0} {1} match".format(path.name, str(matches_count)))
@@ -267,14 +306,22 @@ class SearchTree(CT.CustomTreeCtrl):
         item = self.AppendItem(parentId=parent_node, text="Line " + line_num + ":", data=parent_node)
         item.SetWindow(HtmlLabel(parent=self, line_item=item, text=html_text))
         item.SetWindowEnabled(False)
+        line_node = LineNode(file_node=parent_node.GetData(), line_num=line_num, line_text=line_text)
+        line_node.set_matches(matches=matches)
+        item.SetData(line_node)
         return item, matches_count
 
 
 class LineNode:
     def __init__(self, file_node, line_num, line_text):
         self.file_node = file_node
+        self.file_full_name = file_node.file_full_name
         self.line_num = line_num
         self.line_text = line_text
+        self.matches = None
+
+    def set_matches(self, matches):
+        self.matches = matches
 
 
 class FileNode:
@@ -287,6 +334,14 @@ class FileNode:
     def add_line(self, line_num, line_text):
         line_node = LineNode(file_node=self, line_num=line_num, line_text=line_text)
         self.lines.append(line_node)
+
+    def get_match_num(self, line_num, word):
+        cnt = 0
+        for line in self.lines:
+            if int(line.line_num) < int(line_num):
+                cnt += len(line.matches[word])
+            else:
+                return cnt + 1
 
 
 class DirNode:

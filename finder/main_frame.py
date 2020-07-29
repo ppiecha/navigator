@@ -1,27 +1,44 @@
 import wx
 import search_const as cn
 import sys
+import res_frame
 
 
 class MainFrame(wx.Frame):
-    def __init__(self, app):
-        super().__init__(parent=None, title=cn.CN_APP_NAME, size=(400, 375), style=wx.DEFAULT_DIALOG_STYLE)
+    def __init__(self, app, nav_frame=None):
+        super().__init__(parent=nav_frame, title=cn.CN_APP_NAME, size=(400, 375), style=wx.DEFAULT_DIALOG_STYLE)
         self.app = app
-        self.res_frame = None
+        self.nav_frame = nav_frame
+        self.res_frame = res_frame.MainFrame(self)
         self.main_panel = MainPanel(parent=self, frame=self)
+        self.main_panel.search_text.Clear()
+        self.main_panel.search_dir.Clear()
         self.app.SetAppDisplayName(cn.CN_APP_NAME)
         self.app.SetAppName(cn.CN_APP_NAME)
         self.SetIcon(wx.Icon(cn.CN_ICON_FILE_NAME))
         self.SetMinSize(self.GetEffectiveMinSize())
-        self.Center()
+        self.CenterOnScreen()
+
+        self.entries = []
+        self.entries.append(wx.AcceleratorEntry(flags=wx.ACCEL_NORMAL, keyCode=wx.WXK_ESCAPE, cmd=wx.ID_CANCEL))
+        self.SetAcceleratorTable(wx.AcceleratorTable(self.entries))
 
         self.process_args()
 
+        self.Bind(wx.EVT_MENU, self.on_cancel, id=wx.ID_CANCEL)
         self.Bind(wx.EVT_CLOSE, self.on_close)
 
+    def on_cancel(self, e):
+        self.Close()
+
+    def show(self, search_path):
+        self.main_panel.directories.SetValue(str(search_path))
+        self.Show()
+
     def on_close(self, e):
-        self.res_frame.Destroy()
-        self.Destroy()
+        self.Hide()
+        # self.res_frame.Destroy()
+        # self.Destroy()
 
     def process_args(self):
         if len(sys.argv) > 1:

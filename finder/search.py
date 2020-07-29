@@ -1,4 +1,5 @@
 import os
+import wx
 import search_tree
 from pathlib import Path
 import fnmatch
@@ -24,13 +25,17 @@ class Search(threading.Thread):
         opt = self.opt
         self.denied_items.clear()
         loop_cnt = 0
+        dirs_found = 0
+        files_found = 0
         dirs_sum = 0
         files_sum = 0
+        user_continues = False
+        user_limit = 100
         for dir_item in opt.dirs:
             pub.sendMessage(cn.CN_TOPIC_ADD_NODE, search_dir=dir_item, nodes=None)
             for root, dirs, files in os.walk(Path(dir_item)):
                 if self.event.is_set():
-                    return False
+                    break
                 if root not in opt.ex_dirs:
                     if loop_cnt % 100 == 0:
                         self.set_status(root)
@@ -42,6 +47,7 @@ class Search(threading.Thread):
                         dir_lst = [dir for dir in dirs
                                    if dir.lower() not in opt.ex_dirs and self.match(dir, opt.dirs_pattern)]
                         if dir_lst:
+                            dirs_found += len(dir_lst)
                             dir_nodes = [search_tree.DirNode(dir=os.path.join(root, d)) for d in dir_lst]
                             pub.sendMessage(cn.CN_TOPIC_ADD_NODE, search_dir=dir_item, nodes=dir_nodes)
                     # FILES
@@ -58,7 +64,22 @@ class Search(threading.Thread):
                             file_nodes = [search_tree.FileNode(file_full_name=f, opt=opt)
                                           for f in file_lst]
                     if file_nodes:
+                        files_found += len(file_nodes)
                         pub.sendMessage(cn.CN_TOPIC_ADD_NODE, search_dir=dir_item, nodes=file_nodes)
+
+                    if files_found > user_limit and not user_continues:
+                        dlg = wx.MessageDialog(parent=self.frame,
+                                               message=f"Found more than {user_limit} items. Do you want to continue?",
+                                               style=wx.YES_NO | wx.CANCEL | wx.ICON_INFORMATION, caption=cn.CN_APP_NAME)
+                        if dlg.ShowModal() == wx.ID_NO:
+                            self.event.set()
+                            break
+                        else:
+                            if user_limit == 100:
+                                user_limit = 500
+                            else:
+                                user_continues = True
+
             pub.sendMessage(cn.CN_TOPIC_SEARCH_COMPLETED, search_dir=dir_item,
                             node=search_tree.FinalNode(text="No data found"))
         self.set_status("Searched " + "{:,}".format(dirs_sum) + " folder(s) " + "{:,}".format(files_sum) + " file(s) ")

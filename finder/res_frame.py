@@ -4,6 +4,9 @@ import wx.lib.buttons as buttons
 import search
 import search_const as cn
 import search_tree
+from code_viewer import high_code
+
+CN_ID_FIND = wx.NewId()
 
 
 class MainFrame(wx.Frame):
@@ -12,14 +15,39 @@ class MainFrame(wx.Frame):
         self.SetDoubleBuffered(True)
         self.SetIcon(wx.Icon(cn.CN_ICON_FILE_NAME))
         self.finder = finder
+        self.nav_frame = finder.nav_frame
         self.status_bar = self.CreateStatusBar(number=1, style=wx.STB_ELLIPSIZE_MIDDLE)
         self.search_params = None
         self.search_thread = None
-        self.output = MainPanel(frame=self)
+        self.output = MainPanel(res_frame=self)
 
-        self.Center()
+        self.CenterOnScreen()
 
+        self.entries = []
+        self.entries.append(wx.AcceleratorEntry(flags=wx.ACCEL_NORMAL, keyCode=wx.WXK_ESCAPE, cmd=wx.ID_CANCEL))
+        self.entries.append(wx.AcceleratorEntry(flags=wx.ACCEL_NORMAL, keyCode=wx.WXK_F3, cmd=CN_ID_FIND))
+        # self.entries.append(wx.AcceleratorEntry(flags=wx.ACCEL_CTRL, keyCode=ord("U"), cmd=CN_ID_UPPER))
+
+        self.SetAcceleratorTable(wx.AcceleratorTable(self.entries))
+
+        self.Bind(wx.EVT_MENU, self.on_cancel, id=wx.ID_CANCEL)
+        self.Bind(wx.EVT_MENU, self.on_find, id=CN_ID_FIND)
         self.Bind(wx.EVT_CLOSE, self.on_close)
+
+    def on_find(self, e):
+        data = self.output.tree.GetSelection().GetData()
+        if isinstance(data, search_tree.FileNode):
+            lines = [line.line_num for line in data.lines]
+            high_opt = high_code.HighOptions(words=self.search_params.words,
+                                             case_sensitive=self.search_params.case_sensitive,
+                                             whole_words=self.search_params.whole_words,
+                                             match=1,
+                                             lines=lines)
+            # self.finder.nav_frame.vim.get_active_page().browser.reset_search()
+            self.finder.nav_frame.vim.show_file(file_name=data.file_full_name, high_opt=high_opt)
+
+    def on_cancel(self, e):
+        self.Close()
 
     def change_icon(self, event):
         if event.is_set():
@@ -48,27 +76,32 @@ class MainFrame(wx.Frame):
         self.change_icon(self.search_thread.event)
 
     def on_close(self, e):
-        self.finder.Destroy()
-        self.Destroy()
+        self.cancel_search_thread()
+        self.Hide()
+
+        # self.finder.Destroy()
+        # self.Destroy()
 
 
 class MainPanel(wx.Panel):
-    def __init__(self, frame):
-        super().__init__(parent=frame)
-        self.frame = frame
-        self.tree = search_tree.SearchTree(parent=self, frame=frame)
-        self.tool_pnl = ToolPanel(parent=self, frame=frame)
+    def __init__(self, res_frame):
+        super().__init__(parent=res_frame)
+        self.res_frame = res_frame
+        self.tree = search_tree.SearchTree(parent=self, res_frame=res_frame)
+        self.tool_pnl = ToolPanel(parent=self, res_frame=res_frame)
+        self.preview = high_code.HtmlPanel(parent=self, file_name="")
 
         sizer = wx.BoxSizer(wx.VERTICAL)
         sizer.Add(self.tool_pnl)
         sizer.Add(self.tree, flag=wx.EXPAND, proportion=1)
+        sizer.Add(self.preview, flag=wx.EXPAND)
         self.SetSizerAndFit(sizer)
 
 
 class ToolPanel(wx.Panel):
-    def __init__(self, parent, frame):
+    def __init__(self, parent, res_frame):
         super().__init__(parent=parent)
-        self.frame = frame
+        self.res_frame = res_frame
         self.main_pnl = parent
         sizer = wx.BoxSizer(wx.HORIZONTAL)
 
@@ -87,10 +120,10 @@ class ToolPanel(wx.Panel):
         self.btn_collapse_all.Bind(wx.EVT_BUTTON, self.on_collapse_all)
 
     def on_params(self, e):
-        if not self.frame.search_thread.event.is_set():
-            self.frame.cancel_search_thread()
+        if not self.res_frame.search_thread.event.is_set():
+            self.res_frame.cancel_search_thread()
         else:
-            self.frame.finder.Show()
+            self.res_frame.finder.Show()
 
     def on_expand_all(self, e):
         self.main_pnl.tree.ExpandAll()
