@@ -135,6 +135,12 @@ class SearchTree(CT.CustomTreeCtrl):
             self.res_frame.nav_frame.return_focus()
             self.res_frame.nav_frame.get_active_win().get_active_browser().open_dir(dir_name=path.parent,
                                                                                     sel_dir=path.name)
+        if isinstance(data, DirNode):
+            path = Path(data.dir)
+            self.res_frame.nav_frame.return_focus()
+            self.res_frame.nav_frame.get_active_win().get_active_browser().open_dir(dir_name=path.parent,
+                                                                                    sel_dir=path.name)
+
         if isinstance(data, LineNode):
             high_opt = high_code.HighOptions(words=self.res_frame.search_params.words,
                                              case_sensitive=self.res_frame.search_params.case_sensitive,

@@ -454,6 +454,7 @@ class Browser(wx.ListCtrl, ListCtrlAutoWidthMixin):
         return folders, files
 
     def set_selection(self, selected):
+        print("set_selection", selected)
         if not selected:
             return
         self.clear_selection()
@@ -597,7 +598,8 @@ class Browser(wx.ListCtrl, ListCtrlAutoWidthMixin):
     def open_directory(self, dir_name, sel_dir, conf):
         if self.path is not None:
             if str(self.path) == str(dir_name):
-                to_select = self.get_selected()
+                # to_select = self.get_selected()
+                to_select = [sel_dir] if sel_dir else self.get_selected()
             else:
                 self.filter_pnl.disable_filter(clear_search=False, search_pattern=False)
                 if sel_dir:
