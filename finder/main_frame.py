@@ -1,6 +1,8 @@
 import wx
-import search_const as cn
+import os
 import sys
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+import search_const as cn
 import res_frame
 
 
@@ -23,7 +25,8 @@ class MainFrame(wx.Frame):
         self.entries.append(wx.AcceleratorEntry(flags=wx.ACCEL_NORMAL, keyCode=wx.WXK_ESCAPE, cmd=wx.ID_CANCEL))
         self.SetAcceleratorTable(wx.AcceleratorTable(self.entries))
 
-        self.process_args()
+        if __name__ == '__main__':
+            self.process_args()
 
         self.Bind(wx.EVT_MENU, self.on_cancel, id=wx.ID_CANCEL)
         self.Bind(wx.EVT_CLOSE, self.on_close)
