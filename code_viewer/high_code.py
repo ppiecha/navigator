@@ -169,9 +169,9 @@ class HtmlViewer(wx.Panel):
             return [match_num, self.word_cnt]
         else:
             match_num = self.vw.Find(word, flags)
-            if match_num == 0:
-                print("left")
-                self.go_to_left()
+            # if match_num == 0:
+            #     print("left")
+            #     self.go_to_left()
             return [match_num, self.word_cnt]
 
     def get_lexer(self, file_name, lexer=""):

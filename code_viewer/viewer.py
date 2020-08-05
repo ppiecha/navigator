@@ -109,10 +109,16 @@ class MainFrame(wx.Frame):
     def show_files(self, file_names):
         if self.add_pages(file_names=file_names):
             self.Show()
+            if self.IsIconized():
+                # self.RequestUserAttention()
+                self.Restore()
 
     def show_file(self, file_name, high_opt):
         if self.add_page(file_name=file_name, high_opt=high_opt):
             self.Show()
+            if self.IsIconized():
+                # self.RequestUserAttention()
+                self.Restore()
 
 
 
