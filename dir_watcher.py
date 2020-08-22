@@ -41,6 +41,7 @@ class DirWatcher(Thread):
 
     def terminate(self):
         self.exit = True
+        print(self.dir_name, "terminated", self.exit)
 
     def run(self):
         try:
@@ -50,6 +51,7 @@ class DirWatcher(Thread):
                 self.terminate()
                 return
             while not self.exit:
+                print(self.dir_name, "active")
                 result = win32event.WaitForSingleObject(self.change_handle, 500)
                 if result == win32con.WAIT_OBJECT_0:
                     new_content = [f.name for f in os.scandir(self.dir_name)]
@@ -59,6 +61,7 @@ class DirWatcher(Thread):
                     old_content = new_content
                     win32file.FindNextChangeNotification(self.change_handle)
         finally:
+            print(self.dir_name, "ended")
             if hasattr(self, 'change_handle'):
                 win32file.FindCloseChangeNotification(self.change_handle)
 

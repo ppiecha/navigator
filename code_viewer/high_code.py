@@ -194,7 +194,7 @@ class HtmlViewer(wx.Panel):
 
     def go_to_line(self, line_no=None):
         self.vw.RunScript('document.getElementById("line-' + str(line_no) + '").scrollIntoView(true);')
-        self.go_to_left()
+        # self.go_to_left()
 
     def go_to_left(self):
         self.vw.RunScript('window.scrollTo(0, window.pageYOffset);')

@@ -20,7 +20,7 @@ CN_APP_LOG = os.path.join(CN_APP_PATH, "navigator.log")
 CN_VIEWER_APP = Path(os.path.join(CN_APP_PATH, "viewer\\viewer.py"))
 CN_FINDER_APP = Path(os.path.join(CN_APP_PATH, "finder\\finder.py"))
 
-CN_ICON_FILE_NAME = os.path.join(CN_APP_PATH, "img\\navigator.ico")
+CN_ICON_FILE_NAME = os.path.join(CN_APP_PATH, "img\\navigator4.ico")
 CN_ICON_CODE_VIEWER = os.path.join(CN_APP_PATH, "img\\code_viewer.ico")
 
 # Messages

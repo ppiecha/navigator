@@ -42,10 +42,10 @@ class SearchTree(CT.CustomTreeCtrl):
 
         # Image list
         self.il = wx.ImageList(16, 16)
-        self.im_search = self.il.Add(wx.Bitmap(cn.CN_IM_NEW_SEARCH, wx.BITMAP_TYPE_PNG))
-        self.im_folder = self.il.Add(wx.Bitmap(cn.CN_IM_NEW_FOLDER, wx.BITMAP_TYPE_PNG))
-        self.im_file = self.il.Add(wx.Bitmap(cn.CN_IM_NEW_FILE, wx.BITMAP_TYPE_PNG))
-        self.im_doc = self.il.Add(wx.Bitmap(cn.CN_IM_NEW_DOC, wx.BITMAP_TYPE_PNG))
+        self.im_search = self.il.Add(wx.Bitmap(cn.CN_IM_SEARCH, wx.BITMAP_TYPE_PNG))
+        self.im_folder = self.il.Add(wx.Bitmap(cn.CN_IM_FOLDER, wx.BITMAP_TYPE_PNG))
+        self.im_file = self.il.Add(wx.Bitmap(cn.CN_IM_FILE, wx.BITMAP_TYPE_PNG))
+        self.im_doc = self.il.Add(wx.Bitmap(cn.CN_IM_DOC, wx.BITMAP_TYPE_PNG))
         self.AssignImageList(self.il)
 
         # self.Bind(wx.dataview.EVT_TREELIST_SELECTION_CHANGED, self.on_select)

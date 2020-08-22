@@ -76,6 +76,7 @@ class MainFrame(wx.Frame):
             f.close()
 
     def get_active_win(self):
+        self.return_focus()
         win = self.FindFocus()
         if isinstance(win, browser.Browser):
             return win.page_ctrl
@@ -84,6 +85,7 @@ class MainFrame(wx.Frame):
             raise Exception("Cannot find active page ctrl")
 
     def get_inactive_win(self):
+        self.return_focus()
         win = self.FindFocus()
         if isinstance(win, browser.Browser):
             if win.page_ctrl.is_left:
@@ -202,9 +204,12 @@ class MainFrame(wx.Frame):
 
     def on_close(self, event):
         self.vim.Destroy()
+        print("vim destroyed")
         self.finder.res_frame.Destroy()
         self.finder.Destroy()
+        print("finder destroyed")
         self.write_last_conf(cn.CN_APP_CONFIG, self.app_conf)
+        print("conf written")
         if not self.release_resources():
             event.Veto()
             return
@@ -647,10 +652,13 @@ class DirCache:
 
     def release_resources(self):
         for item in self._dict.keys():
+            print(self._dict[item].dir_name)
             th = self._dict[item].watcher
             if th.is_alive():
                 th.terminate()
+                print("join before")
                 th.join()
+                print("join after")
 
     def delete_cache_item(self, dir_name):
 
