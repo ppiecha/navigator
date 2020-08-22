@@ -51,7 +51,7 @@ class MainFrame(wx.Frame):
 
     def change_icon(self, event):
         if event.is_set():
-            self.output.tool_pnl.btn_params.set_bitmap(cn.CN_IM_NEW_SEARCH)
+            self.output.tool_pnl.btn_params.set_bitmap(cn.CN_IM_SEARCH)
         else:
             self.output.tool_pnl.btn_params.set_bitmap(cn.CN_IM_STOP)
 
@@ -105,9 +105,9 @@ class ToolPanel(wx.Panel):
         self.main_pnl = parent
         sizer = wx.BoxSizer(wx.HORIZONTAL)
 
-        self.btn_params = ToolBtn(self, im_file=cn.CN_IM_NEW_SEARCH, def_ctrl=[parent.tree])
-        self.btn_expand_all = ToolBtn(self, im_file=cn.CN_IM_NEW_SEARCH, def_ctrl=[parent.tree])
-        self.btn_collapse_all = ToolBtn(self, im_file=cn.CN_IM_NEW_SEARCH, def_ctrl=[parent.tree])
+        self.btn_params = ToolBtn(self, im_file=cn.CN_IM_SEARCH, def_ctrl=[parent.tree])
+        self.btn_expand_all = ToolBtn(self, im_file=cn.CN_IM_EXPAND, def_ctrl=[parent.tree])
+        self.btn_collapse_all = ToolBtn(self, im_file=cn.CN_IM_COLLAPSE, def_ctrl=[parent.tree])
 
         sizer.Add(self.btn_params)
         sizer.Add(self.btn_expand_all)

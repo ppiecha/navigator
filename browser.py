@@ -454,7 +454,7 @@ class Browser(wx.ListCtrl, ListCtrlAutoWidthMixin):
         return folders, files
 
     def set_selection(self, selected):
-        print("set_selection", selected)
+        # print("set_selection", selected)
         if not selected:
             return
         self.clear_selection()

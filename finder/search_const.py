@@ -10,10 +10,12 @@ sys.path.append(str(Path(CN_APP_PATH).parent))
 
 CN_ICON_FILE_NAME = os.path.join(CN_APP_PATH, "img\\finder.ico")
 
-CN_IM_NEW_SEARCH = os.path.join(CN_APP_PATH, "img\\new_search.png")
-CN_IM_NEW_FOLDER = os.path.join(CN_APP_PATH, "img\\new_folder.png")
-CN_IM_NEW_FILE = os.path.join(CN_APP_PATH, "img\\new_file.png")
-CN_IM_NEW_DOC = os.path.join(CN_APP_PATH, "img\\new_document.png")
+CN_IM_SEARCH = os.path.join(CN_APP_PATH, "img\\search.png")
+CN_IM_EXPAND = os.path.join(CN_APP_PATH, "img\\expand.png")
+CN_IM_COLLAPSE = os.path.join(CN_APP_PATH, "img\\collapse.png")
+CN_IM_FOLDER = os.path.join(CN_APP_PATH, "img\\folder.png")
+CN_IM_FILE = os.path.join(CN_APP_PATH, "img\\file.png")
+CN_IM_DOC = os.path.join(CN_APP_PATH, "img\\document.png")
 CN_IM_STOP = os.path.join(CN_APP_PATH, "img\\stop.png")
 CN_TOPIC_ADD_NODE = "ADD_NODE"
 CN_TOPIC_UPDATE_STATUS = "UPDATE_STATUS"
