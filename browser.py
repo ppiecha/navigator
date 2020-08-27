@@ -9,11 +9,10 @@ import time
 import wx.aui as aui
 import config
 from pubsub import pub
-import subprocess
 import os
 import dialogs
 from lib4py import shell as sh
-from code_viewer import high_code
+from typing import Sequence, List, Tuple
 
 CN_MAX_HIST_COUNT = 20
 
@@ -168,7 +167,7 @@ class MyFileDropTarget(wx.FileDropTarget):
         self.object = object
         self.target_processor = target_processor
 
-    def OnDropFiles(self, x, y, filenames):
+    def OnDropFiles(self, x: int, y: int, filenames: List[str]) -> bool:
         return self.target_processor(x, y, filenames)
 
     def OnDragOver(self, x, y, defResult):
@@ -231,7 +230,7 @@ class Browser(wx.ListCtrl, ListCtrlAutoWidthMixin):
         self.Bind(wx.EVT_LIST_BEGIN_DRAG, self.on_start_drag, id=self.win_id)
         self.register_listener(topic=cn.CN_TOPIC_DIR_CHG)
 
-    def on_process_dropped_files(self, x, y, file_names):
+    def on_process_dropped_files(self, x: int, y: int, file_names: List[str]) -> bool:
         src_id = self.drag_src.win_id if self.drag_src else -1
         tgt_id = self.drag_tgt.object.win_id
         same_win = src_id == tgt_id
@@ -284,7 +283,7 @@ class Browser(wx.ListCtrl, ListCtrlAutoWidthMixin):
         if not pub.unsubscribe(self.listen_dir_changes, topic):
             raise Exception("Cannot unregister watchdir listener")
 
-    def listen_dir_changes(self, dir_name, added, deleted):
+    def listen_dir_changes(self, dir_name: str, added: Sequence, deleted: Sequence) -> None:
         if str(self.path) == str(dir_name):
             self.refresh_list(dir_name=dir_name, conf=self.conf, to_select=[], reread_source=True)
 
@@ -439,7 +438,7 @@ class Browser(wx.ListCtrl, ListCtrlAutoWidthMixin):
                 append(lst, self.GetItemText(item))
         return lst
 
-    def get_selected_files_folders(self):
+    def get_selected_files_folders(self) -> Tuple[List[Path], List[Path]]:
         lst = self.get_selected()
         files = []
         folders = []
@@ -539,7 +538,7 @@ class Browser(wx.ListCtrl, ListCtrlAutoWidthMixin):
         self.sort_by_column(self.conf.sort_key, self.conf.sort_desc)
 
     def on_item_activated(self, item_name):
-        t = Tit("on_item_activated")
+        # t = Tit("on_item_activated")
         if item_name == cn.CN_GO_BACK:
             if self.path.samefile(self.path.anchor):
                 return
@@ -553,7 +552,7 @@ class Browser(wx.ListCtrl, ListCtrlAutoWidthMixin):
                 new_path = Path(res)
                 del lnk
             if new_path.is_file():
-                sh.start_file(new_path)
+                sh.start_file(str(new_path))
                 self.frame.show_wait()
             elif new_path.is_dir():
                 if wx.GetKeyState(wx.WXK_CONTROL) and wx.GetKeyState(wx.WXK_SHIFT):
@@ -562,7 +561,7 @@ class Browser(wx.ListCtrl, ListCtrlAutoWidthMixin):
                     self.page_ctrl.add_new_tab(new_path)
                 else:
                     self.open_dir(dir_name=new_path)
-        del t
+        # del t
 
     def on_db_click(self, event):
         self.on_item_activated(event.GetText())
@@ -579,15 +578,19 @@ class Browser(wx.ListCtrl, ListCtrlAutoWidthMixin):
         self.extension_images[extension] = index
         return index
 
-    def get_next_dir(self, path):
+    def get_next_dir(self, path: Path) -> Path:
         if path.exists():
             return path
         for parent in path.parents:
             if parent.exists():
                 return parent
-        return path.home
+        return path.home()
 
-    def open_dir(self, dir_name, sel_dir=""):
+    def open_dir(self, dir_name: str, sel_dir: str = "") -> None:
+        # print(str(Path.home()))
+        if dir_name is None:
+            self.open_directory(str(Path.home()), cn.CN_GO_BACK, self.conf)
+            return
         path = Path(dir_name)
         if path.exists():
             self.open_directory(dir_name, sel_dir, self.conf)
@@ -613,15 +616,15 @@ class Browser(wx.ListCtrl, ListCtrlAutoWidthMixin):
                 to_select = [cn.CN_GO_BACK]
         temp = self.path
         try:
-            self.refresh_list(dir_name=self.get_next_dir(Path(dir_name)), conf=conf, to_select=to_select)
+            self.refresh_list(dir_name=str(self.get_next_dir(Path(dir_name))), conf=conf, to_select=to_select)
         except OSError as err:
-            self.frame.log_error(str(err))
+            self.frame.log_error(f"{str(err)} {dir_name}")
             self.open_dir(temp)
 
-    def refresh_list(self, dir_name, conf, to_select, reread_source=False):
-        self.dir_cache = self.frame.dir_cache.get_dir(dir_name=Path(dir_name), conf=conf, reread_source=reread_source)
+    def refresh_list(self, dir_name: str, conf, to_select: Sequence, reread_source: bool = False):
+        self.dir_cache = self.frame.dir_cache.get_dir(dir_name=dir_name, conf=conf, reread_source=reread_source)
         self.path = Path(dir_name)
-        count = len(self.dir_cache)
+        count: int = len(self.dir_cache)
         if not self.root:
             count += 1
         self.SetItemCount(count)

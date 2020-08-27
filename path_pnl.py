@@ -120,7 +120,7 @@ class PathEdit(wx.TextCtrl):
                     if not str(path).endswith(os.path.sep):
                         self.SetValue(str(path) + os.path.sep)
             else:
-                sh.start_file(path)
+                sh.start_file(str(path))
         else:
             # args = self.GetValue().split()
             # args = [a.trim() for a in args]
@@ -144,7 +144,7 @@ class PathEdit(wx.TextCtrl):
         self.parent.parent.browser.open_dir(dir_name=dir, sel_dir=cn.CN_GO_BACK)
 
     def open_file(self, file_name):
-        sh.start_file(file_name)
+        sh.start_file(str(file_name))
 
     def context_menu(self, path, item_names):
         sh.get_context_menu(path, item_names)

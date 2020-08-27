@@ -16,7 +16,7 @@ import traceback
 import wx.adv
 import sys
 from datetime import datetime
-import subprocess
+from typing import List, Dict, Sequence, Tuple
 from lib4py import shell as sh
 from code_viewer import viewer
 from finder import main_frame as finder
@@ -204,12 +204,9 @@ class MainFrame(wx.Frame):
 
     def on_close(self, event):
         self.vim.Destroy()
-        print("vim destroyed")
         self.finder.res_frame.Destroy()
         self.finder.Destroy()
-        print("finder destroyed")
         self.write_last_conf(cn.CN_APP_CONFIG, self.app_conf)
-        print("conf written")
         if not self.release_resources():
             event.Veto()
             return
@@ -316,18 +313,20 @@ class MainFrame(wx.Frame):
         #             print(lst)
         #     wx.TheClipboard.Close()
 
-    def copy(self, folders=None, files=None, dst_path=""):
+    def copy(self, folders: List[str] = None, files: List[str] = None, dst_path="") -> None:
         win = self.get_active_win()
         b = win.get_active_browser()
         if folders is not None or files is not None:
             if folders:
-                path = str(Path(folders[0]).parent)
+                path = Path(folders[0]).parent
             else:
-                path = str(Path(files[0]).parent)
+                path = Path(files[0]).parent
             dst = dst_path
         else:
             path = b.path
-            folders, files = b.get_selected_files_folders()
+            _folders, _files = b.get_selected_files_folders()
+            folders = [str(f) for f in _folders]
+            files = [str(f) for f in _files]
             inactive = self.get_inactive_win()
             dst = str(inactive.get_active_browser().path)
         if folders or files:
@@ -337,33 +336,34 @@ class MainFrame(wx.Frame):
                                                         oper_id=cn.ID_COPY)
             with dialogs.CopyMoveDlg(self, title="Copy", opr_count=opr_count, src=src, dst=dst) as dlg:
                 if dlg.show_modal() == wx.ID_OK:
-                    dst_path, dst_name = dlg.get_path_and_name()
+                    dst_dir, dst_name = dlg.get_path_and_name()
                     if not dst_name:
                         util.run_in_thread(target=sh.copy,
-                                           args=(folders + files, dst_path, dlg.cb_rename.IsChecked()),
+                                           args=(folders + files, str(dst_dir), dlg.cb_rename.IsChecked()),
                                            lst=self.thread_lst)
                     else:
-
                         util.run_in_thread(target=sh.copy_file,
-                                           args=(str(path.joinpath(files[0].name)),
-                                                 str(dst_path.joinpath(dst_name)),
+                                           args=(str(path.joinpath(sh.get_file_name(files[0]))),
+                                                 str(dst_dir.joinpath(dst_name)),
                                                  dlg.cb_rename.IsChecked()),
                                            lst=self.thread_lst)
         else:
             self.show_message(cn.CN_NO_ITEMS_SEL)
 
-    def move(self, folders=None, files=None, dst_path=""):
+    def move(self, folders: List[str] = None, files: List[str] = None, dst_path: str = "") -> None:
         win = self.get_active_win()
         b = win.get_active_browser()
         if folders is not None or files is not None:
             if folders:
-                path = str(Path(folders[0]).parent)
+                path = Path(folders[0]).parent
             else:
-                path = str(Path(files[0]).parent)
+                path = Path(files[0]).parent
             dst = dst_path
         else:
             path = b.path
-            folders, files = b.get_selected_files_folders()
+            _folders, _files = b.get_selected_files_folders()
+            folders = [str(f) for f in _folders]
+            files = [str(f) for f in _files]
             inactive = self.get_inactive_win()
             dst = str(inactive.get_active_browser().path)
         if folders or files:
@@ -373,15 +373,15 @@ class MainFrame(wx.Frame):
                                                         oper_id=cn.ID_MOVE)
             with dialogs.CopyMoveDlg(self, title="Move", opr_count=opr_count, src=src, dst=dst) as dlg:
                 if dlg.show_modal() == wx.ID_OK:
-                    dst_path, dst_name = dlg.get_path_and_name()
+                    dst_dir, dst_name = dlg.get_path_and_name()
                     if not dst_name:
                         util.run_in_thread(target=sh.move,
-                                           args=(folders + files, dst_path, dlg.cb_rename.IsChecked()),
+                                           args=(folders + files, str(dst_dir), dlg.cb_rename.IsChecked()),
                                            lst=self.thread_lst)
                     else:
                         util.run_in_thread(target=sh.move_file,
-                                           args=(str(path.joinpath(files[0].name)),
-                                                 str(dst_path.joinpath(dst_name)),
+                                           args=(str(path.joinpath(sh.get_file_name(files[0]))),
+                                                 str(dst_dir.joinpath(dst_name)),
                                                  dlg.cb_rename.IsChecked()),
                                            lst=self.thread_lst)
         else:
@@ -429,7 +429,7 @@ class MainFrame(wx.Frame):
         win = self.get_active_win()
         b = win.get_active_browser()
         folders, files = b.get_selected_files_folders()
-        def_name = files[0].name if files else "new_file.txt"
+        def_name = files[0].name if files else "new_file.sql"
         with dialogs.NewFileDlg(self, b.path, def_name) as dlg:
             if dlg.show_modal() == wx.ID_OK:
                 file_names = dlg.get_new_names()
@@ -440,32 +440,33 @@ class MainFrame(wx.Frame):
                     except Exception as e:
                         self.log_error(f"Cannot create file {path.name}\n{str(e)}")
                     if dlg.cb_open.IsChecked():
-                        sh.start_file(path)
+                        sh.start_file(str(path))
 
-    def get_oper_details(self, prefix, folders, files, source_path, dest_path, oper_id):
+    def get_oper_details(self, prefix: str, folders: List[str], files: List[str], source_path: str, dest_path: str,
+                         oper_id: int):
         all = folders + files
-        dest_path = Path(dest_path)
-        source_path = Path(source_path)
-        src = "From: " + str(source_path) + " to"
+        dest_dir = Path(dest_path)
+        src_dir = Path(source_path)
+        src = "From: " + str(src_dir) + " to"
         if len(all) == 0:
-            name = source_path.name
+            name = src_dir.name
             opr_count = prefix + str(name)
-            dst = str(dest_path.joinpath(name)) + ".lnk"
+            dst = str(dest_dir.joinpath(name)) + ".lnk"
         elif len(all) == 1:
             full_name = Path(all[0])
             name = full_name.name
             stem = full_name.stem
             opr_count = prefix + str(name)
             if oper_id == cn.ID_CREATE_SHORTCUT:
-                dst = str(dest_path.joinpath(name)) + ".lnk"
+                dst = str(dest_dir.joinpath(name)) + ".lnk"
             elif oper_id == cn.ID_COPY2SAME:
-                dst = str(source_path.joinpath(name))
+                dst = str(src_dir.joinpath(name))
             elif oper_id in (cn.ID_COPY, cn.ID_MOVE) and full_name.is_file():
-                dst = str(dest_path.joinpath(name))
+                dst = str(dest_dir.joinpath(name))
             else:
                 dst = str(dest_path)
         else:
-            oper_desc = ""
+            opr_desc = ""
             if folders:
                 opr_desc = str(len(folders)) + " folder(s)"
                 if files:
@@ -526,7 +527,7 @@ class MainFrame(wx.Frame):
                     new_name = dlg.get_new_names()[0]
                     full_name = b.path.joinpath(new_name)
                     if item_type == "file":
-                        util.run_in_thread(target=sh.copy_file(),
+                        util.run_in_thread(target=sh.copy_file,
                                            args=(str(b.path.joinpath(files[0].name)),
                                                  str(full_name), 0),
                                            lst=self.thread_lst)
@@ -606,38 +607,41 @@ class CmdBtn(wx.Button):
 
 
 class DirCacheItem:
-    def __init__(self, frame, dir_name):
+    def __init__(self, frame: MainFrame, dir_name: str) -> None:
         if not dir_name:
             return
-        self.dir_name = dir_name
-        self.dir_items = []
-        self.file_items = []
+        self.dir_name: str = dir_name
+        self.dir_items = List[Tuple[str, float, str, str, bool, str]]
+        self.file_items = List[Tuple[str, float, int, str, bool, str]]
         self.open_dir(dir_name)
         self.watcher = dir_watcher.DirWatcher(frame=frame, dir_name=dir_name, dir_items=self.dir_items,
                                               file_items=self.file_items)
 
-    def open_dir(self, dir_name):
+    def open_dir(self, dir_name: str):
         self.dir_items = []
         self.file_items = []
         with os.scandir(dir_name) as sd:
             for i in sd:
                 if i.is_dir():
-                    self.dir_items.append([i.name.lower(), i.stat().st_mtime, "", i.name, i.is_dir(), ""])
+                    self.dir_items.append((i.name.lower(), i.stat().st_mtime, "", i.name, i.is_dir(), ""))
                 else:
-                    self.file_items.append([i.name.lower(), i.stat().st_mtime, i.stat().st_size, i.name, i.is_dir(),
-                                            Path(i.name).suffix])
+                    self.file_items.append((i.name.lower(), i.stat().st_mtime, i.stat().st_size, i.name, i.is_dir(),
+                                            Path(i.name).suffix))
 
 
 class DirCache:
     def __init__(self, frame):
         self.frame = frame
+        self._dict = Dict[str, DirCacheItem]
         self._dict = {}
 
     def match(self, src, pat_lst):
         return len(list(filter(lambda x: fnmatch.fnmatch(src, x), pat_lst))) > 0
         # return len(list(filter(lambda x: x, map(lambda x: fnmatch.fnmatch(src, x), pat_lst)))) > 0
 
-    def get_dir(self, dir_name, conf, reread_source=False):
+    def get_dir(self, dir_name: str, conf, reread_source: bool = False) -> Sequence:
+        if not isinstance(dir_name, str):
+            raise ValueError("Incorrect key type", dir_name)
         if dir_name not in self._dict.keys():
             # print("R E A D", dir_name)
             self._dict[dir_name] = DirCacheItem(frame=self.frame, dir_name=dir_name)
@@ -652,27 +656,25 @@ class DirCache:
 
     def release_resources(self):
         for item in self._dict.keys():
-            print(self._dict[item].dir_name)
             th = self._dict[item].watcher
             if th.is_alive():
                 th.terminate()
-                print("join before")
                 th.join()
-                print("join after")
 
-    def delete_cache_item(self, dir_name):
+    def delete_cache_item(self, dir_name: str) -> None:
 
-        def remove_watcher(dir):
+        def remove_watcher(dir: str) -> None:
             th = self._dict[dir].watcher
             if th.is_alive():
                 th.terminate()
                 th.join()
 
-
         lst = list(self._dict.keys())
         for item in lst:
             if str(item).startswith(dir_name):
                 remove_watcher(item)
+                # print(type(item), item)
+                # print(lst)
                 del self._dict[item]
 
 

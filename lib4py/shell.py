@@ -12,7 +12,7 @@ import threading
 import fnmatch
 
 
-def copy(src, dst, auto_rename=False):
+def copy(src, dst: str, auto_rename: bool = False) -> bool:
     """
     Copy files and directories using Windows shell.
 
@@ -56,7 +56,7 @@ def copy(src, dst, auto_rename=False):
     return not aborted
 
 
-def move(src, dst, auto_rename=False):
+def move(src, dst: str, auto_rename: bool = False) -> bool:
     """
     Move files and directories using Windows shell.
 
@@ -100,7 +100,7 @@ def move(src, dst, auto_rename=False):
     return not aborted
 
 
-def rename(src, dst, auto_rename=False):
+def rename(src, dst: str, auto_rename: bool = False) -> bool:
     """
     Rename files and directories using Windows shell.
 
@@ -144,7 +144,7 @@ def rename(src, dst, auto_rename=False):
     return not aborted
 
 
-def delete(src, hard_delete):
+def delete(src, hard_delete: bool) -> bool:
     """
     Move files and directories using Windows shell.
 
@@ -189,9 +189,9 @@ def delete(src, hard_delete):
     return not aborted
 
 
-def new_file(file_name):
+def new_file(file_name: str) -> None:
     try:
-        handle = win32file.CreateFile(str(file_name),
+        handle = win32file.CreateFile(file_name,
                                       win32file.GENERIC_WRITE,
                                       win32file.FILE_SHARE_READ | win32file.FILE_SHARE_WRITE |
                                       win32file.FILE_SHARE_DELETE,
@@ -204,7 +204,7 @@ def new_file(file_name):
         raise e
 
 
-def get_new_name(full_name):
+def get_new_name(full_name: str) -> str:
 
     path = Path(full_name)
     if not path.exists():
@@ -272,11 +272,11 @@ def paste_file(path):
     context_menu.InvokeCommand(ci)
 
 
-def start_file(file_name):
+def start_file(file_name: str):
     shell.ShellExecuteEx(fMask=shellcon.SEE_MASK_NOCLOSEPROCESS,
                          nShow=win32con.SW_NORMAL,
                          lpVerb="Open",
-                         lpFile=str(file_name))
+                         lpFile=file_name)
 
 
 def new_folder(folder_name):
@@ -284,6 +284,14 @@ def new_folder(folder_name):
         win32file.CreateDirectory(folder_name, None)
     except Exception as e:
         raise e
+
+
+def get_file_name(path: str) -> str:
+    dir, name = os.path.split(path)
+    if not name:
+        raise ValueError("Invalid file name")
+    else:
+        return name
 
 
 class Shortcut:

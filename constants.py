@@ -155,6 +155,12 @@ def q(text):
     return '"' + str(text) + '"'
 
 
+# t = "C:\\_piotr_\\__GIT__\\cool_soft_reg\\midi32.reg"
+# p = Path(t)
+# print(str(p))
+
+
+
 
 
 

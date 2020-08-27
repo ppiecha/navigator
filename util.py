@@ -2,9 +2,10 @@ from datetime import datetime
 import stat
 import os
 from lib4py import shell as sh
+from typing import Callable, List, Sequence
 
 
-def run_in_thread(target, args, lst=None):
+def run_in_thread(target: Callable, args: Sequence, lst: List[sh.ShellThread] = None) -> None:
     th = sh.ShellThread(target=target, args=args)
     th.start()
     if lst is not None:
