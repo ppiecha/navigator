@@ -213,7 +213,7 @@ def get_new_name(full_name: str) -> str:
         if fnmatch.fnmatch(path.stem, "*(*)"):
             start = path.stem.rfind("(")
             stop = path.stem.rfind(")")
-            print(path.stem[start:stop+1])
+            # print(path.stem[start:stop+1])
             try:
                 num = int(path.stem[start+1:stop])
             except:
@@ -228,18 +228,19 @@ def get_new_name(full_name: str) -> str:
                 return str(path.parent.joinpath(path.stem)) + "(1)" + path.suffix
 
 
-def copy_file(src, tgt, _rename):
+def copy_file(src: str, tgt: str, _rename: bool) -> None:
+    if _rename:
+        tgt = get_new_name(tgt)
     try:
         win32file.CopyFile(src, tgt, 0)
     except Exception as e:
         raise e
 
 
-def move_file(src, tgt, _rename):
+def move_file(src: str, tgt: str, _rename: bool) -> None:
     flags = win32file.MOVEFILE_COPY_ALLOWED
-    if rename:
+    if _rename:
         tgt = get_new_name(tgt)
-        print(tgt)
     else:
         flags = flags | win32file.MOVEFILE_REPLACE_EXISTING
     try:

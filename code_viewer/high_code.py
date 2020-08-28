@@ -38,7 +38,10 @@ class HtmlViewer(wx.Panel):
         return ""
 
     def drop_file(self):
-        del self.files[self.get_file_name()]
+        if not self.get_file_name() in self.files.keys():
+            raise ValueError("Wrong file name")
+        else:
+            del self.files[self.get_file_name()]
 
     def on_process_dropped_files(self, x, y, file_names):
         files = [f for f in file_names if Path(f).is_file()]

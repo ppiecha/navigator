@@ -36,16 +36,19 @@ class MainFrame(wx.Frame):
         self.Bind(wx.EVT_CLOSE, self.on_close)
 
     def page_close(self, e):
-        page = self.get_active_page()
+        pt = wx.GetMousePosition()
+        tab_index, flag = self.page_ctrl.HitTest(self.ScreenToClient(pt))
+        page = self.page_ctrl.GetPage(tab_index)
         page.browser.drop_file()
+        e.Skip()
 
     def get_active_page(self):
         # print(self.page_ctrl.GetSelection())
         return self.page_ctrl.GetPage(self.page_ctrl.GetSelection())
 
     def on_find(self, e):
-        self.get_active_page.browser.search_pnl.Show()
-        self.get_active_page.browser.search_pnl.ed_word.SetFocus()
+        self.get_active_page().browser.search_pnl.Show()
+        self.get_active_page().browser.search_pnl.ed_word.SetFocus()
 
     def on_find_next(self, e):
         if self.page_ctrl.GetPage(self.page_ctrl.GetSelection()).browser.search_pnl.ed_word.GetValue() == "":
