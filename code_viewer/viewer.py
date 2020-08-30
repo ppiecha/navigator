@@ -8,6 +8,7 @@ from code_viewer import high_code
 ID_FIND_NEXT = wx.NewId()
 ID_FIND_PREV = wx.NewId()
 
+
 class MainFrame(wx.Frame):
     def __init__(self, nav_frame):
         super().__init__(parent=nav_frame, title=cn.CN_APP_NAME_VIEWER, size=(800, 600), style=wx.DEFAULT_FRAME_STYLE)

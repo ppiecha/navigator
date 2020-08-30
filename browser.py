@@ -266,6 +266,7 @@ class Browser(wx.ListCtrl, ListCtrlAutoWidthMixin):
             # self.frame.get_inactive_win().get_active_browser().path_pnl.path_lbl.Refresh()
         else:
             self.open_directory(str(self.get_next_dir(self.path)), cn.CN_GO_BACK, self.conf)
+        self.frame.last_active_browser = self
         e.Skip()
 
     def on_kill_focus(self, e):

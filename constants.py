@@ -141,6 +141,10 @@ CN_IM_NEW_SHORTCUT = os.path.join(CN_APP_PATH, "img\\new_shortcut.png")
 CN_IM_SEARCH_DOWN = os.path.join(CN_APP_PATH, "img\\search_down.png")
 CN_IM_SEARCH_UP = os.path.join(CN_APP_PATH, "img\\search_up.png")
 CN_IM_CLOSE = os.path.join(CN_APP_PATH, "img\\delete.png")
+CN_IM_WORD = os.path.join(CN_APP_PATH, "img\\word.png")
+CN_IM_WORD_OFF = os.path.join(CN_APP_PATH, "img\\word_off.png")
+CN_IM_CASE = os.path.join(CN_APP_PATH, "img\\case.png")
+CN_IM_CASE_OFF = os.path.join(CN_APP_PATH, "img\\case_off.png")
 
 CN_COL_LNAME = 0
 CN_COL_DATE = 1

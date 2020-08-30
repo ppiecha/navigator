@@ -108,6 +108,9 @@ class HtmlViewer(wx.Panel):
             raise Exception("Highlight options not defined")
         if not lexer:
             lexer = self.get_lexer(file_name=file_name)
+        # print(vars(lexer))
+        # self.search_pnl.ed_lexer.SetValue(lexer)
+        # print(lexer, list(get_all_lexers()))
         if not formatter:
             formatter = self.get_formatter(lines=high_opt.lines)
         self.set_page(content=self.file_as_source(file_name),
@@ -152,7 +155,8 @@ class HtmlViewer(wx.Panel):
         self.vw.Find("")
         self.word = ""
 
-    def find_word(self, word, case_sensitive=False, whole_word=False, only_mark=False, backward=False, match=-1):
+    def find_word(self, word, case_sensitive=False, whole_word=False, only_mark=False, backward=False, match=-1,
+                  reset=False):
         flags = wx.html2.WEBVIEW_FIND_DEFAULT | wx.html2.WEBVIEW_FIND_WRAP | wx.html2.WEBVIEW_FIND_HIGHLIGHT_RESULT
         if case_sensitive:
             flags |= wx.html2.WEBVIEW_FIND_MATCH_CASE
@@ -160,7 +164,7 @@ class HtmlViewer(wx.Panel):
             flags |= wx.html2.WEBVIEW_FIND_ENTIRE_WORD
         if backward:
             flags |= wx.html2.WEBVIEW_FIND_BACKWARDS
-        if word != self.word:
+        if word != self.word or reset:
             self.word = word
             self.word_cnt = self.vw.Find(word, flags)
             if only_mark:
@@ -207,10 +211,10 @@ class SearchPanel(wx.Panel):
     def __init__(self, parent, browser):
         super().__init__(parent=parent)
         self.browser = browser
-
+        self.lexer_dict = get_all_lexers()
         self.ed_line = wx.SpinCtrl(parent=self, min=1, initial=1)
         self.lbl_all_lines = wx.StaticText(parent=self)
-
+        self.ed_lexer = wx.ComboBox(self, style=wx.CB_READONLY | wx.CB_SORT)
         self.ed_word = wx.SearchCtrl(parent=self)
         self.ed_word.ShowCancelButton(True)
         self.btn_prev = controls.ToolBtn(self, cn.CN_IM_SEARCH_UP, def_ctrl=[browser])
@@ -218,14 +222,15 @@ class SearchPanel(wx.Panel):
         self.btn_next = controls.ToolBtn(self, cn.CN_IM_SEARCH_DOWN, def_ctrl=[browser])
         self.btn_next.SetToolTip(wx.ToolTip("Find next (F3)"))
         self.lbl_cnt = wx.StaticText(parent=self)
-        self.btn_case = controls.ToggleBtn(self, cn.CN_IM_FILTER_OFF, cn.CN_IM_FILTER, def_ctrl=[browser])
-        self.btn_whole = controls.ToggleBtn(self, cn.CN_IM_FILTER_OFF, cn.CN_IM_FILTER, def_ctrl=[browser])
+        self.btn_case = controls.ToggleBtn(self, cn.CN_IM_CASE_OFF, cn.CN_IM_CASE, def_ctrl=[browser])
+        self.btn_whole = controls.ToggleBtn(self, cn.CN_IM_WORD_OFF, cn.CN_IM_WORD, def_ctrl=[browser])
         # self.btn_close = controls.ToolBtn(self, cn.CN_IM_CLOSE, def_ctrl=[browser])
 
         self.sizer = wx.BoxSizer(wx.HORIZONTAL)
         self.sizer.Add(wx.StaticText(parent=self, label="Line"), flag=wx.LEFT | wx.ALIGN_CENTER_VERTICAL, border=5)
         self.sizer.Add(self.ed_line, flag=wx.LEFT | wx.ALIGN_CENTER_VERTICAL, border=5)
         self.sizer.Add(self.lbl_all_lines, flag=wx.LEFT | wx.ALIGN_CENTER_VERTICAL, border=5)
+        self.sizer.Add(self.ed_lexer, flag=wx.LEFT | wx.ALIGN_CENTER_VERTICAL, border=5)
         self.sizer.Add(wx.Panel(self), flag=wx.EXPAND, proportion=1)
         self.sizer.Add(self.lbl_cnt, flag=wx.ALIGN_CENTER_VERTICAL | wx.RIGHT, border=5)
         self.sizer.AddMany([self.ed_word, self.btn_prev, self.btn_next, self.btn_case, self.btn_whole])
@@ -236,6 +241,20 @@ class SearchPanel(wx.Panel):
         self.btn_next.Bind(wx.EVT_BUTTON, self.on_search_forward)
         self.btn_prev.Bind(wx.EVT_BUTTON, self.on_search_backward)
         self.ed_line.Bind(wx.EVT_TEXT, self.go_to_line)
+        self.btn_case.Bind(wx.EVT_TOGGLEBUTTON, self.on_reset_search)
+        self.btn_whole.Bind(wx.EVT_TOGGLEBUTTON, self.on_reset_search)
+        self.ed_lexer.Bind(wx.EVT_COMBOBOX, self.on_select_lexer)
+
+        self.load_lexers()
+
+    def load_lexers(self):
+        self.ed_lexer.SetItems([item[1][0] for item in self.lexer_dict])
+
+    def on_select_lexer(self, e):
+        formatter = self.browser.get_formatter(lines=[])
+        self.browser.set_page(content=self.browser.file_as_source(self.browser.get_file_name()),
+                              lexer=get_lexer_by_name(self.ed_lexer.GetStringSelection()),
+                              formatter=formatter)
 
     def set_max_line(self, max_line):
         self.lbl_all_lines.SetLabel(f"/{max_line}")
@@ -247,24 +266,32 @@ class SearchPanel(wx.Panel):
     def resize(self):
         self.sizer.Layout()
 
+    def on_reset_search(self, e):
+        self.do_search(word=self.ed_word.GetValue(),
+                       case_sensitive=self.btn_case.GetValue(),
+                       whole_word=self.btn_whole.GetValue(),
+                       backward=False,
+                       reset=True)
+
     def on_search_forward(self, e):
         self.do_search(word=self.ed_word.GetValue(),
-                       case_sensitive=False,
-                       whole_word=False,
+                       case_sensitive=self.btn_case.GetValue(),
+                       whole_word=self.btn_whole.GetValue(),
                        backward=False)
 
     def on_search_backward(self, e):
         self.do_search(word=self.ed_word.GetValue(),
-                       case_sensitive=False,
-                       whole_word=False,
+                       case_sensitive=self.btn_case.GetValue(),
+                       whole_word=self.btn_whole.GetValue(),
                        backward=True)
 
-    def do_search(self, word, case_sensitive, whole_word, backward=False):
+    def do_search(self, word, case_sensitive, whole_word, backward=False, reset=False):
         word_num, word_cnt = self.browser.find_word(word=word,
                                                     case_sensitive=case_sensitive, # button pressed
                                                     whole_word=whole_word, # button pressed
                                                     only_mark=False,
-                                                    backward=backward)
+                                                    backward=backward,
+                                                    reset=reset)
         if word_num >= 0:
             self.lbl_cnt.SetLabel(f"{str(word_num + 1)}/{str(word_cnt)}")
         else:

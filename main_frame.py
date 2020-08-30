@@ -34,6 +34,7 @@ class MainFrame(wx.Frame):
         self.im_list = wx.ImageList(16, 16)
         self.sizer = None
         self.wait = None
+        self.last_active_browser = None
         self.vim = viewer.MainFrame(nav_frame=self)
         self.finder = finder.MainFrame(app=wx.GetApp(), nav_frame=self)
 
@@ -96,7 +97,9 @@ class MainFrame(wx.Frame):
             raise Exception("active " + str(type(win)))
 
     def return_focus(self):
-        self.splitter.SetFocus()
+        self.last_active_browser.SetFocus()
+        # self.SetFocus()
+        # self.splitter.SetFocus()
 
     def change_win_focus(self):
         win = self.FindFocus()
