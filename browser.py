@@ -1,3 +1,4 @@
+from __future__ import annotations
 import wx
 from pathlib import Path
 import util
@@ -13,6 +14,11 @@ import os
 import dialogs
 from lib4py import shell as sh
 from typing import Sequence, List, Tuple
+from datetime import datetime
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    import main_frame as mf
+    import config as cfg
 
 CN_MAX_HIST_COUNT = 20
 
@@ -27,7 +33,7 @@ class Tit:
 
 
 class BrowserCtrl(aui.AuiNotebook):
-    def __init__(self, parent, frame, im_list, conf, is_left):
+    def __init__(self, parent, frame: mf.MainFrame, im_list: wx.ImageList, conf: List[cfg.BrowserConf], is_left: bool):
         super().__init__(parent=parent, style=aui.AUI_NB_TAB_MOVE | # aui.AUI_NB_TAB_SPLIT |
                                               aui.AUI_NB_SCROLL_BUTTONS | aui.AUI_NB_TOP)
         self.SetArtProvider(aui.AuiDefaultTabArt())
@@ -80,7 +86,6 @@ class BrowserCtrl(aui.AuiNotebook):
             # print(type(win))
             pass
         e.Skip()
-
 
     def on_begin_drag(self, e):
         self.begin_drag_index = e.GetSelection()
@@ -143,7 +148,7 @@ class BrowserCtrl(aui.AuiNotebook):
 
 
 class BrowserPnl(wx.Panel):
-    def __init__(self, parent, frame, im_list, tab_conf, is_left):
+    def __init__(self, parent, frame: mf.MainFrame, im_list: wx.ImageList, tab_conf: cfg.BrowserConf, is_left: bool):
         super().__init__(parent=parent)
         self.parent = parent
         self.frame = frame
@@ -152,6 +157,7 @@ class BrowserPnl(wx.Panel):
         self.filter_pnl = filter_pnl.FilterPnl(self, self.frame, self.browser)
         self.browser.set_references(self.path_pnl, self.filter_pnl)
         self.path_pnl.hist_menu.set_browser(self.browser)
+        self.path_pnl.smart_hist_menu.set_browser(self.browser)
         self.browser.open_dir(tab_conf.last_path)
         self.top_down_sizer = wx.BoxSizer(wx.VERTICAL)
         self.top_down_sizer.Add(self.path_pnl, flag=wx.EXPAND)
@@ -191,7 +197,7 @@ class MyDropSource(wx.DropSource):
 
 
 class Browser(wx.ListCtrl, ListCtrlAutoWidthMixin):
-    def __init__(self, parent, frame, im_list, conf):
+    def __init__(self, parent, frame: mf.MainFrame, im_list: wx.ImageList, conf: cfg.BrowserConf):
         self.win_id = wx.NewId()
         super().__init__(parent=parent, style=wx.LC_REPORT | wx.LC_VIRTUAL, id=self.win_id)
         ListCtrlAutoWidthMixin.__init__(self)
@@ -260,13 +266,13 @@ class Browser(wx.ListCtrl, ListCtrlAutoWidthMixin):
         self.drag_src = None
 
     def on_browser_focus(self, e):
+        self.frame.last_active_browser = self
         if self.path.exists():
             os.chdir(str(self.path))
-            self.path_pnl.path_lbl._refresh()
-            # self.frame.get_inactive_win().get_active_browser().path_pnl.path_lbl.Refresh()
+            self.path_pnl.path_lbl.reset()
+            self.frame.get_inactive_win().get_active_browser().path_pnl.path_lbl.reset()
         else:
             self.open_directory(str(self.get_next_dir(self.path)), cn.CN_GO_BACK, self.conf)
-        self.frame.last_active_browser = self
         e.Skip()
 
     def on_kill_focus(self, e):
@@ -381,6 +387,7 @@ class Browser(wx.ListCtrl, ListCtrlAutoWidthMixin):
             self.history.insert(0, path)
             if len(self.history) > self.frame.app_conf.history_limit:
                 self.history.pop()
+
 
     def on_select(self, event):
         self.update_summary_lbl()
@@ -503,6 +510,7 @@ class Browser(wx.ListCtrl, ListCtrlAutoWidthMixin):
         self.set_tab_name(self.conf.tab_name)
         self.path_pnl.set_value(str(value))
         self.add_hist_item(str(value))
+        self.frame.app_conf.folder_hist_update_item(str(value), datetime.today())
         self.root = value.samefile(value.anchor)
         self._path = value
 

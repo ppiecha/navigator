@@ -40,7 +40,7 @@ class DirLabel(wx.Panel):
         self._refresh()
 
     def is_active(self):
-        return self.browser_panel.browser.HasFocus()
+        return self.browser_panel.browser == self.frame.last_active_browser
 
     def AcceptsFocus(self):
         return False

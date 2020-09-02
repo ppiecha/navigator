@@ -147,7 +147,7 @@ class MainFrame(wx.Frame):
         self.img_child = self.im_list.Add(wx.Bitmap(cn.CN_IM_CHILD, wx.BITMAP_TYPE_PNG))
         self.img_link_folder = self.im_list.Add(wx.Bitmap(cn.CN_IM_NEW_FOLDER, wx.BITMAP_TYPE_PNG))
         self.img_link_file = self.im_list.Add(wx.Bitmap(cn.CN_IM_NEW_FILE, wx.BITMAP_TYPE_PNG))
-        self.img_link = self.im_list.Add(wx.Bitmap(cn.CN_IM_NEW_HLINK, wx.BITMAP_TYPE_PNG))
+        self.img_link = self.im_list.Add(wx.Bitmap(cn.CN_IM_LINK, wx.BITMAP_TYPE_PNG))
         self.img_link_shortcut = self.im_list.Add(wx.Bitmap(cn.CN_IM_NEW_SHORTCUT, wx.BITMAP_TYPE_PNG))
 
         self.splitter = wx.SplitterWindow(self, cn.ID_SPLITTER, style=wx.SP_BORDER)

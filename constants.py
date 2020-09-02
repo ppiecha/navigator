@@ -1,6 +1,8 @@
 import os
 import wx.lib.newevent
 from pathlib import Path
+import datetime as dt
+import time
 
 
 
@@ -133,7 +135,7 @@ CN_IM_PARENT = os.path.join(CN_APP_PATH, "img\\parent.png")
 CN_IM_CHILD = os.path.join(CN_APP_PATH, "img\\child.png")
 CN_IM_NEW_FOLDER = os.path.join(CN_APP_PATH, "img\\new_folder.png")
 CN_IM_NEW_FILE = os.path.join(CN_APP_PATH, "img\\new_file.png")
-CN_IM_NEW_HLINK = os.path.join(CN_APP_PATH, "img\\new_link.png")
+CN_IM_LINK = os.path.join(CN_APP_PATH, "img\\link.png")
 CN_IM_NEW_SHORTCUT = os.path.join(CN_APP_PATH, "img\\new_shortcut.png")
 # CN_IM_DELETE = os.path.join(CN_APP_PATH, "img\\delete.png")
 # CN_IM_NEW_FILE = os.path.join(CN_APP_PATH, "img\\new_file.png")
@@ -162,6 +164,14 @@ def q(text):
 # t = "C:\\_piotr_\\__GIT__\\cool_soft_reg\\midi32.reg"
 # p = Path(t)
 # print(str(p))
+
+# t = dt.datetime.today()
+# # t.resolution = dt.timedelta(days=1)
+# div = 1000000 * 3600 * 24
+# print(div)
+# time.sleep(2)
+#
+# print((dt.datetime.today()-t).days)
 
 
 

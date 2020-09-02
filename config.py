@@ -1,5 +1,7 @@
 from pathlib import Path
 import util
+import datetime as dt
+from typing import Dict, Sequence
 
 
 class BrowserConf:
@@ -75,6 +77,8 @@ class NavigatorConf:
         self.custom_paths = []
         self.search_history = []
         self.search_hist_limit = 100
+        # self.folder_hist = Dict[str, FolderHistItem]
+        self.folder_hist = {}
 
     def __str__(self):
         return "Left browser: " + str(self.left_browser) + "\n" + "Right browser: " + str(self.right_browser)
@@ -91,4 +95,37 @@ class NavigatorConf:
         # len([z for z in y.split(";") if z.strip() and z.startswith(x) and len(x) < len(z)]) > 0, hist))) > 0, hist))
         while len(self.search_history) > self.search_hist_limit:
             self.search_history.pop()
+
+    def folder_hist_update_item(self, folder_name: str, date: dt.datetime) -> None:
+        if folder_name in self.folder_hist.keys():
+            self.folder_hist[folder_name].visited_cnt += 1
+            self.folder_hist[folder_name].last_visited = date
+        else:
+            self.folder_hist[folder_name] = FolderHistItem(folder_name=folder_name, last_visited=date)
+
+    def folder_hist_calc_rating(self):
+        for fn in self.folder_hist.keys():
+            self.folder_hist[fn].calc_rating()
+        return {k: v for k, v in sorted(self.folder_hist.items(), key=lambda item: item[1].rating, reverse=True)}
+
+
+class FolderHistItem:
+    def __init__(self, folder_name: str, last_visited: dt.datetime) -> None:
+        self.folder_name = folder_name
+        self.last_visited = last_visited
+        self.visited_cnt: int = 1
+        self.rating: float = 0
+
+    def calc_rating(self):
+        if self.last_visited is None:
+            raise ValueError("Incorrect date value")
+        days = (dt.datetime.today() - self.last_visited).days
+        if days == 0:
+            self.rating = self.visited_cnt
+        elif days < 30:
+            self.rating = self.visited_cnt / days
+        else:
+            self.rating = 0
+
+
 

@@ -1,3 +1,4 @@
+from __future__ import annotations
 import wx
 import os
 import constants as cn
@@ -7,10 +8,13 @@ import links
 import dialogs
 import controls
 from lib4py import shell as sh
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    import main_frame as mf
 
 
 class PathPanel(wx.Panel):
-    def __init__(self, parent, frame, is_left):
+    def __init__(self, parent, frame: mf.MainFrame, is_left: bool):
         super().__init__(parent=parent)
         self.parent = parent
         self.frame = frame
@@ -30,17 +34,21 @@ class PathPanel(wx.Panel):
         self.links_btn = controls.PathBtn(self, frame, cn.CN_IM_FAV)
         self.hist_btn = controls.PathBtn(self, frame, cn.CN_IM_HIST)
         self.hist_menu = HistMenu()
+        self.smart_hist_btn = controls.PathBtn(self, frame, cn.CN_IM_LINK)
+        self.smart_hist_menu = SmartHistMenu(frame=frame)
         self.sizer_h = wx.BoxSizer(wx.HORIZONTAL)
         self.sizer_v = wx.BoxSizer(wx.VERTICAL)
         self.sizer_h.Add(self.drive_combo)
         self.sizer_h.Add(self.sep, flag=wx.EXPAND, proportion=1)
         self.sizer_h.Add(self.links_btn)
+        self.sizer_h.Add(self.smart_hist_btn)
         self.sizer_h.Add(self.hist_btn)
         self.sizer_v.Add(self.path_lbl, flag=wx.EXPAND, proportion=1)
         self.sizer_v.Add(self.edit_sizer, flag=wx.EXPAND, proportion=1)
         self.sizer_v.Add(self.sizer_h, flag=wx.EXPAND, proportion=1)
         self.SetSizerAndFit(self.sizer_v)
 
+        self.smart_hist_btn.Bind(wx.EVT_BUTTON, self.on_smart_history)
         self.hist_btn.Bind(wx.EVT_BUTTON, self.on_history)
         self.links_btn.Bind(wx.EVT_BUTTON, self.on_links)
         self.edit_btn.Bind(wx.EVT_BUTTON, self.on_ok)
@@ -101,6 +109,10 @@ class PathPanel(wx.Panel):
     def on_history(self, event):
         self.hist_menu.update()
         self.frame.PopupMenu(self.hist_menu)
+
+    def on_smart_history(self, event):
+        self.smart_hist_menu.update()
+        self.frame.PopupMenu(self.smart_hist_menu)
 
 
 class PathEdit(wx.TextCtrl):
@@ -245,6 +257,32 @@ class HistMenu(wx.Menu):
     def on_click(self, event):
         operation = self.sorted_items_id[event.GetId()]
         self.browser.open_dir(operation)
+
+
+class SmartHistMenu(wx.Menu):
+    def __init__(self, frame: mf.MainFrame):
+        super().__init__()
+        self.frame = frame
+        self.browser = None
+        self.sorted_items = {}
+        self.sorted_items_id = {}
+
+    def set_browser(self, browser):
+        self.browser = browser
+
+    def update(self):
+        for item in self.GetMenuItems():
+            self.Delete(item)
+        self.sorted_items_id = {}
+        for k, v in self.frame.app_conf.folder_hist_calc_rating().items():
+            self.sorted_items_id[wx.NewId()] = f"{str(round(v.rating, 1))} {k}"
+        for id in self.sorted_items_id.keys():
+            self.Append(id, item=self.sorted_items_id[id])
+            self.Bind(wx.EVT_MENU, self.on_click, id=id)
+
+    def on_click(self, event):
+        operation = self.sorted_items_id[event.GetId()]
+        self.browser.open_dir(operation.split(" ")[1])
 
 CN_CONFIGURE = "Configure..."
 

@@ -91,7 +91,7 @@ class DriveBtn(buttons.GenBitmapTextToggleButton):
 class PathBtn(wx.BitmapButton):
     def __init__(self, parent, frame, image):
         super().__init__(parent=parent, bitmap=wx.Bitmap(image, wx.BITMAP_TYPE_PNG), size=(23, 23))
-        self.Bind(wx.EVT_SET_FOCUS, self.on_focus)
+        # self.Bind(wx.EVT_SET_FOCUS, self.on_focus)
         self.frame = frame
 
     def on_focus(self, e):
