@@ -598,8 +598,8 @@ class DirCacheItem:
         if not dir_name:
             return
         self.dir_name: str = dir_name
-        self.dir_items = List[Tuple[str, float, str, str, bool, str]]
-        self.file_items = List[Tuple[str, float, int, str, bool, str]]
+        self.dir_items = List[Tuple[str, float, str, str, bool, str, Path]]
+        self.file_items = List[Tuple[str, float, int, str, bool, str, Path]]
         self.open_dir(dir_name)
         self.watcher = dir_watcher.DirWatcher(frame=frame, dir_name=dir_name, dir_items=self.dir_items,
                                               file_items=self.file_items)
@@ -610,10 +610,10 @@ class DirCacheItem:
         with os.scandir(dir_name) as sd:
             for i in sd:
                 if i.is_dir():
-                    self.dir_items.append((i.name.lower(), i.stat().st_mtime, "", i.name, i.is_dir(), ""))
+                    self.dir_items.append((i.name.lower(), i.stat().st_mtime, "", i.name, i.is_dir(), "", Path(i.path)))
                 else:
                     self.file_items.append((i.name.lower(), i.stat().st_mtime, i.stat().st_size, i.name, i.is_dir(),
-                                            Path(i.name).suffix))
+                                            Path(i.name).suffix, Path(i.path)))
 
 
 class DirCache:

@@ -32,7 +32,9 @@ def format_size(size):
 def is_hidden(x: Path) -> bool:
     attribute = x.stat().st_file_attributes
     path, fname = os.path.split(str(x))
-    return bool(attribute & (stat.FILE_ATTRIBUTE_HIDDEN | stat.FILE_ATTRIBUTE_SYSTEM)) or str(fname).startswith(".")
-
-
-
+    ext = x.suffix
+    is_temp_file: bool = False
+    if ext:
+        is_temp_file = ext[2:].startswith("~")
+    return bool(attribute & (stat.FILE_ATTRIBUTE_HIDDEN | stat.FILE_ATTRIBUTE_SYSTEM)) or str(fname).startswith(
+        ".") or is_temp_file

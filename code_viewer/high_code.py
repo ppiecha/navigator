@@ -184,9 +184,14 @@ class HtmlViewer(wx.Panel):
     def get_lexer(self, file_name, lexer=""):
         if not lexer:
             try:
-                return guess_lexer_for_filename(file_name, self.file_as_source(file_name))
+                lex = guess_lexer_for_filename(file_name, self.file_as_source(file_name))
+                return lex
             except ClassNotFound:
-                return get_lexer_by_name('text')
+                ext: str = Path(file_name).suffix
+                if ext and ext.lower() in ('.pks', '.pkb'):
+                    return get_lexer_by_name('sql')
+                else:
+                    return get_lexer_by_name('text')
 
     def get_formatter(self, style='emacs', linenos='table', lines=[], linenostart=1):
         return HtmlFormatter(#encoding='utf-8',
@@ -200,6 +205,7 @@ class HtmlViewer(wx.Panel):
                              linenostart=linenostart)
 
     def go_to_line(self, line_no=None):
+        print('document.getElementById("line-' + str(line_no) + '").scrollIntoView(true);')
         self.vw.RunScript('document.getElementById("line-' + str(line_no) + '").scrollIntoView(true);')
         # self.go_to_left()
 

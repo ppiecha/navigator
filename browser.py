@@ -216,6 +216,8 @@ class Browser(wx.ListCtrl, ListCtrlAutoWidthMixin):
         self.extension_images = {}
         self.image_list = im_list
         self.SetImageList(self.image_list, wx.IMAGE_LIST_SMALL)
+        self.hidden_attr = wx.ItemAttr()
+        self.hidden_attr.SetTextColour(wx.Colour(128, 128, 128))
         self.columns = ["Name", "Date", "Size"]
         self.drag_src = None
         self.drag_tgt = MyFileDropTarget(self, self.on_process_dropped_files)
@@ -345,12 +347,13 @@ class Browser(wx.ListCtrl, ListCtrlAutoWidthMixin):
             return self.get_image_id(extension)
 
     def OnGetItemAttr(self, item):
-        # if item % 3 == 1:
-        #     return self.attr1
-        # elif item % 3 == 2:
-        #     return self.attr2
-        # else:
-        return None
+        if 0 <= item < len(self.dir_cache):
+            if util.is_hidden(self.dir_cache[item][cn.CN_COL_FULL_PATH]):
+                return self.hidden_attr
+            else:
+                return None
+        else:
+            return None
 
     def init_ui(self, conf):
         for index, name in enumerate(self.columns):
