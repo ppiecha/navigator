@@ -3,6 +3,7 @@ import stat
 import os
 from lib4py import shell as sh
 from typing import Callable, List, Sequence
+from pathlib import Path
 
 
 def run_in_thread(target: Callable, args: Sequence, lst: List[sh.ShellThread] = None) -> None:
@@ -28,7 +29,7 @@ def format_size(size):
     return sizeof_fmt(size) if size != "" else ""
 
 
-def is_hidden(x):
+def is_hidden(x: Path) -> bool:
     attribute = x.stat().st_file_attributes
     path, fname = os.path.split(str(x))
     return bool(attribute & (stat.FILE_ATTRIBUTE_HIDDEN | stat.FILE_ATTRIBUTE_SYSTEM)) or str(fname).startswith(".")

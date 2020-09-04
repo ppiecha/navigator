@@ -20,6 +20,7 @@ from typing import List, Dict, Sequence, Tuple
 from lib4py import shell as sh
 from code_viewer import viewer
 from finder import main_frame as finder
+from controls import CmdBtn
 
 
 class MainFrame(wx.Frame):
@@ -148,7 +149,7 @@ class MainFrame(wx.Frame):
         self.img_link_folder = self.im_list.Add(wx.Bitmap(cn.CN_IM_NEW_FOLDER, wx.BITMAP_TYPE_PNG))
         self.img_link_file = self.im_list.Add(wx.Bitmap(cn.CN_IM_NEW_FILE, wx.BITMAP_TYPE_PNG))
         self.img_link = self.im_list.Add(wx.Bitmap(cn.CN_IM_LINK, wx.BITMAP_TYPE_PNG))
-        self.img_link_shortcut = self.im_list.Add(wx.Bitmap(cn.CN_IM_NEW_SHORTCUT, wx.BITMAP_TYPE_PNG))
+        self.img_link_shortcut = self.im_list.Add(wx.Bitmap(cn.CN_IM_SHORTCUT, wx.BITMAP_TYPE_PNG))
 
         self.splitter = wx.SplitterWindow(self, cn.ID_SPLITTER, style=wx.SP_BORDER)
         self.splitter.SetMinimumPaneSize(10)
@@ -590,23 +591,6 @@ class MainFrame(wx.Frame):
     def reread_source(self):
         act = self.get_active_win().get_active_browser()
         act.refresh_list(dir_name=str(act.path), conf=act.conf, to_select=[], reread_source=True)
-
-
-class CmdBtn(wx.Button):
-    def __init__(self, parent, id, label, size):
-        super().__init__(parent=parent, id=id, label=label, size=size)
-        self.frame = parent
-        self.Bind(wx.EVT_SET_FOCUS, self.on_focus)
-
-    def AcceptsFocus(self):
-        return False
-
-    def AcceptsFocusFromKeyboard(self):
-        return False
-
-    def on_focus(self, e):
-        self.frame.return_focus()
-        self.frame.menu_bar.exec_cmd_id(self.GetId())
 
 
 class DirCacheItem:

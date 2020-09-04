@@ -1,7 +1,10 @@
+from __future__ import annotations
 import wx
 import wx.lib.buttons as buttons
-import constants as cn
 import os
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    import main_frame as mf
 
 
 class FileNameEdit(wx.TextCtrl):
@@ -68,36 +71,57 @@ class ToggleBtn(wx.BitmapToggleButton):
         self.SetBitmapDisabled(wx.Bitmap(im_file, wx.BITMAP_TYPE_PNG))
 
 
-class DriveBtn(buttons.GenBitmapTextToggleButton):
-    def __init__(self, parent, label):
-        super().__init__(parent=parent, bitmap=wx.Bitmap(cn.CN_IM_DRIVE, wx.BITMAP_TYPE_PNG), size=(42, 24),
-                         style=wx.BU_LEFT, label=label)
-        self.def_ctrl = None
-
+class CmdBtn(wx.Button):
+    def __init__(self, parent, id, label, size):
+        super().__init__(parent=parent, id=id, label=label, size=size)
+        self.frame = parent
         self.Bind(wx.EVT_SET_FOCUS, self.on_focus)
-
-    def set_def_ctrl(self, ctrl):
-        self.def_ctrl = [ctrl]
 
     def AcceptsFocus(self):
         return False
 
-    def on_focus(self, event):
-        if self.def_ctrl:
-            self.def_ctrl[0].SetFocus()
-        event.Skip()
+    def AcceptsFocusFromKeyboard(self):
+        return False
+
+    def on_focus(self, e):
+        self.frame.return_focus()
+        self.frame.menu_bar.exec_cmd_id(self.GetId())
 
 
 class PathBtn(wx.BitmapButton):
     def __init__(self, parent, frame, image):
         super().__init__(parent=parent, bitmap=wx.Bitmap(image, wx.BITMAP_TYPE_PNG), size=(23, 23))
-        # self.Bind(wx.EVT_SET_FOCUS, self.on_focus)
+        self.Bind(wx.EVT_SET_FOCUS, self.on_focus)
         self.frame = frame
 
     def on_focus(self, e):
         if hasattr(self.frame, 'return_focus'):
             self.frame.return_focus()
-        # e.Skip()
 
     def AcceptsFocusFromKeyboard(self):
+        return False
+
+    def AcceptsFocus(self):
+        return False
+
+
+class NoFocusImgBtn(wx.BitmapButton):
+    def __init__(self, parent, image: str, callable=None, def_ctrl=None, exe_call: bool = True) -> None:
+        super().__init__(parent=parent, bitmap=wx.Bitmap(image, wx.BITMAP_TYPE_PNG), size=(23, 23))
+        self.callable = callable
+        self.exe_call = exe_call
+        self.def_ctrl = def_ctrl
+
+        self.Bind(wx.EVT_SET_FOCUS, self.on_focus)
+
+    def on_focus(self, e):
+        # if self.exe_call:
+        #     self.callable()
+        if self.def_ctrl is not None:
+            self.def_ctrl.SetFocus();
+
+    def AcceptsFocusFromKeyboard(self):
+        return False
+
+    def AcceptsFocus(self):
         return False

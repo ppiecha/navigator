@@ -11,6 +11,7 @@ from lib4py import shell as sh
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     import main_frame as mf
+    import browser
 
 
 class PathPanel(wx.Panel):
@@ -18,42 +19,56 @@ class PathPanel(wx.Panel):
         super().__init__(parent=parent)
         self.parent = parent
         self.frame = frame
+        self.browser: browser.Browser = None
         self.is_left = is_left
         self.tool_dlg = None
         self._read_only = True
         self.drive_combo = self.get_drive_combo()
         self.path_lbl = dir_label.DirLabel(self, self.frame)
         self.path_edit = PathEdit(self, self.frame)
-        self.edit_btn = controls.PathBtn(self, frame, cn.CN_IM_OK)
+        self.edit_btn = controls.NoFocusImgBtn(parent=self, image=cn.CN_IM_OK, def_ctrl=self.browser, callable=self.on_ok)
         self.path_edit.Show(False)
         self.edit_btn.Show(False)
         self.edit_sizer = wx.BoxSizer(wx.HORIZONTAL)
         self.edit_sizer.Add(self.path_edit, flag=wx.EXPAND, proportion=1)
         self.edit_sizer.Add(self.edit_btn)
         self.sep = wx.Panel(self)
-        self.links_btn = controls.PathBtn(self, frame, cn.CN_IM_FAV)
-        self.hist_btn = controls.PathBtn(self, frame, cn.CN_IM_HIST)
+        self.links_btn = controls.NoFocusImgBtn(parent=self, image=cn.CN_IM_FAV, def_ctrl=self.browser, callable=self.on_links)
+        # self.hist_btn = controls.NoFocusImgBtn(parent=self, image=cn.CN_IM_HIST, def_ctrl=self.browser, callable=self.on_history)
+        self.dir_btn = controls.NoFocusImgBtn(parent=self, image=cn.CN_IM_FOLDER, def_ctrl=self.browser, callable=self.on_change_folder)
+        self.smart_fold_btn = controls.NoFocusImgBtn(parent=self, image=cn.CN_IM_LINK, def_ctrl=self.browser, callable=self.on_smart_fold)
+        self.smart_file_btn = controls.NoFocusImgBtn(parent=self, image=cn.CN_IM_SHORTCUT, def_ctrl=self.browser,
+                                                     callable=self.on_smart_file)
         self.hist_menu = HistMenu()
-        self.smart_hist_btn = controls.PathBtn(self, frame, cn.CN_IM_LINK)
-        self.smart_hist_menu = SmartHistMenu(frame=frame)
+        self.smart_fold_menu = SmartFoldMenu(frame=frame)
+        self.smart_file_menu = SmartFileMenu(frame=frame)
         self.sizer_h = wx.BoxSizer(wx.HORIZONTAL)
         self.sizer_v = wx.BoxSizer(wx.VERTICAL)
         self.sizer_h.Add(self.drive_combo)
         self.sizer_h.Add(self.sep, flag=wx.EXPAND, proportion=1)
+        self.sizer_h.Add(self.dir_btn)
         self.sizer_h.Add(self.links_btn)
-        self.sizer_h.Add(self.smart_hist_btn)
-        self.sizer_h.Add(self.hist_btn)
+        self.sizer_h.Add(self.smart_file_btn)
+        self.sizer_h.Add(self.smart_fold_btn)
+        # self.sizer_h.Add(self.hist_btn)
         self.sizer_v.Add(self.path_lbl, flag=wx.EXPAND, proportion=1)
         self.sizer_v.Add(self.edit_sizer, flag=wx.EXPAND, proportion=1)
         self.sizer_v.Add(self.sizer_h, flag=wx.EXPAND, proportion=1)
         self.SetSizerAndFit(self.sizer_v)
 
-        self.smart_hist_btn.Bind(wx.EVT_BUTTON, self.on_smart_history)
-        self.hist_btn.Bind(wx.EVT_BUTTON, self.on_history)
+        self.dir_btn.Bind(wx.EVT_BUTTON, self.on_change_folder)
+        self.smart_fold_btn.Bind(wx.EVT_BUTTON, self.on_smart_fold)
+        self.smart_file_btn.Bind(wx.EVT_BUTTON, self.on_smart_file)
+        # self.hist_btn.Bind(wx.EVT_BUTTON, self.on_history)
         self.links_btn.Bind(wx.EVT_BUTTON, self.on_links)
         self.edit_btn.Bind(wx.EVT_BUTTON, self.on_ok)
 
         wx.CallAfter(self.set_read_only, True)
+
+    def set_browser(self, browser: browser.Browser) -> None:
+        self.browser = browser
+        self.hist_menu.set_browser(browser)
+        self.smart_fold_menu.set_browser(browser)
 
     def get_drive_combo(self):
         drive_combo = wx.ComboCtrl(self, id=wx.ID_ANY, value="", size=(46, 23), style=wx.CB_READONLY)
@@ -106,13 +121,22 @@ class PathPanel(wx.Panel):
         self.tool_dlg.show()
         self.tool_dlg.SetFocus()
 
-    def on_history(self, event):
+    def on_history(self, e):
         self.hist_menu.update()
         self.frame.PopupMenu(self.hist_menu)
 
-    def on_smart_history(self, event):
-        self.smart_hist_menu.update()
-        self.frame.PopupMenu(self.smart_hist_menu)
+    def on_smart_fold(self, event):
+        self.smart_fold_menu.update()
+        self.frame.PopupMenu(self.smart_fold_menu)
+
+    def on_smart_file(self, event):
+        self.smart_file_menu.update()
+        self.frame.PopupMenu(self.smart_file_menu)
+
+    def on_change_folder(self, e):
+        dir = wx.DirSelector(message="Select directory", default_path=str(self.browser.path))
+        if dir:
+            self.browser.open_dir(dir_name=dir)
 
 
 class PathEdit(wx.TextCtrl):
@@ -167,69 +191,6 @@ class PathEdit(wx.TextCtrl):
         else:
             return ""
 
-    # def on_menu(self, event):
-    #     # self.SelectAll()
-    #     menu = PathMenu(self.frame, self)
-    #     self.frame.PopupMenu(menu)
-    #     del menu
-
-    # def on_left_down(self, event):
-    #     if self.read_only and self.GetStringSelection():
-    #         end = self.get_current_dir().find(self.GetStringSelection()) + len(self.GetStringSelection())
-    #         self.open_dir(self.get_current_dir()[:end+1])
-    #     event.Skip()
-
-    # def on_kill_focus(self, event):
-    #     self.read_only = True
-    #     event.Skip()
-
-    # def on_mouse_move(self, event):
-    #
-    #     def get_text_to_select(parts, pos):
-    #         counter = 0
-    #         for id, part in enumerate(parts):
-    #             counter += len(part) + 1
-    #             if counter > pos:
-    #                 return parts[id]
-    #
-    #     if self.read_only and not wx.GetMouseState().LeftIsDown():
-    #         x, y = event.GetPosition()
-    #         path = self.GetValue()
-    #         row, col = self.HitTestPos((x, y))
-    #         parts = path.split(os.path.sep)
-    #         selection = get_text_to_select(parts, col)
-    #         start = path.find(selection)
-    #         if start > -1 and not path.endswith(selection) and selection.find("...") == -1:
-    #             self.SetFocus()
-    #             self.SetSelection(start, start + len(selection))
-    #         else:
-    #             self.SelectNone()
-    #
-    #     event.Skip()
-
-
-    # @property
-    # def read_only(self):
-    #     return self._read_only
-    #
-    # @read_only.setter
-    # def read_only(self, value):
-    #     self.SetEditable(not value)
-    #     if value:
-    #         self.HideNativeCaret()
-    #         self.SetCursor(wx.Cursor(wx.CURSOR_ARROW))
-    #         self.Bind(wx.EVT_CONTEXT_MENU, self.on_menu)
-    #         if self.get_current_dir():
-    #             self.SetValue(self.get_shortcut(self.get_current_dir()))
-    #         self.SelectNone()
-    #     else:
-    #         self.ShowNativeCaret()
-    #         self.SetCursor(wx.Cursor(wx.CURSOR_IBEAM))
-    #         res = self.Unbind(wx.EVT_CONTEXT_MENU)
-    #         print(res)
-    #         self.SelectAll()
-    #     self._read_only = value
-
 
 class HistMenu(wx.Menu):
     def __init__(self):
@@ -259,7 +220,7 @@ class HistMenu(wx.Menu):
         self.browser.open_dir(operation)
 
 
-class SmartHistMenu(wx.Menu):
+class SmartFoldMenu(wx.Menu):
     def __init__(self, frame: mf.MainFrame):
         super().__init__()
         self.frame = frame
@@ -277,12 +238,42 @@ class SmartHistMenu(wx.Menu):
         for k, v in self.frame.app_conf.folder_hist_calc_rating().items():
             self.sorted_items_id[wx.NewId()] = f"{str(round(v.rating, 1))} {k}"
         for id in self.sorted_items_id.keys():
-            self.Append(id, item=self.sorted_items_id[id])
+            menu_item = self.Append(id, item=self.sorted_items_id[id])
+            menu_item.SetBitmap(wx.Bitmap(cn.CN_IM_FOLDER, wx.BITMAP_TYPE_PNG))
             self.Bind(wx.EVT_MENU, self.on_click, id=id)
 
     def on_click(self, event):
         operation = self.sorted_items_id[event.GetId()]
         self.browser.open_dir(operation.split(" ")[1])
+
+
+class SmartFileMenu(wx.Menu):
+    def __init__(self, frame: mf.MainFrame):
+        super().__init__()
+        self.frame = frame
+        self.browser = None
+        self.sorted_items = {}
+        self.sorted_items_id = {}
+
+    def set_browser(self, browser):
+        self.browser = browser
+
+    def update(self):
+        for item in self.GetMenuItems():
+            self.Delete(item)
+        self.sorted_items_id = {}
+        for k, v in self.frame.app_conf.file_hist_calc_rating().items():
+            self.sorted_items_id[wx.NewId()] = k
+        for id in self.sorted_items_id.keys():
+            file_name = self.sorted_items_id[id]
+            menu_item = self.Append(id, item=file_name)
+            menu_item.SetBitmap(sh.extension_to_bitmap(Path(file_name).suffix))
+            self.Bind(wx.EVT_MENU, self.on_click, id=id)
+
+    def on_click(self, event):
+        operation = self.sorted_items_id[event.GetId()]
+        sh.start_file(operation)
+
 
 CN_CONFIGURE = "Configure..."
 

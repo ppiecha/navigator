@@ -156,8 +156,7 @@ class BrowserPnl(wx.Panel):
         self.browser = Browser(self, frame, im_list, tab_conf)
         self.filter_pnl = filter_pnl.FilterPnl(self, self.frame, self.browser)
         self.browser.set_references(self.path_pnl, self.filter_pnl)
-        self.path_pnl.hist_menu.set_browser(self.browser)
-        self.path_pnl.smart_hist_menu.set_browser(self.browser)
+        self.path_pnl.set_browser(self.browser)
         self.browser.open_dir(tab_conf.last_path)
         self.top_down_sizer = wx.BoxSizer(wx.VERTICAL)
         self.top_down_sizer.Add(self.path_pnl, flag=wx.EXPAND)
@@ -509,7 +508,7 @@ class Browser(wx.ListCtrl, ListCtrlAutoWidthMixin):
         self.conf.last_path = value
         self.set_tab_name(self.conf.tab_name)
         self.path_pnl.set_value(str(value))
-        self.add_hist_item(str(value))
+        # self.add_hist_item(str(value))
         self.frame.app_conf.folder_hist_update_item(str(value), datetime.today())
         self.root = value.samefile(value.anchor)
         self._path = value
@@ -561,6 +560,7 @@ class Browser(wx.ListCtrl, ListCtrlAutoWidthMixin):
                 new_path = Path(res)
                 del lnk
             if new_path.is_file():
+                self.frame.app_conf.file_hist_update_item(str(new_path), datetime.today())
                 sh.start_file(str(new_path))
                 self.frame.show_wait()
             elif new_path.is_dir():

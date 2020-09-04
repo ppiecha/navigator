@@ -71,14 +71,16 @@ class NavigatorConf:
         self.show_hidden = False
         self.pos = None
         self.size = None
-        self.history_limit = 20
+        self.history_limit = 25
         self.left_active_tab = None
         self.right_active_tab = None
         self.custom_paths = []
         self.search_history = []
         self.search_hist_limit = 100
-        # self.folder_hist = Dict[str, FolderHistItem]
+        self.folder_hist = Dict[str, FolderHistItem]
         self.folder_hist = {}
+        self.file_hist = Dict[str, FolderHistItem]
+        self.file_hist = {}
 
     def __str__(self):
         return "Left browser: " + str(self.left_browser) + "\n" + "Right browser: " + str(self.right_browser)
@@ -106,7 +108,40 @@ class NavigatorConf:
     def folder_hist_calc_rating(self):
         for fn in self.folder_hist.keys():
             self.folder_hist[fn].calc_rating()
-        return {k: v for k, v in sorted(self.folder_hist.items(), key=lambda item: item[1].rating, reverse=True)}
+        dct = {k: v for k, v in sorted(self.folder_hist.items(), key=lambda item: item[1].rating, reverse=True)}
+        return {k: dct[k] for k in list(dct)[:self.history_limit]}
+
+    def file_hist_update_item(self, file_name: str, date: dt.datetime) -> None:
+        if file_name in self.file_hist.keys():
+            self.file_hist[file_name].visited_cnt += 1
+            self.file_hist[file_name].last_visited = date
+        else:
+            self.file_hist[file_name] = FileHistItem(folder_name=file_name, last_visited=date)
+
+    def file_hist_calc_rating(self):
+        for fn in self.file_hist.keys():
+            self.file_hist[fn].calc_rating()
+        dct = {k: v for k, v in sorted(self.file_hist.items(), key=lambda item: item[1].rating, reverse=True)}
+        return {k: dct[k] for k in list(dct)[:self.history_limit]}
+
+
+class FileHistItem:
+    def __init__(self, folder_name: str, last_visited: dt.datetime) -> None:
+        self.file_name = folder_name
+        self.last_visited = last_visited
+        self.visited_cnt: int = 1
+        self.rating: float = 0
+
+    def calc_rating(self):
+        if self.last_visited is None:
+            raise ValueError("Incorrect date value")
+        days = (dt.datetime.today() - self.last_visited).days
+        if days == 0:
+            self.rating = self.visited_cnt
+        elif days < 30:
+            self.rating = self.visited_cnt / days
+        else:
+            self.rating = 0
 
 
 class FolderHistItem:
