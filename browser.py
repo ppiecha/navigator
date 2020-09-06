@@ -15,6 +15,7 @@ import dialogs
 from lib4py import shell as sh
 from typing import Sequence, List, Tuple
 from datetime import datetime
+import subprocess
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     import main_frame as mf
@@ -235,7 +236,7 @@ class Browser(wx.ListCtrl, ListCtrlAutoWidthMixin):
         self.Bind(wx.EVT_SET_FOCUS, self.on_browser_focus)
         self.Bind(wx.EVT_KILL_FOCUS, self.on_kill_focus)
         self.Bind(wx.EVT_LIST_BEGIN_DRAG, self.on_start_drag, id=self.win_id)
-        self.register_listener(topic=cn.CN_TOPIC_DIR_CHG)
+        self.register_listeners()
 
     def on_process_dropped_files(self, x: int, y: int, file_names: List[str]) -> bool:
         src_id = self.drag_src.win_id if self.drag_src else -1
@@ -283,17 +284,25 @@ class Browser(wx.ListCtrl, ListCtrlAutoWidthMixin):
     def __repr__(self):
         return str(self.path)
 
-    def register_listener(self, topic):
-        if not pub.subscribe(self.listen_dir_changes, topic):
-            raise Exception("Cannot register watchdir listener")
+    def register_listeners(self):
+        if not pub.subscribe(self.listen_dir_changes, cn.CN_TOPIC_DIR_CHG):
+            raise Exception(f"Cannot register listener {cn.CN_TOPIC_DIR_CHG}")
+        if not pub.subscribe(self.listen_reread, cn.CN_TOPIC_REREAD):
+            raise Exception(f"Cannot register listener {cn.CN_TOPIC_REREAD}")
 
     def unregister_listener(self, topic):
         if not pub.unsubscribe(self.listen_dir_changes, topic):
-            raise Exception("Cannot unregister watchdir listener")
+            raise Exception("Cannot unregister listener")
 
     def listen_dir_changes(self, dir_name: str, added: Sequence, deleted: Sequence) -> None:
         if str(self.path) == str(dir_name):
-            self.refresh_list(dir_name=dir_name, conf=self.conf, to_select=[], reread_source=True)
+            self.reread(dir_name=dir_name)
+
+    def listen_reread(self):
+        self.reread(str(self.path))
+
+    def reread(self, dir_name):
+        self.refresh_list(dir_name=dir_name, conf=self.conf, to_select=[], reread_source=True)
 
     def get_source_id_in_list(self, item_name):
         print("cache before delete", [item[cn.CN_COL_NAME] for item in self.dir_cache])
@@ -347,13 +356,17 @@ class Browser(wx.ListCtrl, ListCtrlAutoWidthMixin):
             return self.get_image_id(extension)
 
     def OnGetItemAttr(self, item):
-        if 0 <= item < len(self.dir_cache):
-            if util.is_hidden(self.dir_cache[item][cn.CN_COL_FULL_PATH]):
-                return self.hidden_attr
-            else:
-                return None
+        if item == 0 and not self.root:
+            return None
+        if item > len(self.dir_cache):
+            return None
+        # if 0 <= item < len(self.dir_cache):
+        if util.is_hidden(self.dir_cache[item - 1 if not self.root else item][cn.CN_COL_FULL_PATH]):
+            return self.hidden_attr
         else:
             return None
+        # else:
+        #     return None
 
     def init_ui(self, conf):
         for index, name in enumerate(self.columns):
@@ -663,6 +676,22 @@ class Browser(wx.ListCtrl, ListCtrlAutoWidthMixin):
         #         self.frame.show_message("Selected one folder")
         # else:
         #     self.frame.show_message(cn.CN_NO_ITEMS_SEL)
+
+    def shell_editor(self, files):
+        if len(files) > 0:
+            args = [self.frame.app_conf.text_editor]
+            args.extend([str(f) for f in files])
+            subprocess.Popen(args, shell=False)
+        else:
+            self.frame.show_message(cn.CN_NO_ITEMS_SEL)
+
+    def compare_files(self, files):
+        if len(files) > 0:
+            args = [self.frame.app_conf.diff_editor]
+            args.extend([str(f) for f in files])
+            subprocess.Popen(args, shell=False)
+        else:
+            self.frame.show_message(cn.CN_NO_ITEMS_SEL)
 
 
 class ColumnMenu(wx.Menu):

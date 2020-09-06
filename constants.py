@@ -11,6 +11,10 @@ ID_SPLITTER = wx.NewId()
 CN_APP_NAME = "Navigator"
 CN_APP_NAME_VIEWER = "Code viewer"
 CN_TOOL_NAME = "Assistant"
+CN_CUSTOM_PATHS = "Custom paths"
+CN_EXT_EDITORS = "External editors"
+CN_EXT_TEXT_EDIT = "External text editor"
+CN_EXT_DIFF_EDIT = "Diff editor"
 
 CN_GO_BACK = ".."
 
@@ -51,8 +55,11 @@ ID_COPY_SEL_NAMES_AND_PATHS = wx.NewId()
 # CMD
 ID_TARGET_EQ_SRC = wx.NewId()
 ID_SWAP_WIN = wx.NewId()
+ID_DIFF = wx.NewId()
 ID_SEARCH = wx.NewId()
+# VIEW
 ID_REREAD = wx.NewId()
+ID_SHOW_HIDDEN = wx.NewId()
 
 
 class MItem:
@@ -104,13 +111,20 @@ dt_cmd = {
     ID_SWAP_WIN:                    MItem(id=ID_SWAP_WIN, name="Swap path in tabs", key=ord("T"),
                                           acc_type=wx.ACCEL_SHIFT + wx.ACCEL_CTRL),
     wx.NewId():                     MItem(id=ID_SEP, name="-", type=wx.ITEM_SEPARATOR),
-    ID_SEARCH:                      MItem(id=ID_SEARCH, name="Search", key=ord("F"),
+    ID_DIFF:                        MItem(id=ID_DIFF, name="Compare files (diff)", key=ord("D"),
                                           acc_type=wx.ACCEL_CTRL),
     wx.NewId():                     MItem(id=ID_SEP, name="-", type=wx.ITEM_SEPARATOR),
-    ID_REREAD:                      MItem(id=ID_REREAD, name="Reread source", key=ord("R"),
+    ID_SEARCH:                      MItem(id=ID_SEARCH, name="Search", key=ord("F"),
                                           acc_type=wx.ACCEL_CTRL)
 }
 
+dt_view = {
+    ID_REREAD:                      MItem(id=ID_REREAD, name="Reread source", key=ord("R"),
+                                          acc_type=wx.ACCEL_CTRL),
+    wx.NewId():                     MItem(id=ID_SEP, name="-", type=wx.ITEM_SEPARATOR),
+    ID_SHOW_HIDDEN:                 MItem(id=ID_SHOW_HIDDEN, name="Show hidden", key=ord("H"),
+                                          type=wx.ITEM_CHECK, acc_type=wx.ACCEL_CTRL)
+}
 
 CN_IM_FOLDER = os.path.join(CN_APP_PATH, "img\\folder.png")
 CN_IM_FILE = os.path.join(CN_APP_PATH, "img\\file.png")
@@ -157,22 +171,8 @@ CN_COL_EXT = 5
 CN_COL_FULL_PATH = 6
 
 CN_TOPIC_DIR_CHG = "DIR_CHANGED"
+CN_TOPIC_REREAD = "REREAD"
 
-def q(text):
-    return '"' + str(text) + '"'
-
-
-# t = "C:\\_piotr_\\__GIT__\\cool_soft_reg\\midi32.reg"
-# p = Path(t)
-# print(str(p))
-
-# t = dt.datetime.today()
-# # t.resolution = dt.timedelta(days=1)
-# div = 1000000 * 3600 * 24
-# print(div)
-# time.sleep(2)
-#
-# print((dt.datetime.today()-t).days)
 
 
 

@@ -77,16 +77,13 @@ class BasicDlg(wx.Dialog):
         return self.ShowModal()
 
 
-CN_CUSTOM_PATHS = "Custom paths"
-
-
 class PathEditor(pg.PropertyGrid):
     def __init__(self, parent, main_frame, frame):
         super().__init__(parent=parent, style=pg.PGMAN_DEFAULT_STYLE)
         self.parent = parent
         self.frame = frame
         self.main_frame = main_frame
-        self.Append(pg.PropertyCategory(label=CN_CUSTOM_PATHS))
+        self.Append(pg.PropertyCategory(label=cn.CN_CUSTOM_PATHS))
         self.load_cust_paths()
 
     def load_cust_paths(self):
@@ -172,12 +169,36 @@ class PathTab(wx.Panel):
         return self.path_edt.save_cust_paths()
 
 
+class ExtTollTab(wx.Panel):
+    def __init__(self, parent, main_frame, frame):
+        super().__init__(parent=parent)
+        self.frame = frame
+        self.main_frame = main_frame
+
+        # Sizers
+        main_sizer = wx.BoxSizer(wx.VERTICAL)
+
+        self.ext_tools = pg.PropertyGrid(parent=self, style=pg.PGMAN_DEFAULT_STYLE)
+        self.ext_tools.Append(pg.PropertyCategory(label=cn.CN_EXT_EDITORS))
+        self.ext_tools.Append(pg.FileProperty(label=cn.CN_EXT_TEXT_EDIT, value=self.main_frame.app_conf.text_editor))
+        self.ext_tools.Append(pg.FileProperty(label=cn.CN_EXT_DIFF_EDIT, value=self.main_frame.app_conf.diff_editor))
+
+        main_sizer.Add(self.ext_tools, flag=wx.EXPAND, proportion=1)
+        self.SetSizerAndFit(main_sizer)
+
+    def save_ext_tools(self):
+        self.main_frame.app_conf.text_editor = self.ext_tools.GetProperty(cn.CN_EXT_TEXT_EDIT).GetValue()
+        self.main_frame.app_conf.diff_editor = self.ext_tools.GetProperty(cn.CN_EXT_DIFF_EDIT).GetValue()
+
+
 class OptionsDlg(BasicDlg):
     def __init__(self, frame, title):
         super().__init__(frame=frame, title=title, size=(500, 300))
         self.opt_book = wx.Listbook(self)
-        self.path_tab = PathTab(parent=self.opt_book, main_frame = frame, frame=self)
-        self.opt_book.AddPage(page=self.path_tab, text=CN_CUSTOM_PATHS, select=True)
+        self.path_tab = PathTab(parent=self.opt_book, main_frame=frame, frame=self)
+        self.ext_tools = ExtTollTab(parent=self.opt_book, main_frame=frame, frame=self)
+        self.opt_book.AddPage(page=self.path_tab, text=cn.CN_CUSTOM_PATHS, select=True)
+        self.opt_book.AddPage(page=self.ext_tools, text=cn.CN_EXT_EDITORS, select=False)
 
         self.opt_book.GetListView().SetColumnWidth(0, wx.LIST_AUTOSIZE)
 
@@ -187,13 +208,15 @@ class OptionsDlg(BasicDlg):
 
     def on_ok(self, e):
         if self.path_tab.path_edt.validate_cust_paths():
+            self.path_tab.save_cust_paths()
+            self.ext_tools.save_ext_tools()
             e.Skip()
         else:
             return
 
     def show_modal(self):
-        self.main_sizer.Fit(self)
-        self.SetSize(self.GetEffectiveMinSize())
+        # self.main_sizer.Fit(self)
+        # self.SetSize(self.GetEffectiveMinSize())
         self.CenterOnParent()
         self.path_tab.path_edt.SetFocus()
         prop = self.path_tab.path_edt.GetFirst(pg.PG_ITERATE_NORMAL)

@@ -21,14 +21,15 @@ from lib4py import shell as sh
 from code_viewer import viewer
 from finder import main_frame as finder
 from controls import CmdBtn
+from pubsub import pub
 
 
 class MainFrame(wx.Frame):
     def __init__(self):
         super().__init__(parent=None, title=cn.CN_APP_NAME, size=(600, 500), style=wx.DEFAULT_FRAME_STYLE)
+        self.app_conf = config.NavigatorConf()
         self.menu_bar = menu.MainMenu(self)
         self.SetMenuBar(self.menu_bar)
-        self.app_conf = config.NavigatorConf()
         self.dir_cache = DirCache(self)
         self.thread_lst = []
         self.SetIcon(wx.Icon(cn.CN_ICON_FILE_NAME))
@@ -132,6 +133,9 @@ class MainFrame(wx.Frame):
         self.Freeze()
 
         self.app_conf = self.read_last_conf(cn.CN_APP_CONFIG, self.app_conf)
+
+        # Menu
+        self.menu_bar.menu_items_id[cn.ID_SHOW_HIDDEN].Check(self.app_conf.show_hidden)
 
         self.img_folder = self.im_list.Add(wx.Bitmap(cn.CN_IM_FOLDER, wx.BITMAP_TYPE_PNG))
         self.img_file = self.im_list.Add(wx.Bitmap(cn.CN_IM_FILE, wx.BITMAP_TYPE_PNG))
@@ -273,6 +277,40 @@ class MainFrame(wx.Frame):
         folders, files = b.get_selected_files_folders()
         b.shell_viewer(folders, files)
 
+    def edit(self):
+        win = self.get_active_win()
+        b = win.get_active_browser()
+        folders, files = b.get_selected_files_folders()
+        b.shell_editor(files)
+
+    def compare_files(self):
+        self.return_focus()
+        win = self.get_active_win()
+        reverse = not win.is_left
+        b = win.get_active_browser()
+        folders, files = b.get_selected_files_folders()
+        if len(files) == 0:
+            self.show_message(cn.CN_NO_ITEMS_SEL)
+        elif len(files) == 1:
+            win = self.get_inactive_win()
+            b = win.get_active_browser()
+            folders2, files2 = b.get_selected_files_folders()
+            if len(files2) == 0:
+                self.show_message("Select file to compare")
+            elif len(files2) == 1:
+                files = files + files2
+                if reverse:
+                    files.reverse()
+                b.compare_files(files)
+            else:
+                self.show_message("More than two files selected")
+        elif len(files) == 2:
+            if reverse:
+                files.reverse()
+            b.compare_files(files)
+        else:
+            self.show_message("More than two files selected")
+
     def copy_text2clip(self, lst):
         if wx.TheClipboard.Open():
             text = "\n".join(lst)
@@ -280,7 +318,6 @@ class MainFrame(wx.Frame):
             wx.TheClipboard.Close()
         else:
             self.show_message("Cannot copy text to clipboard")
-
 
     def copy_file2clip(self, e):
         win = self.get_active_win()
@@ -512,7 +549,6 @@ class MainFrame(wx.Frame):
                                              lnk_name=name,
                                              target=os.path.join(b.path, ""))
 
-
     def on_copy2same(self, e):
         win = self.get_active_win()
         b = win.get_active_browser()
@@ -543,7 +579,7 @@ class MainFrame(wx.Frame):
                         else:
                             util.run_in_thread(target=sh.copy,
                                                args=[str(b.path.joinpath(str(folders[0]), "*.*")),
-                                                                         str(full_name)],
+                                                     str(full_name)],
                                                lst=self.thread_lst)
 
     def select_all(self):
@@ -590,13 +626,19 @@ class MainFrame(wx.Frame):
 
     def reread_source(self):
         act = self.get_active_win().get_active_browser()
-        act.refresh_list(dir_name=str(act.path), conf=act.conf, to_select=[], reread_source=True)
+        act.reread(dir_name=str(act.path))
+
+    def show_hidden(self):
+        self.app_conf.show_hidden = self.menu_bar.menu_items_id[cn.ID_SHOW_HIDDEN].IsChecked()
+        self.dir_cache.refresh()
+        pub.sendMessage(cn.CN_TOPIC_REREAD)
 
 
 class DirCacheItem:
     def __init__(self, frame: MainFrame, dir_name: str) -> None:
         if not dir_name:
             return
+        self.frame = frame
         self.dir_name: str = dir_name
         self.dir_items = List[Tuple[str, float, str, str, bool, str, Path]]
         self.file_items = List[Tuple[str, float, int, str, bool, str, Path]]
@@ -608,6 +650,8 @@ class DirCacheItem:
         self.dir_items = []
         self.file_items = []
         with os.scandir(dir_name) as sd:
+            sd = [item for item in sd if (not self.frame.app_conf.show_hidden and not util.is_hidden(Path(item.path)))
+                  or self.frame.app_conf.show_hidden]
             for i in sd:
                 if i.is_dir():
                     self.dir_items.append((i.name.lower(), i.stat().st_mtime, "", i.name, i.is_dir(), "", Path(i.path)))
@@ -626,7 +670,7 @@ class DirCache:
         return len(list(filter(lambda x: fnmatch.fnmatch(src, x), pat_lst))) > 0
         # return len(list(filter(lambda x: x, map(lambda x: fnmatch.fnmatch(src, x), pat_lst)))) > 0
 
-    def get_dir(self, dir_name: str, conf, reread_source: bool = False) -> Sequence:
+    def read_dir(self, dir_name: str, reread_source: bool = False) -> None:
         if not isinstance(dir_name, str):
             raise ValueError("Incorrect key type", dir_name)
         if dir_name not in self._dict.keys():
@@ -635,18 +679,28 @@ class DirCache:
         if reread_source:
             # print("R E A D - refresh cache", dir_name)
             self._dict[dir_name].open_dir(dir_name=dir_name)
+
+    def get_dir(self, dir_name: str, conf, reread_source: bool = False) -> Sequence:
+        self.read_dir(dir_name=dir_name, reread_source=reread_source)
         pattern = conf.pattern if conf.use_pattern else ["*"]
         return sorted([d for d in self._dict[dir_name].dir_items if self.match(d[cn.CN_COL_NAME], pattern)],
                       key=itemgetter(conf.sort_key), reverse=conf.sort_desc) + \
                sorted([f for f in self._dict[dir_name].file_items if self.match(f[cn.CN_COL_NAME], pattern)],
                       key=itemgetter(conf.sort_key), reverse=conf.sort_desc)
 
+    def refresh(self) -> None:
+        """refresh all the items in the cache"""
+        for item in self._dict.keys():
+            self.read_dir(dir_name=item, reread_source=True)
+
     def release_resources(self):
+        """release all cache resources"""
         for item in self._dict.keys():
             th = self._dict[item].watcher
             if th.is_alive():
                 th.terminate()
                 th.join()
+        self._dict.clear()
 
     def delete_cache_item(self, dir_name: str) -> None:
 
@@ -663,9 +717,3 @@ class DirCache:
                 # print(type(item), item)
                 # print(lst)
                 del self._dict[item]
-
-
-
-
-
-

@@ -35,6 +35,8 @@ def is_hidden(x: Path) -> bool:
     ext = x.suffix
     is_temp_file: bool = False
     if ext:
-        is_temp_file = ext[2:].startswith("~")
+        is_temp_file = ext.startswith(".~")
+        if is_temp_file:
+            print("temp file", ext)
     return bool(attribute & (stat.FILE_ATTRIBUTE_HIDDEN | stat.FILE_ATTRIBUTE_SYSTEM)) or str(fname).startswith(
         ".") or is_temp_file

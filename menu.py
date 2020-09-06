@@ -25,16 +25,20 @@ class MainMenu(wx.MenuBar):
         self.make_menu(self.edit_menu, cn.dt_edit)
         self.cmd_menu = wx.Menu()
         self.make_menu(self.cmd_menu, cn.dt_cmd)
+        self.view_menu = wx.Menu()
+        self.make_menu(self.view_menu, cn.dt_view)
 
         self.Append(self.file_menu, '&File')
         self.Append(self.edit_menu, '&Edit')
         self.Append(self.cmd_menu, '&Command')
+        self.Append(self.view_menu, '&View')
 
         self.frame.SetAcceleratorTable(wx.AcceleratorTable(self.entries))
 
     def make_menu(self, menu_item, menu_dict):
         for id in menu_dict.keys():
             item = wx.MenuItem(id=id, text=menu_dict[id].name, kind=menu_dict[id].type)
+            self.menu_items_id[id] = item
             if not menu_dict[id].hidden:
                 menu_item.Append(item)
             if menu_dict[id].name != "-":
@@ -53,7 +57,7 @@ class MainMenu(wx.MenuBar):
         elif id == cn.ID_VIEW:
             self.frame.view()
         elif id == cn.ID_EDIT:
-            self.frame.view()
+            self.frame.edit()
         elif id == cn.ID_COPY:
             self.frame.copy()
         elif id == cn.ID_MOVE:
@@ -86,10 +90,16 @@ class MainMenu(wx.MenuBar):
             self.frame.target_eq_source()
         elif id == cn.ID_SWAP_WIN:
             self.frame.swap_wins()
+        elif id == cn.ID_DIFF:
+            self.frame.compare_files()
         elif id == cn.ID_SEARCH:
             self.frame.search()
+        # View
         elif id == cn.ID_REREAD:
             self.frame.reread_source()
+        elif id == cn.ID_SHOW_HIDDEN:
+            self.frame.show_hidden()
+
 
     def on_click(self, event):
         self.exec_cmd_id(event.GetId())

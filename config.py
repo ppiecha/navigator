@@ -67,8 +67,9 @@ class NavigatorConf:
     def __init__(self):
         self.left_browser = []
         self.right_browser = []
-        self.show_system = False
         self.show_hidden = False
+        self.text_editor = ""
+        self.diff_editor = ""
         self.pos = None
         self.size = None
         self.history_limit = 25
