@@ -307,8 +307,8 @@ class ListCtrlComboPopup(wx.ComboPopup):
             if self.lc.GetItemText(self.item) == CN_CONFIGURE:
                 self.Dismiss()
                 with dialogs.OptionsDlg(frame=self.frame, title="Options") as dlg:
-                    if dlg.show_modal() == wx.ID_OK:
-                        pass # self.frame.app_conf.custom_paths = dlg.path_tab.save_cust_paths()
+                    dlg.show_modal()
+                    del dlg
             else:
                 self.Dismiss()
                 self.path_pnl.path_lbl.open_dir(dir=self.get_sel_path(self.item))

@@ -79,16 +79,18 @@ class BasicDlg(wx.Dialog):
 
 class PathEditor(pg.PropertyGrid):
     def __init__(self, parent, main_frame, frame):
-        super().__init__(parent=parent, style=pg.PGMAN_DEFAULT_STYLE)
+        super().__init__(parent=parent, style=pg.PGMAN_DEFAULT_STYLE | pg.PG_SPLITTER_AUTO_CENTER)
         self.parent = parent
         self.frame = frame
         self.main_frame = main_frame
+        self.SetCaptionTextColour(wx.Colour(0, 0, 0))
         self.Append(pg.PropertyCategory(label=cn.CN_CUSTOM_PATHS))
         self.load_cust_paths()
 
     def load_cust_paths(self):
-        for name, path in self.main_frame.app_conf.custom_paths:
-            self.Append(pg.DirProperty(label=name, value=path))
+        print(self.main_frame.app_conf.custom_paths)
+        for key, value in self.main_frame.app_conf.custom_paths:
+            self.Append(pg.DirProperty(label=key, value=value))
 
     def save_cust_paths(self):
         lst = []
@@ -157,16 +159,17 @@ class PathTab(wx.Panel):
             wx.MessageBox(message="Select path to edit", caption=cn.CN_APP_NAME)
 
     def remove_path(self, e):
-        prop = self.path_edt.GetSelection()
+        prop = self.path_edt.GetSelectedProperty()
         if prop:
-            if self.main_frame.get_question_feedback("Are you sure you want to remove path: " +
-                                                     prop.GetLabel()) == wx.YES:
+            if self.main_frame.get_question_feedback("Are you sure you want to remove path " +
+                                                     prop.GetLabel()) == wx.ID_YES:
                 self.path_edt.DeleteProperty(prop)
+                print("deleted")
         else:
             wx.MessageBox(message="Select path to remove", caption=cn.CN_APP_NAME)
 
     def save_cust_paths(self):
-        return self.path_edt.save_cust_paths()
+        self.main_frame.app_conf.custom_paths = self.path_edt.save_cust_paths()
 
 
 class ExtTollTab(wx.Panel):
@@ -178,7 +181,9 @@ class ExtTollTab(wx.Panel):
         # Sizers
         main_sizer = wx.BoxSizer(wx.VERTICAL)
 
-        self.ext_tools = pg.PropertyGrid(parent=self, style=pg.PGMAN_DEFAULT_STYLE)
+        self.ext_tools = pg.PropertyGrid(parent=self, style=pg.PGMAN_DEFAULT_STYLE | pg.PG_SPLITTER_AUTO_CENTER)
+        # self.ext_tools.SetCaptionBackgroundColour(wx.Colour(0, 0, 0))
+        self.ext_tools.SetCaptionTextColour(wx.Colour(0, 0, 0))
         self.ext_tools.Append(pg.PropertyCategory(label=cn.CN_EXT_EDITORS))
         self.ext_tools.Append(pg.FileProperty(label=cn.CN_EXT_TEXT_EDIT, value=self.main_frame.app_conf.text_editor))
         self.ext_tools.Append(pg.FileProperty(label=cn.CN_EXT_DIFF_EDIT, value=self.main_frame.app_conf.diff_editor))
@@ -218,10 +223,10 @@ class OptionsDlg(BasicDlg):
         # self.main_sizer.Fit(self)
         # self.SetSize(self.GetEffectiveMinSize())
         self.CenterOnParent()
-        self.path_tab.path_edt.SetFocus()
-        prop = self.path_tab.path_edt.GetFirst(pg.PG_ITERATE_NORMAL)
-        if prop:
-            self.path_tab.path_edt.SelectProperty(prop)
+        # self.path_tab.path_edt.SetFocus()
+        # prop = self.path_tab.path_edt.GetFirst(pg.PG_ITERATE_NORMAL)
+        # if prop:
+        #     self.path_tab.path_edt.SelectProperty(prop)
         return self.ShowModal()
 
 
@@ -291,6 +296,7 @@ class TextEditDlg(BasicDlg):
         self.main_sizer.Fit(self)
         self.SetSize(self.GetEffectiveMinSize())
         self.CenterOnParent()
+        self.set_focus()
         return self.ShowModal()
 
     def on_lower(self, e):
