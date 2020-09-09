@@ -30,6 +30,8 @@ def format_size(size):
 
 
 def is_hidden(x: Path) -> bool:
+    if not x.exists():
+        return True
     attribute = x.stat().st_file_attributes
     path, fname = os.path.split(str(x))
     ext = x.suffix

@@ -296,6 +296,8 @@ class Browser(wx.ListCtrl, ListCtrlAutoWidthMixin):
 
     def listen_dir_changes(self, dir_name: str, added: Sequence, deleted: Sequence) -> None:
         if str(self.path) == str(dir_name):
+            for item in deleted:
+                self.remove_item(item)
             self.reread(dir_name=dir_name)
 
     def listen_reread(self):
@@ -360,13 +362,13 @@ class Browser(wx.ListCtrl, ListCtrlAutoWidthMixin):
             return None
         if item > len(self.dir_cache):
             return None
-        # if 0 <= item < len(self.dir_cache):
-        if util.is_hidden(self.dir_cache[item - 1 if not self.root else item][cn.CN_COL_FULL_PATH]):
-            return self.hidden_attr
+        if 0 <= item < len(self.dir_cache):
+            if util.is_hidden(self.dir_cache[item - 1 if not self.root else item][cn.CN_COL_FULL_PATH]):
+                return self.hidden_attr
+            else:
+                return None
         else:
             return None
-        # else:
-        #     return None
 
     def init_ui(self, conf):
         for index, name in enumerate(self.columns):
