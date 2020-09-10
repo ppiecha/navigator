@@ -17,6 +17,7 @@ class HtmlViewer(wx.Panel):
         super().__init__(parent=parent)
         self.parent = parent
         self.vw = wx.html2.WebView.New(self)
+        self.vw.MSWSetEmulationLevel(wx.html2.WEBVIEWIE_EMU_IE11_FORCE)
         self.vw.SetZoomType(wx.html2.WEBVIEW_ZOOM_TYPE_TEXT)
         self.search_pnl = SearchPanel(parent=self, browser=self)
         self.search_pnl.Hide()
@@ -205,9 +206,9 @@ class HtmlViewer(wx.Panel):
                              linenostart=linenostart)
 
     def go_to_line(self, line_no=None):
-        print('document.getElementById("line-' + str(line_no) + '").scrollIntoView(true);')
+        # print('document.getElementById("line-' + str(line_no) + '").scrollIntoView(true);')
         self.vw.RunScript('document.getElementById("line-' + str(line_no) + '").scrollIntoView(true);')
-        # self.go_to_left()
+        self.go_to_left()
 
     def go_to_left(self):
         self.vw.RunScript('window.scrollTo(0, window.pageYOffset);')
