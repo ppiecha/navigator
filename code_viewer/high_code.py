@@ -77,6 +77,8 @@ class HtmlViewer(wx.Panel):
                             lexer=lexer,
                             formatter=formatter)
         content = content.replace("<h2></h2>", "")
+        content = content.replace("""<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN"
+   "http://www.w3.org/TR/html4/strict.dtd">""", "")
         self.vw.SetPage(content, "")
         # self.vw.Reload()
 

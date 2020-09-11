@@ -277,8 +277,8 @@ class TextEditDlg(BasicDlg):
     def mb(self, message):
         wx.MessageBox(message=message, caption=cn.CN_APP_NAME)
         self.ed_new_name.SetFocus()
-        self.ed_new_name.SelectAll()
-        self.ed_new_name.SetInsertionPointEnd()
+        self.ed_new_name.smart_select()
+        # self.ed_new_name.SetInsertionPointEnd()
 
     def get_new_names(self):
         items = self.ed_new_name.GetValue().rstrip(";").split(";")
@@ -286,7 +286,8 @@ class TextEditDlg(BasicDlg):
 
     def set_focus(self):
         self.ed_new_name.SetFocus()
-        self.ed_new_name.SetInsertionPointEnd()
+        # self.ed_new_name.SetInsertionPointEnd()
+        self.ed_new_name.smart_select()
 
     def select_all(self):
         self.set_focus()
