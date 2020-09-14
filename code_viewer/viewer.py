@@ -43,6 +43,12 @@ class MainFrame(wx.Frame):
         page.browser.drop_file()
         e.Skip()
 
+    def close_all_pages(self):
+        for index in range(self.page_ctrl.GetPageCount()):
+            page = self.page_ctrl.GetPage(index)
+            page.browser.drop_file()
+        self.page_ctrl.DeleteAllPages()
+
     def get_active_page(self):
         # print(self.page_ctrl.GetSelection())
         return self.page_ctrl.GetPage(self.page_ctrl.GetSelection())
@@ -68,15 +74,20 @@ class MainFrame(wx.Frame):
                       if self.get_active_page().browser.get_file_name() else cn.CN_APP_NAME_VIEWER)
 
     def page_changed(self, e):
+        page = self.page_ctrl.GetPage(e.GetSelection())
+        if page.to_be_reloaded(page.file_name) == wx.ID_YES:
+            page.browser.reload(reread=True)
         self.set_caption()
         e.Skip()
 
     def on_close(self, e):
         self.Hide()
+        wx.CallAfter(self.close_all_pages)
 
     def check_duplicates(self, file_name, high_opt):
         for index in range(self.page_ctrl.GetPageCount()):
-            if self.page_ctrl.GetPage(index).file_name == file_name:
+            page = self.page_ctrl.GetPage(index)
+            if page.file_name == file_name:
                 self.page_ctrl.SetSelection(index)
                 if high_opt.words:
                     browser = self.page_ctrl.GetPage(index).browser

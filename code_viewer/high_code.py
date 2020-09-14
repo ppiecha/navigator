@@ -10,6 +10,7 @@ from pygments.styles import get_all_styles
 import controls
 import constants as cn
 from pathlib import Path
+import os
 
 
 class HtmlViewer(wx.Panel):
@@ -85,8 +86,8 @@ class HtmlViewer(wx.Panel):
     def set_search_word(self, word):
         self.search_pnl.ed_word.SetValue(word)
 
-    def read_file(self, file_name):
-        if file_name not in self.files.keys():
+    def read_file(self, file_name, reread=False):
+        if file_name not in self.files.keys() or reread:
             try:
                 with open(file_name, "r") as f:
                     self.files[file_name] = f.readlines()
@@ -98,10 +99,19 @@ class HtmlViewer(wx.Panel):
         else:
             return True
 
-    def file_as_source(self, file_name):
+    def file_as_source(self, file_name, reread=False):
+        if reread:
+            if not self.read_file(file_name, reread=True):
+                return ""
         if not self.read_file(file_name):
-            return False
+            return ""
         return "".join(self.files[file_name])
+
+    def reload(self, reread=False):
+        formatter = self.get_formatter(lines=[])
+        self.set_page(content=self.file_as_source(self.get_file_name(), reread),
+                      lexer=self.get_lexer(file_name=self.get_file_name()),
+                      formatter=formatter)
 
     def show_file(self, file_name, high_opt, lexer=None, formatter=None):
         if not self.read_file(file_name):
@@ -314,6 +324,8 @@ class HtmlPanel(wx.Panel):
         self.parent = parent
         self.browser = HtmlViewer(parent=self)
         self.file_name = file_name
+        if file_name:
+            self.stat = os.stat(file_name, follow_symlinks=False).st_mtime
 
         # print(self.browser.vw.Find("function", wx.html2.WEBVIEW_FIND_HIGHLIGHT_RESULT))
         # self.browser.go_to_line(66)
@@ -322,6 +334,18 @@ class HtmlPanel(wx.Panel):
         sizer = wx.BoxSizer(wx.VERTICAL)
         sizer.Add(self.browser, flag=wx.EXPAND, proportion=1)
         self.SetSizer(sizer)
+
+    def to_be_reloaded(self, file_name):
+        stat = os.stat(file_name, follow_symlinks=False).st_mtime
+        if self.stat != stat:
+            dlg = wx.MessageDialog(self, f"File {file_name} has changed. Reload?",
+                                   style=wx.YES_NO | wx.CANCEL | wx.ICON_INFORMATION,
+                                   caption=cn.CN_APP_NAME)
+            print("diff")
+            return dlg.ShowModal()
+        else:
+            print("same")
+            return wx.ID_CANCEL
 
     def open_file(self, high_opt):
         return self.browser.show_file(file_name=self.file_name, high_opt=high_opt)
@@ -334,6 +358,7 @@ class HighOptions:
         self.whole_words = whole_words
         self.match = match
         self.lines = lines
+
 
 class MyFileDropTarget(wx.FileDropTarget):
     def __init__(self, object, target_processor):
