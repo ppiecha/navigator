@@ -18,11 +18,14 @@ import sys
 from datetime import datetime
 from typing import List, Dict, Sequence, Tuple
 from lib4py import shell as sh
+from lib4py import logger as lg
 from code_viewer import viewer
 from finder import main_frame as finder
 from controls import CmdBtn
 from pubsub import pub
+import logging
 
+logger = lg.get_console_logger(name=__name__, log_level=logging.DEBUG)
 
 class MainFrame(wx.Frame):
     def __init__(self):
@@ -637,18 +640,22 @@ class MainFrame(wx.Frame):
 class DirCacheItem:
     def __init__(self, frame: MainFrame, dir_name: str) -> None:
         if not dir_name:
-            return
+            raise ValueError("Empty dir name")
         self.frame = frame
         self.dir_name: str = dir_name
         self.dir_items = List[Tuple[str, float, str, str, bool, str, Path]]
         self.file_items = List[Tuple[str, float, int, str, bool, str, Path]]
-        self.open_dir(dir_name)
         self.watcher = dir_watcher.DirWatcher(frame=frame, dir_name=dir_name, dir_items=self.dir_items,
                                               file_items=self.file_items)
+        self.open_dir(dir_name)
 
     def open_dir(self, dir_name: str):
+        # logger.debug(vars(self))
         self.dir_items = []
         self.file_items = []
+        if not self.watcher.is_alive():
+            self.watcher = dir_watcher.DirWatcher(frame=self.frame, dir_name=dir_name, dir_items=self.dir_items,
+                                                  file_items=self.file_items)
         with os.scandir(dir_name) as sd:
             sd = [item for item in sd if (not self.frame.app_conf.show_hidden and not util.is_hidden(Path(item.path)))
                   or self.frame.app_conf.show_hidden]
@@ -666,6 +673,9 @@ class DirCache:
         self._dict = Dict[str, DirCacheItem]
         self._dict = {}
 
+    def is_in_cache(self, dir_name: str) -> bool:
+        return dir_name in self._dict.keys()
+
     def match(self, src, pat_lst):
         return len(list(filter(lambda x: fnmatch.fnmatch(src, x), pat_lst))) > 0
         # return len(list(filter(lambda x: x, map(lambda x: fnmatch.fnmatch(src, x), pat_lst)))) > 0
@@ -674,7 +684,7 @@ class DirCache:
         if not isinstance(dir_name, str):
             raise ValueError("Incorrect key type", dir_name)
         if dir_name not in self._dict.keys():
-            # print("R E A D", dir_name)
+            logger.debug(f"R E A D {dir_name}")
             self._dict[dir_name] = DirCacheItem(frame=self.frame, dir_name=dir_name)
         if reread_source:
             # print("R E A D - refresh cache", dir_name)
@@ -691,29 +701,35 @@ class DirCache:
     def refresh(self) -> None:
         """refresh all the items in the cache"""
         for item in self._dict.keys():
-            self.read_dir(dir_name=item, reread_source=True)
+            if Path(item).exists():
+                self.read_dir(dir_name=item, reread_source=True)
+            else:
+                self.delete_cache_item(dir_name=item)
 
     def release_resources(self):
         """release all cache resources"""
         for item in self._dict.keys():
-            th = self._dict[item].watcher
-            if th.is_alive():
-                th.terminate()
-                th.join()
+            self.remove_watcher(dir=item)
         self._dict.clear()
+        logger.debug("cache cleared")
+        #     th = self._dict[item].watcher
+        #     if th.is_alive():
+        #         th.terminate()
+        #         th.join()
+        # self._dict.clear()
+        # logger.debug("cache cleared")
+
+    def remove_watcher(self, dir: str) -> None:
+        th = self._dict[dir].watcher
+        if th.is_alive():
+            th.terminate()
+            # th.join()
 
     def delete_cache_item(self, dir_name: str) -> None:
-
-        def remove_watcher(dir: str) -> None:
-            th = self._dict[dir].watcher
-            if th.is_alive():
-                th.terminate()
-                th.join()
-
         lst = list(self._dict.keys())
         for item in lst:
             if str(item).startswith(dir_name):
-                remove_watcher(item)
-                # print(type(item), item)
-                # print(lst)
+                logger.debug(f"removing wather {item}")
+                self.remove_watcher(item)
                 del self._dict[item]
+        pub.sendMessage(cn.CN_TOPIC_DIR_DEL, dir_name=dir_name)

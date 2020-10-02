@@ -5,7 +5,6 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 import search_const as cn
 import res_frame
 
-
 class MainFrame(wx.Frame):
     def __init__(self, app, nav_frame=None):
         super().__init__(parent=nav_frame, title=cn.CN_APP_NAME, size=(400, 375), style=wx.DEFAULT_DIALOG_STYLE)
@@ -97,7 +96,7 @@ class MainPanel(wx.Panel):
         self.directories = wx.ComboBox(self, value=r'c:\Users\pit')
         self.btn_dir = wx.Button(self, label="...", size=(23, 23))
         self.exclude = wx.ComboBox(self, value="")
-        self.mask = wx.ComboBox(self, value="*.sql;*.pkb;*.pks;*.py")
+        self.mask = wx.ComboBox(self, value="*.sql;*.pkb;*.pks;*.py;*.java")
         # self.sub_dirs = wx.CheckBox(self, label="Search subdirectories")
         # self.file_names = wx.CheckBox(self, label="Search also in folder and file names")
         dir_bord = 0

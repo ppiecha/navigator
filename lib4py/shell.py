@@ -10,6 +10,11 @@ import winshell
 import win32gui
 import threading
 import fnmatch
+from lib4py import logger as lg
+import logging
+import sys
+
+logger = lg.get_console_logger(name=__name__, log_level=logging.DEBUG)
 
 
 def copy(src, dst: str, auto_rename: bool = False) -> bool:
@@ -139,7 +144,7 @@ def rename(src, dst: str, auto_rename: bool = False) -> bool:
         # Note: raising a WindowsError with correct error code is quite
         # difficult due to SHFileOperation historical idiosyncrasies.
         # Therefore we simply pass a message.
-        raise("Cannot rename. Windows error - SHFileOperation failed: 0x%08x" % result)
+        raise Exception("Cannot rename. Windows error - SHFileOperation failed: 0x%08x" % result)
 
     return not aborted
 
@@ -170,6 +175,8 @@ def delete(src, hard_delete: bool) -> bool:
     if not hard_delete:
         flags |= shellcon.FOF_ALLOWUNDO
 
+    logger.debug(f"deleting {src}")
+
     result, aborted = shell.SHFileOperation((
         0,
         shellcon.FO_DELETE,
@@ -183,7 +190,7 @@ def delete(src, hard_delete: bool) -> bool:
         # Note: raising a WindowsError with correct error code is quite
         # difficult due to SHFileOperation historical idiosyncrasies.
         # Therefore we simply pass a message.
-        raise("Cannot delete. Windows error - SHFileOperation failed: 0x%08x" % result)
+        raise Exception("Cannot delete. Windows error - SHFileOperation failed: 0x%08x" % result)
         # raise WindowsError('SHFileOperation failed: 0x%08x' % result)
 
     return not aborted
@@ -442,6 +449,11 @@ class ShellThread(threading.Thread):
         try:
             self._real_run()
         except Exception as e:
+            logger.error(str(e))
             wx.LogError(str(e))
+
+
+# class SHException(Exception):
+
 
 

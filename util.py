@@ -14,6 +14,8 @@ def run_in_thread(target: Callable, args: Sequence, lst: List[sh.ShellThread] = 
 
 
 def format_date(timestamp, format="%Y-%m-%d %H:%M"):
+    if not timestamp:
+        return ""
     d = datetime.fromtimestamp(timestamp)
     return d.strftime(format)
 
@@ -26,13 +28,19 @@ def format_size(size):
             num /= 1024.0
         return "%.1f %s%s" % (num, 'Y', suffix)
 
+    if not size:
+        return ""
     return sizeof_fmt(size) if size != "" else ""
 
 
 def is_hidden(x: Path) -> bool:
     if not x.exists():
         return True
-    attribute = x.stat().st_file_attributes
+    try:
+        attribute = x.stat().st_file_attributes
+    except:
+        print("Cannot get attr for", str(x))
+        return True
     path, fname = os.path.split(str(x))
     ext = x.suffix
     is_temp_file: bool = False

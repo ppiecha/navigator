@@ -13,6 +13,7 @@ from pubsub import pub
 import os
 import dialogs
 from lib4py import shell as sh
+from lib4py import logger as lg
 from typing import Sequence, List, Tuple
 from datetime import datetime
 import subprocess
@@ -20,9 +21,11 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     import main_frame as mf
     import config as cfg
+import logging
+
+logger = lg.get_console_logger(name=__name__, log_level=logging.DEBUG)
 
 CN_MAX_HIST_COUNT = 20
-
 
 class Tit:
     def __init__(self, text):
@@ -209,7 +212,7 @@ class Browser(wx.ListCtrl, ListCtrlAutoWidthMixin):
         self.filter_pnl = None
         self._path = None
         self.root = None
-        self.dir_cache = []
+        self._dir_cache = []
         self.conf = conf
         self.conf.pattern = ""
         self.conf.use_pattern = False
@@ -237,6 +240,15 @@ class Browser(wx.ListCtrl, ListCtrlAutoWidthMixin):
         self.Bind(wx.EVT_KILL_FOCUS, self.on_kill_focus)
         self.Bind(wx.EVT_LIST_BEGIN_DRAG, self.on_start_drag, id=self.win_id)
         self.register_listeners()
+
+    def get_cache_item(self, row: int, col: int):
+        if not (0 <= row < len(self._dir_cache)):
+            return None
+            #raise ValueError(f"Wrong row index: {row}")
+        if not (0 <= col <= cn.CN_COL_FULL_PATH):
+            return None
+            #raise ValueError(f"Wrong column index: {col}")
+        return self._dir_cache[row][col]
 
     def on_process_dropped_files(self, x: int, y: int, file_names: List[str]) -> bool:
         src_id = self.drag_src.win_id if self.drag_src else -1
@@ -289,6 +301,8 @@ class Browser(wx.ListCtrl, ListCtrlAutoWidthMixin):
             raise Exception(f"Cannot register listener {cn.CN_TOPIC_DIR_CHG}")
         if not pub.subscribe(self.listen_reread, cn.CN_TOPIC_REREAD):
             raise Exception(f"Cannot register listener {cn.CN_TOPIC_REREAD}")
+        if not pub.subscribe(self.listen_dir_delete, cn.CN_TOPIC_DIR_DEL):
+            raise Exception(f"Cannot register listener {cn.CN_TOPIC_DIR_DEL}")
 
     def unregister_listener(self, topic):
         if not pub.unsubscribe(self.listen_dir_changes, topic):
@@ -296,19 +310,27 @@ class Browser(wx.ListCtrl, ListCtrlAutoWidthMixin):
 
     def listen_dir_changes(self, dir_name: str, added: Sequence, deleted: Sequence) -> None:
         if str(self.path) == str(dir_name):
-            for item in deleted:
-                self.remove_item(item)
+            logger.debug(f"Dir change detected. Rereading: {dir_name}")
             self.reread(dir_name=dir_name)
 
     def listen_reread(self):
-        self.reread(str(self.path))
+        self.reread(dir_name=str(self.path))
+
+    def listen_dir_delete(self, dir_name: str) -> None:
+        logger.debug(f"listen_dir_delete {dir_name}")
+        if str(self.path).startswith(dir_name):
+            self.open_dir(dir_name=str(self.path))
+            logger.debug(f"Parent deletion detected. Reloading {str(self.path)}")
 
     def reread(self, dir_name):
-        self.refresh_list(dir_name=dir_name, conf=self.conf, to_select=[], reread_source=True)
+        if Path(dir_name).exists():
+            self.refresh_list(dir_name=dir_name, conf=self.conf, to_select=[], reread_source=True)
+        else:
+            self.open_dir(dir_name=dir_name)
 
     def get_source_id_in_list(self, item_name):
-        print("cache before delete", [item[cn.CN_COL_NAME] for item in self.dir_cache])
-        index = [item[cn.CN_COL_NAME] for item in self.dir_cache].index(item_name)
+        print("cache before delete", [item[cn.CN_COL_NAME] for item in self._dir_cache])
+        index = [item[cn.CN_COL_NAME] for item in self._dir_cache].index(item_name)
         return index if self.root else index + 1
 
     def remove_item(self, item_name):
@@ -326,15 +348,12 @@ class Browser(wx.ListCtrl, ListCtrlAutoWidthMixin):
     def OnGetItemText(self, item, col):
 
         def gci(item, col):
-            if 0 <= item < len(self.dir_cache):
-                if col == cn.CN_COL_DATE:
-                    return util.format_date(self.dir_cache[item][col])
-                elif col == cn.CN_COL_SIZE:
-                    return util.format_size(self.dir_cache[item][col])
-                else:
-                    return self.dir_cache[item][col]
+            if col == cn.CN_COL_DATE:
+                return util.format_date(self.get_cache_item(row=item, col=col))
+            elif col == cn.CN_COL_SIZE:
+                return util.format_size(self.get_cache_item(row=item, col=col))
             else:
-                return ""
+                return self.get_cache_item(row=item, col=col)
 
         if item == 0:
             if not self.root:
@@ -342,17 +361,21 @@ class Browser(wx.ListCtrl, ListCtrlAutoWidthMixin):
             else:
                 return gci(0, cn.CN_COL_NAME if col == 0 else col)
         else:
-            return gci(item - 1 if not self.root else item, cn.CN_COL_NAME if col == 0 else col)
+            item = item - 1 if not self.root else item
+            if not (0 <= item < len(self._dir_cache)):
+                return ""
+            return gci(item, cn.CN_COL_NAME if col == 0 else col)
 
     def OnGetItemImage(self, item):
         if item == 0 and not self.root:
             return self.frame.img_go_up
-        if item > len(self.dir_cache):
+        item = item - 1 if not self.root else item
+        if not (0 <= item < len(self._dir_cache)):
             return -1
-        if self.dir_cache[item - 1 if not self.root else item][cn.CN_COL_ISDIR]:
+        if self.get_cache_item(row=item, col=cn.CN_COL_ISDIR):
             return self.frame.img_folder
         else:
-            extension = self.dir_cache[item - 1 if not self.root else item][cn.CN_COL_EXT]
+            extension = self.get_cache_item(row=item, col=cn.CN_COL_EXT)
             if not extension:
                 extension = "~$!"
             return self.get_image_id(extension)
@@ -360,15 +383,16 @@ class Browser(wx.ListCtrl, ListCtrlAutoWidthMixin):
     def OnGetItemAttr(self, item):
         if item == 0 and not self.root:
             return None
-        if item > len(self.dir_cache):
+        item = item - 1 if not self.root else item
+        if not (0 <= item < len(self._dir_cache)):
             return None
-        if 0 <= item < len(self.dir_cache):
-            if util.is_hidden(self.dir_cache[item - 1 if not self.root else item][cn.CN_COL_FULL_PATH]):
+        try:
+            if util.is_hidden(self.get_cache_item(row=item, col=cn.CN_COL_FULL_PATH)):
                 return self.hidden_attr
             else:
                 return None
-        else:
-            return None
+        except:
+            raise ValueError(f"Cache length {len(self._dir_cache)} item {item}")
 
     def init_ui(self, conf):
         for index, name in enumerate(self.columns):
@@ -507,7 +531,7 @@ class Browser(wx.ListCtrl, ListCtrlAutoWidthMixin):
     def update_summary_lbl(self):
         files = 0
         folders = 0
-        for item in self.dir_cache:
+        for item in self._dir_cache:
             if item[4]:
                 folders += 1
             else:
@@ -521,6 +545,7 @@ class Browser(wx.ListCtrl, ListCtrlAutoWidthMixin):
 
     @path.setter
     def path(self, value):
+        # logger.debug(f"changing path to {value}") # \n{traceback.format_stack()}
         self.path_pnl.drive_combo.SetValue(value.anchor)
         os.chdir(str(value))
         self.conf.last_path = value
@@ -528,7 +553,7 @@ class Browser(wx.ListCtrl, ListCtrlAutoWidthMixin):
         self.path_pnl.set_value(str(value))
         # self.add_hist_item(str(value))
         self.frame.app_conf.folder_hist_update_item(str(value), datetime.today())
-        self.root = value.samefile(value.anchor)
+        self.root = str(value) == str(value.anchor)
         self._path = value
 
     def do_search_folder(self, pattern):
@@ -649,9 +674,9 @@ class Browser(wx.ListCtrl, ListCtrlAutoWidthMixin):
             self.open_dir(temp)
 
     def refresh_list(self, dir_name: str, conf, to_select: Sequence, reread_source: bool = False):
-        self.dir_cache = self.frame.dir_cache.get_dir(dir_name=dir_name, conf=conf, reread_source=reread_source)
+        self._dir_cache = self.frame.dir_cache.get_dir(dir_name=dir_name, conf=conf, reread_source=reread_source)
         self.path = Path(dir_name)
-        count: int = len(self.dir_cache)
+        count: int = len(self._dir_cache)
         if not self.root:
             count += 1
         self.SetItemCount(count)

@@ -72,7 +72,8 @@ class NavigatorConf:
         self.diff_editor = ""
         self.pos = None
         self.size = None
-        self.history_limit = 25
+        self.history_limit = 15
+        self.hist_retention_days = 30
         self.left_active_tab = None
         self.right_active_tab = None
         self.custom_paths = []
@@ -107,8 +108,14 @@ class NavigatorConf:
             self.folder_hist[folder_name] = FolderHistItem(folder_name=folder_name, last_visited=date)
 
     def folder_hist_calc_rating(self):
-        for fn in self.folder_hist.keys():
-            self.folder_hist[fn].calc_rating()
+        to_delete = []
+        for k in self.folder_hist.keys():
+            if not Path(k).exists() or (
+                    dt.datetime.today() - self.folder_hist[k].last_visited).days > self.hist_retention_days:
+                to_delete.append(k)
+                continue
+            self.folder_hist[k].calc_rating()
+        self.folder_hist = {k: v for k, v in self.folder_hist.items() if k not in to_delete}
         dct = {k: v for k, v in sorted(self.folder_hist.items(), key=lambda item: item[1].rating, reverse=True)}
         return {k: dct[k] for k in list(dct)[:self.history_limit]}
 
@@ -158,10 +165,8 @@ class FolderHistItem:
         days = (dt.datetime.today() - self.last_visited).days
         if days == 0:
             self.rating = self.visited_cnt
-        elif days < 30:
-            self.rating = self.visited_cnt / days
         else:
-            self.rating = 0
+            self.rating = self.visited_cnt / days
 
 
 

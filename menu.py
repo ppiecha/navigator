@@ -42,12 +42,13 @@ class MainMenu(wx.MenuBar):
             if not menu_dict[id].hidden:
                 menu_item.Append(item)
             if menu_dict[id].name != "-":
-                if menu_dict[id].hidden:
-                    entry = wx.AcceleratorEntry(menu_dict[id].acc_type, menu_dict[id].key, id)
-                else:
-                    entry = wx.AcceleratorEntry(menu_dict[id].acc_type, menu_dict[id].key, id, item)
+                if menu_dict[id].key:
+                    if menu_dict[id].hidden:
+                        entry = wx.AcceleratorEntry(menu_dict[id].acc_type, menu_dict[id].key, id)
+                    else:
+                        entry = wx.AcceleratorEntry(menu_dict[id].acc_type, menu_dict[id].key, id, item)
                     item.SetAccel(entry)
-                self.entries.append(entry)
+                    self.entries.append(entry)
                 self.Bind(wx.EVT_MENU, self.on_click, id=id)
 
     def exec_cmd_id(self, id):
@@ -97,6 +98,8 @@ class MainMenu(wx.MenuBar):
         # View
         elif id == cn.ID_REREAD:
             self.frame.reread_source()
+        elif id == cn.ID_CLEAR_CACHE:
+            self.frame.dir_cache.release_resources()
         elif id == cn.ID_SHOW_HIDDEN:
             self.frame.show_hidden()
 

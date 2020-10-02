@@ -5,6 +5,10 @@ import search
 import search_const as cn
 import search_tree
 from code_viewer import high_code
+import logging
+from lib4py import logger as lg
+
+logger = lg.get_console_logger(name=__name__, log_level=logging.DEBUG)
 
 CN_ID_FIND = wx.NewId()
 
@@ -56,7 +60,7 @@ class MainFrame(wx.Frame):
             self.output.tool_pnl.btn_params.set_bitmap(cn.CN_IM_STOP)
 
     def start_search(self):
-        print(self.search_params)
+        logger.debug(f"Search params {self.search_params}")
         self.start_search_thread(self.search_params)
 
     def set_params(self, search_params):

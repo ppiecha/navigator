@@ -8,6 +8,10 @@ from pubsub import pub
 import search_const as cn
 import threading
 from concurrent import futures
+import logging
+from lib4py import logger as lg
+
+logger = lg.get_console_logger(name=__name__, log_level=logging.DEBUG)
 
 
 class Search(threading.Thread):
@@ -36,7 +40,8 @@ class Search(threading.Thread):
             for root, dirs, files in os.walk(Path(dir_item)):
                 if self.event.is_set():
                     break
-                if root not in opt.ex_dirs:
+                if Path(root).name not in opt.ex_dirs:
+                    logger.debug(Path(root).name)
                     if loop_cnt % 100 == 0:
                         self.set_status(root)
                     loop_cnt += 1

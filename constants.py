@@ -1,8 +1,7 @@
 import os
 import wx.lib.newevent
 from pathlib import Path
-import datetime as dt
-import time
+import logging
 
 
 
@@ -59,6 +58,7 @@ ID_DIFF = wx.NewId()
 ID_SEARCH = wx.NewId()
 # VIEW
 ID_REREAD = wx.NewId()
+ID_CLEAR_CACHE = wx.NewId()
 ID_SHOW_HIDDEN = wx.NewId()
 
 
@@ -121,6 +121,7 @@ dt_cmd = {
 dt_view = {
     ID_REREAD:                      MItem(id=ID_REREAD, name="Reread source", key=ord("R"),
                                           acc_type=wx.ACCEL_CTRL),
+    ID_CLEAR_CACHE:                 MItem(id=ID_CLEAR_CACHE, name="Clear cache"),
     wx.NewId():                     MItem(id=ID_SEP, name="-", type=wx.ITEM_SEPARATOR),
     ID_SHOW_HIDDEN:                 MItem(id=ID_SHOW_HIDDEN, name="Show hidden", key=ord("H"),
                                           type=wx.ITEM_CHECK, acc_type=wx.ACCEL_CTRL)
@@ -171,7 +172,9 @@ CN_COL_EXT = 5
 CN_COL_FULL_PATH = 6
 
 CN_TOPIC_DIR_CHG = "DIR_CHANGED"
+CN_TOPIC_DIR_DEL = "DIR_DELETED"
 CN_TOPIC_REREAD = "REREAD"
+
 
 
 
