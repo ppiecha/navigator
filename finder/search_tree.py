@@ -10,6 +10,10 @@ from lib4py import shell as sh
 from pubsub import pub
 from threading import Thread
 from code_viewer import high_code
+import logging
+from lib4py import logger as lg
+
+logger = lg.get_console_logger(name=__name__, log_level=logging.DEBUG)
 
 
 def find_words_in_line(text, opt):
@@ -91,10 +95,12 @@ class SearchTree(CT.CustomTreeCtrl):
     def go_to_node(self, node):
         self.SelectItem(node)
 
-    def update_search_node(self, search_dir, node):
-        f_cnt = len(self.file_nodes)
-        d_cnt = len(self.dir_nodes)
+    def update_search_node(self, search_dir, node, not_found_text: str = ""):
         search_node = self.search_nodes[search_dir]
+        children = search_node.GetChildren()
+        f_cnt = len([item for item in children if isinstance(item.GetData(), FileNode)])
+        d_cnt = len([item for item in children if isinstance(item.GetData(), DirNode)])
+        stat: str = ""
         if f_cnt + d_cnt > 0:
             if f_cnt == 0:
                 if node:
@@ -107,12 +113,15 @@ class SearchTree(CT.CustomTreeCtrl):
             else:
                 stat = f" {d_cnt} folders and {f_cnt} files"
         else:
-            stat = " no matches found"
+            if not_found_text:
+                stat = not_found_text
+            else:
+                stat = " searching..."
         self.update_node_text(search_node, self.get_search_node_text(search_dir=search_dir) + stat)
 
     def search_ended(self, search_dir, node):
         self.res_frame.change_icon(self.res_frame.search_thread.event)
-        self.update_search_node(search_dir=search_dir, node=node)
+        self.update_search_node(search_dir=search_dir, node=node, not_found_text=" no data found")
         # else:
         #     self.add_nodes(search_dir, [node])
 

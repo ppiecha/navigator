@@ -54,6 +54,7 @@ class MainFrame(wx.Frame):
         self.Close()
 
     def change_icon(self, event):
+        logger.debug(f"change_icon event {event.is_set()}")
         if event.is_set():
             self.output.tool_pnl.btn_params.set_bitmap(cn.CN_IM_SEARCH)
         else:
