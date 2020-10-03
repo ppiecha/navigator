@@ -340,6 +340,7 @@ class ListCtrlComboPopup(wx.ComboPopup):
 
     def prepare_list(self):
         self.lc.DeleteAllItems()
+        self.lc_drives = sh.get_drives()
         for drive in self.lc_drives.keys():
             idx = self.lc.Append(self.lc_drives[drive])
             if self.lc_drives[drive][0] == "Desktop":

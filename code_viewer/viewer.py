@@ -13,7 +13,7 @@ class MainFrame(wx.Frame):
     def __init__(self, nav_frame):
         super().__init__(parent=nav_frame, title=cn.CN_APP_NAME_VIEWER, size=(800, 600), style=wx.DEFAULT_FRAME_STYLE)
         self.page_ctrl = aui.AuiNotebook(parent=self, style=aui.AUI_NB_CLOSE_ON_ALL_TABS | aui.AUI_NB_SCROLL_BUTTONS |
-                                                            aui.AUI_NB_TOP)
+                                                            aui.AUI_NB_TOP | aui.AUI_NB_WINDOWLIST_BUTTON)
         self.nav_frame = nav_frame
         sizer = wx.BoxSizer(wx.VERTICAL)
         sizer.Add(self.page_ctrl, flag=wx.EXPAND, proportion=1)

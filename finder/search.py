@@ -41,7 +41,7 @@ class Search(threading.Thread):
                 if self.event.is_set():
                     break
                 if Path(root).name not in opt.ex_dirs:
-                    logger.debug(Path(root).name)
+                    # logger.debug(Path(root).name)
                     if loop_cnt % 100 == 0:
                         self.set_status(root)
                     loop_cnt += 1

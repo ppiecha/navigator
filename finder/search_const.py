@@ -2,8 +2,8 @@ import os
 import sys
 from pathlib import Path
 
-CN_APP_NAME = "Finder"
-CN_APP_RESULTS = "Finder results"
+CN_APP_NAME = "Drive navigator"
+CN_APP_RESULTS = "Drive navigator results"
 CN_APP_PATH = os.path.dirname(os.path.abspath(__file__))
 
 sys.path.append(str(Path(CN_APP_PATH).parent))

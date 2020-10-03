@@ -105,5 +105,6 @@ class DirWatcher(Thread):
         #
         # added = [item.name for item in added]
         # print("added", added, "deleted", deleted)
+        self.frame.dir_cache.refresh_dir(dir_name=self.dir_name)
         pub.sendMessage(cn.CN_TOPIC_DIR_CHG, dir_name=self.dir_name, added=added, deleted=deleted)
         time.sleep(0.5)

@@ -8,7 +8,7 @@ import logging
 ID_SPLITTER = wx.NewId()
 
 CN_APP_NAME = "Navigator"
-CN_APP_NAME_VIEWER = "Code viewer"
+CN_APP_NAME_VIEWER = "Code navigator"
 CN_TOOL_NAME = "Assistant"
 CN_CUSTOM_PATHS = "Custom paths"
 CN_EXT_EDITORS = "External editors"

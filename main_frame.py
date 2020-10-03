@@ -698,13 +698,17 @@ class DirCache:
                sorted([f for f in self._dict[dir_name].file_items if self.match(f[cn.CN_COL_NAME], pattern)],
                       key=itemgetter(conf.sort_key), reverse=conf.sort_desc)
 
+    def refresh_dir(self, dir_name: str) -> None:
+        """refresh cache for given directory"""
+        if Path(dir_name).exists():
+            self.read_dir(dir_name=dir_name, reread_source=True)
+        else:
+            self.delete_cache_item(dir_name=dir_name)
+
     def refresh(self) -> None:
         """refresh all the items in the cache"""
-        for item in self._dict.keys():
-            if Path(item).exists():
-                self.read_dir(dir_name=item, reread_source=True)
-            else:
-                self.delete_cache_item(dir_name=item)
+        for dir_name in self._dict.keys():
+            self.refresh_dir(dir_name=dir_name)
 
     def release_resources(self):
         """release all cache resources"""
