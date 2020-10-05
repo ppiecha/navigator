@@ -287,6 +287,13 @@ def start_file(file_name: str):
                          lpFile=file_name)
 
 
+def open_folder(dir_name: str):
+    shell.ShellExecuteEx(fMask=shellcon.SEE_MASK_NOCLOSEPROCESS,
+                         nShow=win32con.SW_NORMAL,
+                         lpVerb="Open",
+                         lpFile=dir_name)
+
+
 def new_folder(folder_name):
     try:
         win32file.CreateDirectory(folder_name, None)

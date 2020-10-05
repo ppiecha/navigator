@@ -62,6 +62,7 @@ class SearchTree(CT.CustomTreeCtrl):
 
         self.register_topic(cn.CN_TOPIC_ADD_NODE)
         self.register_topic(cn.CN_TOPIC_UPDATE_STATUS)
+        self.register_topic(cn.CN_TOPIC_SEARCH_NODE_COMPLETED)
         self.register_topic(cn.CN_TOPIC_SEARCH_COMPLETED)
 
     def register_topic(self, topic):
@@ -71,8 +72,11 @@ class SearchTree(CT.CustomTreeCtrl):
         elif topic == cn.CN_TOPIC_UPDATE_STATUS:
             if not pub.subscribe(self.listen_for_status, topic):
                 raise Exception("Cannot register {topic}")
+        elif topic == cn.CN_TOPIC_SEARCH_NODE_COMPLETED:
+            if not pub.subscribe(self.listen_for_search_node_completed, topic):
+                raise Exception("Cannot register {topic}")
         elif topic == cn.CN_TOPIC_SEARCH_COMPLETED:
-            if not pub.subscribe(self.listen_for_end, topic):
+            if not pub.subscribe(self.listen_for_search_completed, topic):
                 raise Exception("Cannot register {topic}")
 
     def listen_for_status(self, status):
@@ -81,16 +85,18 @@ class SearchTree(CT.CustomTreeCtrl):
     def listen_for_nodes(self, search_dir, nodes):
         wx.CallAfter(self.add_nodes, search_dir, nodes)
 
-    def run_safe(self, search_dir, node):
-        wx.CallAfter(self.search_ended, search_dir, node)
+    def listen_for_search_node_completed(self, search_dir, node):
+        wx.CallAfter(self.search_node_completed, search_dir, node)
 
-    def run_in_thread(self, target, args):
-        th = Thread(target=target, args=args, daemon=True)
-        th.start()
-        return th
+    def listen_for_search_completed(self):
+        wx.CallAfter(self.search_completed)
 
-    def listen_for_end(self, search_dir, node):
-        self.run_in_thread(self.run_safe, [search_dir, node])
+    def search_completed(self):
+        self.res_frame.change_icon(self.res_frame.search_thread.event)
+
+    def search_node_completed(self, search_dir, node):
+        # self.res_frame.change_icon(self.res_frame.search_thread.event)
+        self.update_search_node(search_dir=search_dir, node=node, not_found_text=" no data found")
 
     def go_to_node(self, node):
         self.SelectItem(node)
@@ -119,12 +125,6 @@ class SearchTree(CT.CustomTreeCtrl):
                 stat = " searching..."
         self.update_node_text(search_node, self.get_search_node_text(search_dir=search_dir) + stat)
 
-    def search_ended(self, search_dir, node):
-        self.res_frame.change_icon(self.res_frame.search_thread.event)
-        self.update_search_node(search_dir=search_dir, node=node, not_found_text=" no data found")
-        # else:
-        #     self.add_nodes(search_dir, [node])
-
     def get_image_id(self, extension):
         """Get the id in the image list for the extension.
         Will add the image if not there already"""
@@ -137,27 +137,49 @@ class SearchTree(CT.CustomTreeCtrl):
         self.extension_images[extension] = index
         return index
 
-    def on_db_click(self, e):
-        data = self.GetSelection().GetData()
-        if isinstance(data, FileNode):
-            path = Path(data.file_full_name)
-            self.res_frame.nav_frame.return_focus()
-            self.res_frame.nav_frame.get_active_win().get_active_browser().open_dir(dir_name=path.parent,
-                                                                                    sel_dir=path.name)
-        if isinstance(data, DirNode):
-            path = Path(data.dir)
-            self.res_frame.nav_frame.return_focus()
-            self.res_frame.nav_frame.get_active_win().get_active_browser().open_dir(dir_name=path.parent,
-                                                                                    sel_dir=path.name)
+    def go_to_path(self, path: Path):
+        self.res_frame.nav_frame.return_focus()
+        self.res_frame.nav_frame.get_active_win().get_active_browser().open_dir(dir_name=path.parent,
+                                                                                sel_dir=path.name)
 
-        if isinstance(data, LineNode):
-            high_opt = high_code.HighOptions(words=self.res_frame.search_params.words,
-                                             case_sensitive=self.res_frame.search_params.case_sensitive,
-                                             whole_words=self.res_frame.search_params.whole_words,
-                                             match=data.file_node.get_match_num(data.line_num,
-                                                                                self.res_frame.search_params.words[0]),
-                                             lines=data.line_num)
-            self.res_frame.nav_frame.vim.show_file(file_name=data.file_full_name, high_opt=high_opt)
+    def go_to_item(self):
+        data = self.GetSelection().GetData()
+        if data:
+            if isinstance(data, (FileNode, LineNode)):
+                path = Path(data.file_full_name)
+                self.go_to_path(path)
+            elif isinstance(data, DirNode):
+                path = Path(data.dir)
+                self.go_to_path(path)
+        else:
+            self.res_frame.show_message(message='No data selected')
+
+    def open_file(self):
+        data = self.GetSelection().GetData()
+        if data:
+            if isinstance(data, (FileNode, LineNode)):
+                high_opt = high_code.HighOptions(words=self.res_frame.search_params.words,
+                                                 case_sensitive=self.res_frame.search_params.case_sensitive,
+                                                 whole_words=self.res_frame.search_params.whole_words,
+                                                 match=data.file_node.get_match_num(data.line_num,
+                                                                                    self.res_frame.search_params.words[
+                                                                                        0]) if isinstance(data,
+                                                                                                          LineNode) else 1,
+                                                 lines=data.line_num if isinstance(data, LineNode) else [line.line_num
+                                                                                                         for
+                                                                                                         line in
+                                                                                                         data.lines])
+                self.res_frame.nav_frame.vim.show_file(file_name=data.file_full_name, high_opt=high_opt)
+            elif isinstance(data, DirNode):
+                sh.open_folder(dir_name=data.dir)
+        else:
+            self.res_frame.show_message(message='No data selected')
+
+    def on_db_click(self, e):
+        if wx.GetKeyState(wx.WXK_CONTROL):
+            self.go_to_item()
+        else:
+            self.open_file()
         e.Skip()
 
     def on_right_click(self, e):

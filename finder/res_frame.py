@@ -11,6 +11,7 @@ from lib4py import logger as lg
 logger = lg.get_console_logger(name=__name__, log_level=logging.DEBUG)
 
 CN_ID_FIND = wx.NewId()
+CN_ID_COPY = wx.NewId()
 
 
 class MainFrame(wx.Frame):
@@ -30,25 +31,27 @@ class MainFrame(wx.Frame):
         self.entries = []
         self.entries.append(wx.AcceleratorEntry(flags=wx.ACCEL_NORMAL, keyCode=wx.WXK_ESCAPE, cmd=wx.ID_CANCEL))
         self.entries.append(wx.AcceleratorEntry(flags=wx.ACCEL_NORMAL, keyCode=wx.WXK_F3, cmd=CN_ID_FIND))
+        self.entries.append(wx.AcceleratorEntry(flags=wx.ACCEL_CTRL, keyCode=ord("C"), cmd=CN_ID_COPY))
         # self.entries.append(wx.AcceleratorEntry(flags=wx.ACCEL_CTRL, keyCode=ord("U"), cmd=CN_ID_UPPER))
 
         self.SetAcceleratorTable(wx.AcceleratorTable(self.entries))
 
         self.Bind(wx.EVT_MENU, self.on_cancel, id=wx.ID_CANCEL)
         self.Bind(wx.EVT_MENU, self.on_find, id=CN_ID_FIND)
+        self.Bind(wx.EVT_MENU, self.on_copy_selected, id=CN_ID_COPY)
         self.Bind(wx.EVT_CLOSE, self.on_close)
 
+    def show_message(self, message):
+        wx.MessageDialog(parent=self,
+                         message=message,
+                         style=wx.ID_OK | wx.ICON_INFORMATION,
+                         caption=cn.CN_APP_NAME)
+
+    def on_copy_selected(self, e):
+        print(self.output.tree.GetSelection().GetText())
+
     def on_find(self, e):
-        data = self.output.tree.GetSelection().GetData()
-        if isinstance(data, search_tree.FileNode):
-            lines = [line.line_num for line in data.lines]
-            high_opt = high_code.HighOptions(words=self.search_params.words,
-                                             case_sensitive=self.search_params.case_sensitive,
-                                             whole_words=self.search_params.whole_words,
-                                             match=1,
-                                             lines=lines)
-            # self.finder.nav_frame.vim.get_active_page().browser.reset_search()
-            self.finder.nav_frame.vim.show_file(file_name=data.file_full_name, high_opt=high_opt)
+        self.output.tree.open_file()
 
     def on_cancel(self, e):
         self.Close()
@@ -56,9 +59,10 @@ class MainFrame(wx.Frame):
     def change_icon(self, event):
         logger.debug(f"change_icon event {event.is_set()}")
         if event.is_set():
-            self.output.tool_pnl.btn_params.set_bitmap(cn.CN_IM_SEARCH)
+            self.output.tool_pnl.btn_params.set_bitmap(cn.CN_IM_SEARCH, "Search parameters")
+
         else:
-            self.output.tool_pnl.btn_params.set_bitmap(cn.CN_IM_STOP)
+            self.output.tool_pnl.btn_params.set_bitmap(cn.CN_IM_STOP, "Cancel search")
 
     def start_search(self):
         logger.debug(f"Search params {self.search_params}")
@@ -110,19 +114,38 @@ class ToolPanel(wx.Panel):
         self.main_pnl = parent
         sizer = wx.BoxSizer(wx.HORIZONTAL)
 
-        self.btn_params = ToolBtn(self, im_file=cn.CN_IM_SEARCH, def_ctrl=[parent.tree])
-        self.btn_expand_all = ToolBtn(self, im_file=cn.CN_IM_EXPAND, def_ctrl=[parent.tree])
-        self.btn_collapse_all = ToolBtn(self, im_file=cn.CN_IM_COLLAPSE, def_ctrl=[parent.tree])
+        self.btn_params = ToolBtn(self, im_file=cn.CN_IM_SEARCH, def_ctrl=[parent.tree], tooltip="Search parameters")
+        self.btn_expand_all = ToolBtn(self, im_file=cn.CN_IM_EXPAND, def_ctrl=[parent.tree], tooltip="Expand")
+        self.btn_collapse_all = ToolBtn(self, im_file=cn.CN_IM_COLLAPSE, def_ctrl=[parent.tree], tooltip="Collapse")
+        self.btn_show_file = ToolBtn(self, im_file=cn.CN_IM_VIEW, def_ctrl=[parent.tree], tooltip="Show file")
+        self.btn_go_to_file = ToolBtn(self, im_file=cn.CN_IM_NAV, def_ctrl=[parent.tree], tooltip="Go to file")
+        self.btn_save_results = ToolBtn(self, im_file=cn.CN_IM_SAVE, def_ctrl=[parent.tree], tooltip="Save results")
+        self.btn_copy_results = ToolBtn(self, im_file=cn.CN_IM_CLIP, def_ctrl=[parent.tree], tooltip="Copy results")
 
         sizer.Add(self.btn_params)
+        sizer.Add(cn.get_splitter(parent=self), flag=wx.LEFT | wx.RIGHT | wx.ALIGN_CENTER_VERTICAL, border=2)
         sizer.Add(self.btn_expand_all)
         sizer.Add(self.btn_collapse_all)
+        sizer.Add(cn.get_splitter(parent=self), flag=wx.LEFT | wx.RIGHT | wx.ALIGN_CENTER_VERTICAL, border=2)
+        sizer.Add(self.btn_show_file)
+        sizer.Add(self.btn_go_to_file)
+        sizer.Add(cn.get_splitter(parent=self), flag=wx.LEFT | wx.RIGHT | wx.ALIGN_CENTER_VERTICAL, border=2)
+        sizer.Add(self.btn_save_results)
+        sizer.Add(self.btn_copy_results)
 
         self.SetSizer(sizer)
 
         self.btn_params.Bind(wx.EVT_BUTTON, self.on_params)
         self.btn_expand_all.Bind(wx.EVT_BUTTON, self.on_expand_all)
         self.btn_collapse_all.Bind(wx.EVT_BUTTON, self.on_collapse_all)
+        self.btn_show_file.Bind(wx.EVT_BUTTON, self.on_show_file)
+        self.btn_go_to_file.Bind(wx.EVT_BUTTON, self.on_go_to_file)
+
+    def on_show_file(self, e):
+        self.main_pnl.tree.open_file()
+
+    def on_go_to_file(self, e):
+        self.main_pnl.tree.go_to_item()
 
     def on_params(self, e):
         if not self.res_frame.search_thread.event.is_set():
@@ -138,8 +161,9 @@ class ToolPanel(wx.Panel):
 
 
 class ToolBtn(buttons.ThemedGenBitmapButton):
-    def __init__(self, parent, im_file, def_ctrl=[], size=(24, 24)):
+    def __init__(self, parent, im_file, def_ctrl=[], size=(24, 24), tooltip=""):
         super().__init__(parent, -1, wx.Bitmap(im_file, wx.BITMAP_TYPE_PNG), size=size)
+        self.SetToolTip(wx.ToolTip(tooltip))
         self.def_ctrl = def_ctrl
         self.Bind(wx.EVT_SET_FOCUS, self.on_focus)
 
@@ -152,8 +176,9 @@ class ToolBtn(buttons.ThemedGenBitmapButton):
             return
         event.Skip()
 
-    def set_bitmap(self, im_file):
+    def set_bitmap(self, im_file, tooltip=""):
         self.SetBitmapLabel(wx.Bitmap(im_file, wx.BITMAP_TYPE_PNG))
+        self.SetToolTip(wx.ToolTip(tooltip))
         self.Refresh()
 
     def set_off_bitmap(self, im_file):

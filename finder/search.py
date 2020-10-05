@@ -41,7 +41,6 @@ class Search(threading.Thread):
                 if self.event.is_set():
                     break
                 if Path(root).name not in opt.ex_dirs:
-                    # logger.debug(Path(root).name)
                     if loop_cnt % 100 == 0:
                         self.set_status(root)
                     loop_cnt += 1
@@ -85,10 +84,11 @@ class Search(threading.Thread):
                             else:
                                 user_continues = True
 
-            pub.sendMessage(cn.CN_TOPIC_SEARCH_COMPLETED, search_dir=dir_item,
+            pub.sendMessage(cn.CN_TOPIC_SEARCH_NODE_COMPLETED, search_dir=dir_item,
                             node=search_tree.FinalNode(text="No data found"))
         self.set_status("Searched " + "{:,}".format(dirs_sum) + " folder(s) " + "{:,}".format(files_sum) + " file(s) ")
         self.event.set()
+        pub.sendMessage(cn.CN_TOPIC_SEARCH_COMPLETED)
         return True
 
     def run(self):
