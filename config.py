@@ -79,85 +79,54 @@ class NavigatorConf:
         self.custom_paths = []
         self.search_history = []
         self.search_hist_limit = 100
-        self.folder_hist = Dict[str, FolderHistItem]
+        self.folder_hist = Dict[str, HistItem]
         self.folder_hist = {}
-        self.file_hist = Dict[str, FolderHistItem]
+        self.file_hist = Dict[str, HistItem]
         self.file_hist = {}
 
     def __str__(self):
         return "Left browser: " + str(self.left_browser) + "\n" + "Right browser: " + str(self.right_browser)
 
-    def add_search_hist_item(self, item):
-        if not [h for h in self.search_history if h.startswith(item)]:
-            self.search_history.insert(0, item)
-            print("Added search hist", item)
-        util.run_in_thread(self.trim_hist, [self.search_history])
+    # def add_search_hist_item(self, item):
+    #     if not [h for h in self.search_history if h.startswith(item)]:
+    #         self.search_history.insert(0, item)
+    #         print("Added search hist", item)
+    #     util.run_in_thread(self.trim_hist, [self.search_history])
 
-    def trim_hist(self, hist):
-        # to_delete = list(filter(lambda x:
-        #                         len(list(filter(lambda y:
-        # len([z for z in y.split(";") if z.strip() and z.startswith(x) and len(x) < len(z)]) > 0, hist))) > 0, hist))
-        while len(self.search_history) > self.search_hist_limit:
-            self.search_history.pop()
+    # def trim_hist(self, hist):
+    #     # to_delete = list(filter(lambda x:
+    #     #                         len(list(filter(lambda y:
+    #     # len([z for z in y.split(";") if z.strip() and z.startswith(x) and len(x) < len(z)]) > 0, hist))) > 0, hist))
+    #     while len(self.search_history) > self.search_hist_limit:
+    #         self.search_history.pop()
 
-    def folder_hist_update_item(self, folder_name: str, date: dt.datetime) -> None:
-        if folder_name in self.folder_hist.keys():
-            self.folder_hist[folder_name].visited_cnt += 1
-            self.folder_hist[folder_name].last_visited = date
+    def hist_update_item(self, item_list, full_path: str, date: dt.datetime) -> None:
+        if full_path in item_list.keys():
+            item_list[full_path].visited_cnt += 1
+            item_list[full_path].last_visited = date
         else:
-            self.folder_hist[folder_name] = FolderHistItem(folder_name=folder_name, last_visited=date)
+            item_list[full_path] = HistItem(full_path=full_path, last_visited=date)
 
-    def folder_hist_calc_rating(self):
+    def hist_calc_rating(self, item_list):
         to_delete = []
-        for k in self.folder_hist.keys():
+        for k in item_list.keys():
             if not Path(k).exists() or (
-                    dt.datetime.today() - self.folder_hist[k].last_visited).days > self.hist_retention_days:
+                    dt.datetime.today() - item_list[k].last_visited).days > self.hist_retention_days:
                 to_delete.append(k)
                 continue
-            self.folder_hist[k].calc_rating()
-        self.folder_hist = {k: v for k, v in self.folder_hist.items() if k not in to_delete}
-        dct = {k: v for k, v in sorted(self.folder_hist.items(), key=lambda item: item[1].rating, reverse=True)}
-        return {k: dct[k] for k in list(dct)[:self.history_limit]}
-
-    def file_hist_update_item(self, file_name: str, date: dt.datetime) -> None:
-        if file_name in self.file_hist.keys():
-            self.file_hist[file_name].visited_cnt += 1
-            self.file_hist[file_name].last_visited = date
-        else:
-            self.file_hist[file_name] = FileHistItem(folder_name=file_name, last_visited=date)
-
-    def file_hist_calc_rating(self):
-        for fn in self.file_hist.keys():
-            self.file_hist[fn].calc_rating()
-        dct = {k: v for k, v in sorted(self.file_hist.items(), key=lambda item: item[1].rating, reverse=True)}
+            item_list[k].calc_rating()
+        item_list = {k: v for k, v in item_list.items() if k not in to_delete}
+        dct = {k: v for k, v in sorted(item_list.items(), key=lambda item: item[1].rating, reverse=True)}
         return {k: dct[k] for k in list(dct)[:self.history_limit]}
 
 
-class FileHistItem:
-    def __init__(self, folder_name: str, last_visited: dt.datetime) -> None:
-        self.file_name = folder_name
+class HistItem:
+    def __init__(self, full_path: str, last_visited: dt.datetime=None) -> None:
+        self.full_path = full_path
         self.last_visited = last_visited
         self.visited_cnt: int = 1
         self.rating: float = 0
-
-    def calc_rating(self):
-        if self.last_visited is None:
-            raise ValueError("Incorrect date value")
-        days = (dt.datetime.today() - self.last_visited).days
-        if days == 0:
-            self.rating = self.visited_cnt
-        elif days < 30:
-            self.rating = self.visited_cnt / days
-        else:
-            self.rating = 0
-
-
-class FolderHistItem:
-    def __init__(self, folder_name: str, last_visited: dt.datetime) -> None:
-        self.folder_name = folder_name
-        self.last_visited = last_visited
-        self.visited_cnt: int = 1
-        self.rating: float = 0
+        self.name = Path(full_path).name
 
     def calc_rating(self):
         if self.last_visited is None:

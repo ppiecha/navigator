@@ -5,6 +5,7 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 import search_const as cn
 import res_frame
 
+
 class MainFrame(wx.Frame):
     def __init__(self, app, nav_frame=None):
         super().__init__(parent=nav_frame, title=cn.CN_APP_NAME, size=(400, 375), style=wx.DEFAULT_DIALOG_STYLE)
@@ -29,6 +30,10 @@ class MainFrame(wx.Frame):
 
         self.Bind(wx.EVT_MENU, self.on_cancel, id=wx.ID_CANCEL)
         self.Bind(wx.EVT_CLOSE, self.on_close)
+
+    def re_init(self):
+        self.main_panel.search_text.SetFocus()
+        self.main_panel.search_text.SelectAll()
 
     def on_cancel(self, e):
         self.Close()

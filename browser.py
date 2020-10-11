@@ -217,7 +217,6 @@ class Browser(wx.ListCtrl, ListCtrlAutoWidthMixin):
         self.conf.pattern = ""
         self.conf.use_pattern = False
         self.history = conf.path_history
-        self.extension_images = {}
         self.image_list = im_list
         self.SetImageList(self.image_list, wx.IMAGE_LIST_SMALL)
         self.hidden_attr = wx.ItemAttr()
@@ -240,6 +239,9 @@ class Browser(wx.ListCtrl, ListCtrlAutoWidthMixin):
         self.Bind(wx.EVT_KILL_FOCUS, self.on_kill_focus)
         self.Bind(wx.EVT_LIST_BEGIN_DRAG, self.on_start_drag, id=self.win_id)
         self.register_listeners()
+
+    def get_image_id(self, extension):
+        return self.frame.get_ext_image_id(extension=extension)
 
     def get_cache_item(self, row: int, col: int):
         if not (0 <= row < len(self._dir_cache)):
@@ -552,7 +554,9 @@ class Browser(wx.ListCtrl, ListCtrlAutoWidthMixin):
         self.set_tab_name(self.conf.tab_name)
         self.path_pnl.set_value(str(value))
         # self.add_hist_item(str(value))
-        self.frame.app_conf.folder_hist_update_item(str(value), datetime.today())
+        self.frame.app_conf.hist_update_item(item_list=self.frame.app_conf.folder_hist,
+                                             full_path=str(value),
+                                             date=datetime.today())
         self.root = str(value) == str(value.anchor)
         self._path = value
 
@@ -603,7 +607,9 @@ class Browser(wx.ListCtrl, ListCtrlAutoWidthMixin):
                 new_path = Path(res)
                 del lnk
             if new_path.is_file():
-                self.frame.app_conf.file_hist_update_item(str(new_path), datetime.today())
+                self.frame.app_conf.hist_update_item(item_list=self.frame.app_conf.file_hist,
+                                                     full_path=str(new_path),
+                                                     date=datetime.today())
                 sh.start_file(str(new_path))
                 self.frame.show_wait()
             elif new_path.is_dir():
@@ -617,18 +623,6 @@ class Browser(wx.ListCtrl, ListCtrlAutoWidthMixin):
 
     def on_db_click(self, event):
         self.on_item_activated(event.GetText())
-
-    def get_image_id(self, extension):
-        """Get the id in the image list for the extension.
-        Will add the image if not there already"""
-        # Caching
-        if extension in self.extension_images:
-            return self.extension_images[extension]
-        bmp = sh.extension_to_bitmap(extension)
-        index = self.image_list.Add(bmp)
-        self.SetImageList(self.image_list, wx.IMAGE_LIST_SMALL)
-        self.extension_images[extension] = index
-        return index
 
     def get_next_dir(self, path: Path) -> Path:
         if path.exists():

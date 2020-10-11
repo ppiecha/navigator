@@ -56,6 +56,7 @@ class MainFrame(wx.Frame):
     def on_find(self, e):
         self.get_active_page().browser.search_pnl.Show()
         self.get_active_page().browser.search_pnl.ed_word.SetFocus()
+        self.get_active_page().browser.search_pnl.ed_word.SelectAll()
 
     def on_find_next(self, e):
         if self.page_ctrl.GetPage(self.page_ctrl.GetSelection()).browser.search_pnl.ed_word.GetValue() == "":

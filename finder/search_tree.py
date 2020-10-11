@@ -36,7 +36,7 @@ class SearchTree(CT.CustomTreeCtrl):
         self.file_nodes = []
         self.dir_nodes = []
         self.search_nodes = {}
-        self.extension_images = {}
+        # self.extension_images = {}
         # self.SetHilightFocusColour(wx.SystemSettings.GetColour(wx.SYS_COLOUR_LISTBOX))
         # self.SetHilightNonFocusColour(self.GetBackgroundColour())
         self.EnableSelectionVista()
@@ -45,7 +45,7 @@ class SearchTree(CT.CustomTreeCtrl):
         # self.SetDoubleBuffered(True)
 
         # Image list
-        self.il = wx.ImageList(16, 16)
+        self.il = res_frame.finder.nav_frame.im_list
         self.im_search = self.il.Add(wx.Bitmap(cn.CN_IM_SEARCH, wx.BITMAP_TYPE_PNG))
         self.im_folder = self.il.Add(wx.Bitmap(cn.CN_IM_FOLDER, wx.BITMAP_TYPE_PNG))
         self.im_file = self.il.Add(wx.Bitmap(cn.CN_IM_FILE, wx.BITMAP_TYPE_PNG))
@@ -126,16 +126,7 @@ class SearchTree(CT.CustomTreeCtrl):
         self.update_node_text(search_node, self.get_search_node_text(search_dir=search_dir) + stat)
 
     def get_image_id(self, extension):
-        """Get the id in the image list for the extension.
-        Will add the image if not there already"""
-        # Caching
-        if extension in self.extension_images:
-            return self.extension_images[extension]
-        bmp = sh.extension_to_bitmap(extension)
-        index = self.il.Add(bmp)
-        self.SetImageList(self.il)
-        self.extension_images[extension] = index
-        return index
+        return self.res_frame.nav_frame.get_ext_image_id(extension=extension)
 
     def go_to_path(self, path: Path):
         self.res_frame.nav_frame.return_focus()

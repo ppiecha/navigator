@@ -151,6 +151,7 @@ class ToolPanel(wx.Panel):
         if not self.res_frame.search_thread.event.is_set():
             self.res_frame.cancel_search_thread()
         else:
+            self.res_frame.finder.re_init();
             self.res_frame.finder.Show()
 
     def on_expand_all(self, e):

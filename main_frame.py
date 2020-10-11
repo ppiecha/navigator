@@ -37,6 +37,7 @@ class MainFrame(wx.Frame):
         self.thread_lst = []
         self.SetIcon(wx.Icon(cn.CN_ICON_FILE_NAME))
         self.im_list = wx.ImageList(16, 16)
+        self.extension_images = {}
         self.sizer = None
         self.wait = None
         self.last_active_browser = None
@@ -131,6 +132,18 @@ class MainFrame(wx.Frame):
         except IOError:
             self.log_error("Cannot save project file '%s'." % conf_file)
 
+    def get_ext_image_id(self, extension):
+        """Get the id in the image list for the extension.
+        Will add the image if not there already"""
+        # Caching
+        if extension in self.extension_images:
+            return self.extension_images[extension]
+        bmp = sh.extension_to_bitmap(extension)
+        index = self.im_list.Add(bmp)
+        # self.SetImageList(self.image_list, wx.IMAGE_LIST_SMALL)
+        self.extension_images[extension] = index
+        return index
+
     def InitUI(self):
 
         self.Freeze()
@@ -153,10 +166,10 @@ class MainFrame(wx.Frame):
         self.img_user = self.im_list.Add(wx.Bitmap(cn.CN_IM_USER, wx.BITMAP_TYPE_PNG))
         self.img_parent = self.im_list.Add(wx.Bitmap(cn.CN_IM_PARENT, wx.BITMAP_TYPE_PNG))
         self.img_child = self.im_list.Add(wx.Bitmap(cn.CN_IM_CHILD, wx.BITMAP_TYPE_PNG))
-        self.img_link_folder = self.im_list.Add(wx.Bitmap(cn.CN_IM_NEW_FOLDER, wx.BITMAP_TYPE_PNG))
-        self.img_link_file = self.im_list.Add(wx.Bitmap(cn.CN_IM_NEW_FILE, wx.BITMAP_TYPE_PNG))
-        self.img_link = self.im_list.Add(wx.Bitmap(cn.CN_IM_LINK, wx.BITMAP_TYPE_PNG))
-        self.img_link_shortcut = self.im_list.Add(wx.Bitmap(cn.CN_IM_SHORTCUT, wx.BITMAP_TYPE_PNG))
+        # self.img_link_folder = self.im_list.Add(wx.Bitmap(cn.CN_IM_NEW_FOLDER, wx.BITMAP_TYPE_PNG))
+        # self.img_link_file = self.im_list.Add(wx.Bitmap(cn.CN_IM_NEW_FILE, wx.BITMAP_TYPE_PNG))
+        # self.img_link = self.im_list.Add(wx.Bitmap(cn.CN_IM_LINK, wx.BITMAP_TYPE_PNG))
+        # self.img_link_shortcut = self.im_list.Add(wx.Bitmap(cn.CN_IM_SHORTCUT, wx.BITMAP_TYPE_PNG))
 
         self.splitter = wx.SplitterWindow(self, cn.ID_SPLITTER, style=wx.SP_BORDER)
         self.splitter.SetMinimumPaneSize(10)
@@ -620,6 +633,7 @@ class MainFrame(wx.Frame):
             self.get_inactive_win().get_active_browser().open_dir(act)
 
     def _search(self, path="", words=[]):
+        self.finder.re_init()
         self.finder.show(search_path=path)
         # args = ["pythonw", str(cn.CN_FINDER_APP), str(path)]
         # subprocess.Popen(args, shell=False, cwd=cn.CN_FINDER_APP.parent)

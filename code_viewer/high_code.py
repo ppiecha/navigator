@@ -138,6 +138,7 @@ class HtmlViewer(wx.Panel):
                            only_mark=False,
                            backward=False,
                            match=high_opt.match)
+        self.go_to_left()
         return True
 
     def show_part(self, file_name, high_opt, line_delta, lexer=None, formatter=None):
@@ -218,12 +219,12 @@ class HtmlViewer(wx.Panel):
                              linenostart=linenostart)
 
     def go_to_line(self, line_no=None):
-        # print('document.getElementById("line-' + str(line_no) + '").scrollIntoView(true);')
         self.vw.RunScript('document.getElementById("line-' + str(line_no) + '").scrollIntoView(true);')
         self.go_to_left()
 
     def go_to_left(self):
-        self.vw.RunScript('window.scrollTo(0, window.pageYOffset);')
+        # self.vw.RunScript('window.scrollTo(0, window.pageYOffset);')
+        self.vw.RunScript('window.scrollTo(0, 0);')
 
 
 class SearchPanel(wx.Panel):

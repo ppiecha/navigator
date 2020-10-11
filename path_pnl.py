@@ -7,6 +7,7 @@ import dir_label
 import links
 import dialogs
 import controls
+import links2
 from lib4py import shell as sh
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:
@@ -116,7 +117,7 @@ class PathPanel(wx.Panel):
 
     def on_links(self, e):
         if not self.tool_dlg:
-            self.tool_dlg = links.LinkDlg(self.frame, is_left=self.is_left,
+            self.tool_dlg = links2.LinkDlg(self.frame, is_left=self.is_left,
                                           is_read_only=False if wx.GetKeyState(wx.WXK_CONTROL) else True)
         self.tool_dlg.show()
         self.tool_dlg.SetFocus()
@@ -134,7 +135,7 @@ class PathPanel(wx.Panel):
         self.frame.PopupMenu(self.smart_file_menu)
 
     def on_change_folder(self, e):
-        dir = wx.DirSelector(message="Select directory", default_path=str(self.browser.path))
+        dir = wx.DirSelector(message="Select directory", default_path=str(self.browser.path.home()))
         if dir:
             self.browser.open_dir(dir_name=dir)
 
@@ -235,7 +236,7 @@ class SmartFoldMenu(wx.Menu):
         for item in self.GetMenuItems():
             self.Delete(item)
         self.sorted_items_id = {}
-        for k, v in self.frame.app_conf.folder_hist_calc_rating().items():
+        for k, v in self.frame.app_conf.hist_calc_rating(item_list=self.frame.app_conf.folder_hist).items():
             self.sorted_items_id[wx.NewId()] = f"{str(round(v.rating, 1))} {k}"
         for id in self.sorted_items_id.keys():
             menu_item = self.Append(id, item=self.sorted_items_id[id])
@@ -262,7 +263,7 @@ class SmartFileMenu(wx.Menu):
         for item in self.GetMenuItems():
             self.Delete(item)
         self.sorted_items_id = {}
-        for k, v in self.frame.app_conf.file_hist_calc_rating().items():
+        for k, v in self.frame.app_conf.hist_calc_rating(item_list=self.frame.app_conf.file_hist).items():
             self.sorted_items_id[wx.NewId()] = k
         for id in self.sorted_items_id.keys():
             file_name = self.sorted_items_id[id]
