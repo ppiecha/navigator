@@ -210,7 +210,7 @@ class Browser(wx.ListCtrl, ListCtrlAutoWidthMixin):
         self.frame = frame
         self.path_pnl = None
         self.filter_pnl = None
-        self._path = None
+        self._path: Path = None
         self.root = None
         self._dir_cache = []
         self.conf = conf
@@ -546,7 +546,7 @@ class Browser(wx.ListCtrl, ListCtrlAutoWidthMixin):
         return self._path
 
     @path.setter
-    def path(self, value):
+    def path(self, value: Path):
         # logger.debug(f"changing path to {value}") # \n{traceback.format_stack()}
         self.path_pnl.drive_combo.SetValue(value.anchor)
         os.chdir(str(value))
@@ -682,10 +682,26 @@ class Browser(wx.ListCtrl, ListCtrlAutoWidthMixin):
         self.update_summary_lbl()
 
     def shell_viewer(self, folders, files):
-        if len(files) > 0:
-            self.frame.vim.show_files(file_names=[str(f) for f in files])
+        if wx.GetKeyState(wx.WXK_CONTROL):
+            if len(folders) == 0:
+                if len(files) > 0:
+                    self.frame.sql_nav.add_page(path=str(self.path), files=files)
+                else:
+                    self.frame.show_message(cn.CN_NO_ITEMS_SEL)
+                    return
+            elif len(folders) == 1:
+                self.frame.sql_nav.add_page(path=folders[0], files=[])
+            else:
+                self.frame.show_message(cn.CN_SEL_ONE_ITEM)
+                return
+            self.frame.sql_nav.Show()
+            if self.frame.sql_nav.IsIconized():
+                self.frame.sql_nav.Restore()
         else:
-            self.frame.show_message(cn.CN_NO_ITEMS_SEL)
+            if len(files) > 0:
+                self.frame.vim.show_files(file_names=[str(f) for f in files])
+            else:
+                self.frame.show_message(cn.CN_NO_ITEMS_SEL)
         # args = ["pythonw", str(cn.CN_VIEWER_APP), "-r"]
         # if files:
         #     args.extend([str(f) for f in files])

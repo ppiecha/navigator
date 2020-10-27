@@ -25,7 +25,10 @@ from controls import CmdBtn
 from pubsub import pub
 import logging
 
+from sql_nav.sql_form import SQLFrame
+
 logger = lg.get_console_logger(name=__name__, log_level=logging.DEBUG)
+
 
 class MainFrame(wx.Frame):
     def __init__(self):
@@ -43,6 +46,7 @@ class MainFrame(wx.Frame):
         self.last_active_browser = None
         self.vim = viewer.MainFrame(nav_frame=self)
         self.finder = finder.MainFrame(app=wx.GetApp(), nav_frame=self)
+        self.sql_nav = SQLFrame(nav_frame=self)
 
         self.InitUI()
         self.process_args()
@@ -230,6 +234,7 @@ class MainFrame(wx.Frame):
         self.vim.Destroy()
         self.finder.res_frame.Destroy()
         self.finder.Destroy()
+        self.sql_nav.Destroy()
         self.write_last_conf(cn.CN_APP_CONFIG, self.app_conf)
         if not self.release_resources():
             event.Veto()

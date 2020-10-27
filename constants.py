@@ -4,11 +4,13 @@ from pathlib import Path
 import logging
 
 
-
 ID_SPLITTER = wx.NewId()
+ID_SQL_SPLITTER1 = wx.NewId()
+ID_SQL_SPLITTER2 = wx.NewId()
 
 CN_APP_NAME = "Navigator"
 CN_APP_NAME_VIEWER = "Code navigator"
+CN_SQL_NAVIGATOR = "SQL navigator"
 CN_TOOL_NAME = "Assistant"
 CN_CUSTOM_PATHS = "Custom paths"
 CN_EXT_EDITORS = "External editors"
@@ -30,6 +32,7 @@ CN_ICON_CODE_VIEWER = os.path.join(CN_APP_PATH, "img\\code_viewer.ico")
 
 # Messages
 CN_NO_ITEMS_SEL = "No items selected"
+CN_SEL_ONE_ITEM = "Select one item"
 
 # File
 ID_NEW_FILE = wx.NewId()

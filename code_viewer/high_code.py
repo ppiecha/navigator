@@ -138,7 +138,6 @@ class HtmlViewer(wx.Panel):
                            only_mark=False,
                            backward=False,
                            match=high_opt.match)
-        self.go_to_left()
         return True
 
     def show_part(self, file_name, high_opt, line_delta, lexer=None, formatter=None):
@@ -185,14 +184,13 @@ class HtmlViewer(wx.Panel):
                 return [-1, self.word_cnt]
         if match >= 0:
             match_num = self.vw.Find(word, flags)
+            print("match", match, match_num)
             while match_num != match - 1:
                 match_num = self.vw.Find(word, flags)
+                print("match2", match, match_num)
             return [match_num, self.word_cnt]
         else:
             match_num = self.vw.Find(word, flags)
-            # if match_num == 0:
-            #     print("left")
-            #     self.go_to_left()
             return [match_num, self.word_cnt]
 
     def get_lexer(self, file_name, lexer=""):

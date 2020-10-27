@@ -171,7 +171,7 @@ class SearchTree(CT.CustomTreeCtrl):
             self.go_to_item()
         else:
             self.open_file()
-        e.Skip()
+        # e.Skip()
 
     def on_right_click(self, e):
         item = e.GetItem()
