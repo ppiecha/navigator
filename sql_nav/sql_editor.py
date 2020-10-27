@@ -67,7 +67,7 @@ def prepare_cmd(cmd_str: str) -> Optional[Cmd]:
     first_word: List = cmd_str.split(maxsplit=1)
     if first_word:
         if is_plsql_cmd(first_word=first_word[0]):
-            if not cmd_str.endswith("/"):
+            if cmd_str.endswith(";"):
                 cmd_str += "\n/"
             mode = SQLMode.PLSQL
         elif is_sql_cmd(first_word=first_word[0]):

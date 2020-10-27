@@ -248,8 +248,10 @@ class MainFrame(wx.Frame):
         # dlg = dialogs.findDialog(parent=self, searchText='text to find', wholeWordsOnly=0, caseSensitive=0)
         dlg.ShowModal()
 
-    def get_question_feedback(self, question, caption=cn.CN_APP_NAME):
-        dlg = wx.MessageDialog(self, question, style=wx.YES_NO | wx.CANCEL | wx.ICON_INFORMATION,
+    def get_question_feedback(self, question, caption=cn.CN_APP_NAME, parent: wx.Window = None):
+        dlg = wx.MessageDialog(parent=parent if parent else self,
+                               message=question,
+                               style=wx.YES_NO | wx.CANCEL | wx.ICON_INFORMATION,
                                caption=caption)
         return dlg.ShowModal()
 

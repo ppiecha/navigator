@@ -62,21 +62,20 @@ class SQLFrame(wx.Frame):
         return False
 
     def on_exec(self, e):
-        if self.dir_nb.get_act_page().sql_eng:
-            self.dir_nb.get_act_page().sql_eng.exec_in_sql_plus(cmd_list=self.dir_nb.get_act_page().edit_pnl.sql_edit.get_cmd_list(),
-                                                                edit_mode=e.GetId())
-        else:
-            raise ValueError("SQLPlus process not active")
+        act_dir = self.dir_nb.get_act_page()
+        if act_dir:
+            act_file = act_dir.edit_pnl.file_nb.get_act_page()
+            if act_file and act_dir.sql_eng:
+                act_dir.sql_eng.exec_in_sql_plus(cmd_list=act_file.sql_edit.get_cmd_list(),
+                                                 edit_mode=e.GetId())
 
     def on_close(self, e):
         e.Veto()
-        if self.nav_frame.get_question_feedback("Are you sure you want to close SQL editor? ") == wx.ID_YES:
+        if self.nav_frame.get_question_feedback(parent=self,
+                                                question="Are you sure you want to close SQL editor? ") == wx.ID_YES:
             self.Hide()
             for idx in range(self.dir_nb.GetPageCount()):
                 self.dir_nb.GetPage(page_idx=idx).sql_eng.close()
-
-
-
 
 
 class SQLPageCtrl(aui.AuiNotebook):
