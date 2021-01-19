@@ -1,11 +1,9 @@
 import wx
 import wx.stc
+import wx.aui as aui
+import sql_nav.sql_constants as sql_cn
 
-SQL_KEYWORDS = ['select', 'insert', 'update', 'delete', 'create', 'table', 'schema', 'not', 'null',
-                'primary', 'key', 'unique', 'index', 'constraint', 'check', 'or', 'and', 'on', 'foreign', 'references',
-                'cascade', 'default', 'grant', 'usage', 'to', 'is', 'restrict', 'into', 'values', 'from', 'where',
-                'group',
-                'by', 'join', 'left', 'right', 'outer', 'having', 'distinct', 'as', 'limit', 'like', 'order']
+from sql_nav.grid import SQLGridPnl
 
 faces = {'times': 'Times',
          'mono': 'Consolas',
@@ -28,6 +26,44 @@ def add_end_of_line(text: str) -> str:
         return text + "\n"
     else:
         return text
+
+
+class SQLOutPageCtrl(aui.AuiNotebook):
+    def __init__(self, parent, frame):
+        super().__init__(parent=parent, style=aui.AUI_NB_TOP)
+        self.parent = parent
+        self.frame = frame
+
+        self.out_ctrl = SQLOutCtrl(parent=self)
+        self.AddPage(page=self.out_ctrl,
+                     caption="Output",
+                     select=True)
+        self.out_grid_pnl: SQLGridPnl = SQLGridPnl(parent=self, frame=frame)
+        self.AddPage(page=self.out_grid_pnl,
+                     caption="Grid",
+                     select=False)
+
+
+class SQLOutPnl(wx.Panel):
+    def __init__(self, parent, frame):
+        super().__init__(parent=parent)
+        self.parent = parent
+        self.frame = frame
+
+        self.tb = wx.ToolBar(parent=self, style=wx.TB_HORIZONTAL | wx.NO_BORDER | wx.TB_FLAT)
+        self.tb.SetToolBitmapSize((16, 16))
+        self.tb.AddTool(toolId=wx.Window.NewControlId(),
+                        label="Save",
+                        bitmap=wx.Bitmap(sql_cn.IM_SAVE, wx.BITMAP_TYPE_PNG),
+                        shortHelp="Save")
+        self.tb.Realize()
+
+        self.out_nb = SQLOutPageCtrl(parent=self, frame=frame)
+
+        sizer = wx.BoxSizer(wx.VERTICAL)
+        sizer.Add(self.tb, flag=wx.EXPAND)
+        sizer.Add(self.out_nb, flag=wx.EXPAND, proportion=1)
+        self.SetSizer(sizer)
 
 
 class SQLOutCtrl(wx.stc.StyledTextCtrl):
@@ -58,19 +94,17 @@ class SQLOutCtrl(wx.stc.StyledTextCtrl):
         # self.SetStyling(0, wx.stc.STC_STYLE_DEFAULT)
 
     def setup_editor(self):
-        self.SetLexer(wx.stc.STC_LEX_SQL)
-        self.SetKeyWords(0, ' '.join(SQL_KEYWORDS))
         self.SetProperty('fold', '1')
         self.SetProperty('tab.timmy.whinge.level', '1')
         self.SetMargins(2, 2)
         self.SetMarginType(1, wx.stc.STC_MARGIN_NUMBER)
         self.SetMarginWidth(1, 40)
-        self.SetIndent(4)
-        self.SetIndentationGuides(True)
-        self.SetBackSpaceUnIndents(True)
-        self.SetTabIndents(True)
-        self.SetTabWidth(4)
-        self.SetUseTabs(False)
+        # self.SetIndent(4)
+        # self.SetIndentationGuides(True)
+        # self.SetBackSpaceUnIndents(True)
+        # self.SetTabIndents(True)
+        # self.SetTabWidth(4)
+        self.SetUseTabs(True)
         self.SetViewWhiteSpace(False)
         self.SetEOLMode(wx.stc.STC_EOL_LF)
         self.SetViewEOL(False)

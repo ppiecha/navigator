@@ -8,6 +8,7 @@ dsn = """(DESCRIPTION=
                (ADDRESS=(PROTOCOL=tcp)(HOST=sales2-svr)(PORT=1521)))
              (CONNECT_DATA=(SERVICE_NAME=sales.example.com)))"""
 dsn = cx_Oracle.makedsn("localhost", 1521, service_name="orcl")
+print(type(dsn))
 user_pwd = "oracle"
 
 with cx_Oracle.connect("hr", user_pwd, dsn, encoding="UTF-8") as connection:
@@ -44,6 +45,5 @@ with cx_Oracle.connect("hr", user_pwd, dsn, encoding="UTF-8") as connection:
         cursor.rowfactory = lambda *args: dict(zip(columns, args))
         for row in cursor:
             print(row)
-
 
 print("connected")

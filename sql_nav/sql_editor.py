@@ -1,6 +1,4 @@
 import logging
-import os
-from enum import Enum
 from typing import List, Tuple, Any, Optional
 from pathlib import Path
 import wx
@@ -8,14 +6,11 @@ import wx.stc
 import sql_nav.sql_constants as sql_cn
 
 from lib4py import logger as lg
+from sql_nav.out_editor import SQLOutCtrl, SQLOutPnl
+from sql_nav.sql_engine import SQLEng
+from sql_nav.sql_util import CmdList, prepare_cmd, SQL_KEYWORDS, is_line_empty, Splitter
 
 logger = lg.get_console_logger(name=__name__, log_level=logging.DEBUG)
-
-SQL_KEYWORDS = ['select', 'insert', 'update', 'delete', 'create', 'replace', 'table', 'schema', 'not', 'null',
-                'primary', 'key', 'unique', 'index', 'constraint', 'check', 'or', 'and', 'on', 'foreign', 'references',
-                'cascade', 'default', 'grant', 'usage', 'to', 'is', 'restrict', 'into', 'values', 'from', 'where',
-                'group',
-                'by', 'join', 'left', 'right', 'outer', 'having', 'distinct', 'as', 'limit', 'like', 'order']
 
 faces = {'times': 'Times',
          'mono': 'Consolas',
@@ -26,68 +21,39 @@ faces = {'times': 'Times',
          }
 
 
-class SQLMode(Enum):
-    SQL = "SQL"
-    PLSQL = "PLSQL"
-    SQLPLUS = "SQLPLUS"
-
-
-class Cmd:
-    def __init__(self, cmd: str, mode: SQLMode = SQLMode.SQLPLUS) -> None:
-        self.cmd = cmd
-        self.mode = mode
-
-    def set_cmd(self, cmd: str) -> None:
-        self.cmd = cmd
-
-    def __str__(self):
-        return str(self.mode) + " " + self.cmd
-
-
-CmdList = List[Cmd]
-
-
-def is_plsql_cmd(first_word: str) -> bool:
-    return first_word.lower() in ["create", "begin", "declare"]
-
-
-def is_sql_cmd(first_word: str) -> bool:
-    return first_word.lower() in ["select", "with", "alter", "drop"]
-
-
-def is_line_empty(line_str: str) -> bool:
-    line_str = line_str.strip()
-    return line_str == "" or line_str.startswith("--") or line_str.startswith("/*")
-
-
-def prepare_cmd(cmd_str: str) -> Optional[Cmd]:
-    mode: SQLMode
-    cmd_str = os.linesep.join([s for s in cmd_str.splitlines() if s.strip()])
-    cmd_str = cmd_str.strip()
-    first_word: List = cmd_str.split(maxsplit=1)
-    if first_word:
-        if is_plsql_cmd(first_word=first_word[0]):
-            if cmd_str.endswith(";"):
-                cmd_str += "\n/"
-            mode = SQLMode.PLSQL
-        elif is_sql_cmd(first_word=first_word[0]):
-            if not cmd_str.endswith(";"):
-                cmd_str += ";"
-            mode = SQLMode.SQL
-        else:
-            if cmd_str.endswith(";"):
-                cmd_str = cmd_str.rstrip(";")
-            mode = SQLMode.SQLPLUS
-        return Cmd(cmd=cmd_str, mode=mode)
-    else:
-        return None
-
-
 class SQLEditor(wx.Panel):
     def __init__(self, parent: wx.Window, frame: wx.Window, file: str = ""):
         super().__init__(parent=parent)
         self.parent = parent
         self.frame = frame
+
+        self.splitter = Splitter(parent=self)
+        self.splitter.SetMinimumPaneSize(10)
+
+        self.sql_edit_pnl = SQLEditPnl(parent=self.splitter, frame=frame, file=file)
+
+        self.out_pnl = SQLOutPnl(parent=self.splitter, frame=frame)
+        self.sql_eng = SQLEng(sql_out=self.out_pnl.out_nb.out_ctrl,
+                              sql_grid=self.out_pnl.out_nb.out_grid_pnl.grid_ctrl)
+        self.sql_eng.start_sql_plus()
+        self.sql_eng.connection_str = "hr/oracle@localhost/orcl"
+        self.sql_eng.connect_sql_plus()
+        self.sql_eng.connect_grid()
+
+        self.splitter.SplitHorizontally(self.sql_edit_pnl, self.out_pnl)
+        self.splitter.SetSashGravity(0.5)
+
+        sizer = wx.BoxSizer(wx.VERTICAL)
+        sizer.Add(self.splitter, flag=wx.EXPAND, proportion=1)
+        self.SetSizer(sizer)
+
+
+class SQLEditPnl(wx.Panel):
+    def __init__(self, parent, frame, file: str = ""):
+        super().__init__(parent=parent)
+        self.parent = parent
+        self.frame = frame
+
         self.file_path: Optional[Path] = Path(file) if file else None
 
         self.tb = wx.ToolBar(parent=self, style=wx.TB_HORIZONTAL | wx.NO_BORDER | wx.TB_FLAT)
@@ -123,7 +89,7 @@ class SQLEditCtrl(wx.stc.StyledTextCtrl):
     def setup_editor(self):
         self.SetLexer(wx.stc.STC_LEX_SQL)
         self.SetKeyWords(0, ' '.join(SQL_KEYWORDS))
-        self.SetProperty('fold', '1')
+        self.SetProperty('fold', '3')
         self.SetProperty('tab.timmy.whinge.level', '1')
         self.SetMargins(2, 2)
         self.SetMarginType(1, wx.stc.STC_MARGIN_NUMBER)
@@ -138,10 +104,18 @@ class SQLEditCtrl(wx.stc.StyledTextCtrl):
         self.SetEOLMode(wx.stc.STC_EOL_LF)
         self.SetViewEOL(False)
         self.SetEdgeMode(wx.stc.STC_EDGE_NONE)
-        self.SetMarginType(2, wx.stc.STC_MARGIN_SYMBOL)
+        self.SetMarginType(2, wx.stc.STC_MARGIN_COLOUR)
         self.SetMarginMask(2, wx.stc.STC_MASK_FOLDERS)
         self.SetMarginSensitive(2, True)
         self.SetMarginWidth(2, 12)
+
+        # STC_MARGIN_BACK = 2
+        # STC_MARGIN_COLOUR = 6
+        # STC_MARGIN_FORE = 3
+        # STC_MARGIN_NUMBER = 1
+        # STC_MARGIN_RTEXT = 5
+        # STC_MARGIN_SYMBOL = 0
+        # STC_MARGIN_TEXT = 4
 
         self.StyleSetSpec(wx.stc.STC_STYLE_DEFAULT, "face:%(mono)s,size:%(size)d" % faces)
         self.StyleClearAll()  # Reset all to be like the default
@@ -236,7 +210,7 @@ class SQLEditCtrl(wx.stc.StyledTextCtrl):
                 cmd_str = self.GetSelectedText()
             else:
                 cmd_str = self.GetRange(start=self.PositionFromLine(self.get_first_not_empty(act_line=line)),
-                                    end=self.GetLineEndPosition(self.get_last_not_empty(act_line=line)))
+                                        end=self.GetLineEndPosition(self.get_last_not_empty(act_line=line)))
 
             # logger.debug(cmd)
             cmd = prepare_cmd(cmd_str=cmd_str)
