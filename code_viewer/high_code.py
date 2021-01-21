@@ -78,8 +78,12 @@ class HtmlViewer(wx.Panel):
                             lexer=lexer,
                             formatter=formatter)
         content = content.replace("<h2></h2>", "")
-        content = content.replace("""<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN"
-   "http://www.w3.org/TR/html4/strict.dtd">""", "")
+   #      content = content.replace("""<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN"
+   # "http://www.w3.org/TR/html4/strict.dtd">""", "")
+        # content = content.replace("<body>", """<body style="font-family: Consolas">""")
+        # <font face='verdana'>
+        content = content.replace("body  { background: #f8f8f8; }", """body  { background: #f8f8f8;
+        font-family: Consolas, monaco, monospace; font-size: 12px;}""")
         self.vw.SetPage(content, "")
         # self.vw.Reload()
 
@@ -218,7 +222,7 @@ class HtmlViewer(wx.Panel):
 
     def go_to_line(self, line_no=None):
         self.vw.RunScript('document.getElementById("line-' + str(line_no) + '").scrollIntoView(true);')
-        self.go_to_left()
+        # self.go_to_left()
 
     def go_to_left(self):
         # self.vw.RunScript('window.scrollTo(0, window.pageYOffset);')
@@ -279,7 +283,9 @@ class SearchPanel(wx.Panel):
         self.ed_line.SetMax(max_line)
 
     def go_to_line(self, e):
-        self.browser.go_to_line(self.ed_line.GetValue())
+        print(f"line {self.ed_line.GetValue()} {self.ed_line.GetMax()}")
+        if self.ed_line.GetValue() <= self.ed_line.GetMax():
+            self.browser.go_to_line(self.ed_line.GetValue())
 
     def resize(self):
         self.sizer.Layout()
@@ -340,10 +346,11 @@ class HtmlPanel(wx.Panel):
             dlg = wx.MessageDialog(self, f"File {file_name} has changed. Reload?",
                                    style=wx.YES_NO | wx.CANCEL | wx.ICON_INFORMATION,
                                    caption=cn.CN_APP_NAME)
-            print("diff")
-            return dlg.ShowModal()
+            resp = dlg.ShowModal()
+            if resp == wx.ID_YES:
+                self.stat = stat
+            return resp
         else:
-            print("same")
             return wx.ID_CANCEL
 
     def open_file(self, high_opt):

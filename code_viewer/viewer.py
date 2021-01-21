@@ -32,7 +32,8 @@ class MainFrame(wx.Frame):
         self.Bind(wx.EVT_MENU, self.on_cancel, id=wx.ID_CANCEL)
         self.Bind(wx.EVT_MENU, self.on_find_next, id=ID_FIND_NEXT)
         self.Bind(wx.EVT_MENU, self.on_find_prev, id=ID_FIND_PREV)
-        self.page_ctrl.Bind(aui.EVT_AUINOTEBOOK_PAGE_CHANGED, self.page_changed)
+        # self.page_ctrl.Bind(aui.EVT_AUINOTEBOOK_PAGE_CHANGED, self.page_changed)
+        self.page_ctrl.Bind(wx.EVT_CHILD_FOCUS, self.page_changed)
         self.page_ctrl.Bind(aui.EVT_AUINOTEBOOK_PAGE_CLOSE, self.page_close)
         self.Bind(wx.EVT_CLOSE, self.on_close)
 
@@ -76,6 +77,7 @@ class MainFrame(wx.Frame):
 
     def page_changed(self, e):
         page = self.page_ctrl.GetPage(e.GetSelection())
+        print(f"page changed {page.file_name}")
         if page.to_be_reloaded(page.file_name) == wx.ID_YES:
             page.browser.reload(reread=True)
         self.set_caption()
