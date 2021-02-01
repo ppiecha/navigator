@@ -44,14 +44,15 @@ class MainFrame(wx.Frame):
         self.sizer = None
         self.wait = None
         self.last_active_browser = None
-        self.vim = viewer.MainFrame(nav_frame=self)
-        self.finder = finder.MainFrame(app=wx.GetApp(), nav_frame=self)
-        self.sql_nav = SQLFrame(nav_frame=self)
 
         self.InitUI()
         self.process_args()
 
         self.Bind(wx.EVT_CLOSE, self.on_close)
+
+        self.vim = viewer.MainFrame(nav_frame=self)
+        self.finder = finder.MainFrame(app=wx.GetApp(), nav_frame=self)
+        self.sql_nav = SQLFrame(nav_frame=self)
 
     def go_to_left(self):
         self.left_browser.get_active_browser().SetFocus()
@@ -65,7 +66,7 @@ class MainFrame(wx.Frame):
             args = [arg for arg in sys.argv[1:] if not arg.startswith("-")]
             if "-w" in opts:
                 sys.excepthook = self.except_hook
-                self.show_message("Output redirected to UI")
+                # self.show_message("Output redirected to UI")
         else:
             pass
 
@@ -129,8 +130,6 @@ class MainFrame(wx.Frame):
 
     def write_last_conf(self, conf_file, app_conf):
         try:
-            app_conf.size = self.GetSize()
-            app_conf.pos = self.GetPosition()
             with open(conf_file, 'wb') as ac:
                 pickle.dump(app_conf, ac)
         except IOError:
@@ -210,11 +209,10 @@ class MainFrame(wx.Frame):
         self.SetSizer(self.sizer)
         # self.SetMinSize(self.GetEffectiveMinSize())
 
-        if self.app_conf.size:
-            self.SetSize(self.app_conf.size)
-            self.SetPosition(self.app_conf.pos)
+        if self.app_conf.nav_rect:
+            self.SetRect(self.app_conf.nav_rect)
         else:
-            self.SetSize((600, 500))
+            self.SetSize((700, 500))
             self.Center()
 
         self.SetDefaultItem(self.left_browser)
@@ -231,6 +229,10 @@ class MainFrame(wx.Frame):
         self.splitter.SetSashPosition(size.x / 2)
 
     def on_close(self, event):
+        self.app_conf.nav_rect = self.GetRect()
+        self.app_conf.vim_rect = self.vim.GetRect()
+        self.app_conf.find_res_rect = self.finder.res_frame.GetRect()
+        self.app_conf.finder_rect = self.finder.GetRect()
         self.vim.Destroy()
         self.finder.res_frame.Destroy()
         self.finder.Destroy()

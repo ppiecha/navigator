@@ -142,6 +142,7 @@ class HtmlViewer(wx.Panel):
                            only_mark=False,
                            backward=False,
                            match=high_opt.match)
+            self.go_to_left()
         return True
 
     def show_part(self, file_name, high_opt, line_delta, lexer=None, formatter=None):
@@ -192,9 +193,11 @@ class HtmlViewer(wx.Panel):
             while match_num != match - 1:
                 match_num = self.vw.Find(word, flags)
                 print("match2", match, match_num)
+            self.search_pnl.update_count_label(word_num=match_num, word_cnt=self.word_cnt)
             return [match_num, self.word_cnt]
         else:
             match_num = self.vw.Find(word, flags)
+            self.search_pnl.update_count_label(word_num=match_num, word_cnt=self.word_cnt)
             return [match_num, self.word_cnt]
 
     def get_lexer(self, file_name, lexer=""):
@@ -222,11 +225,11 @@ class HtmlViewer(wx.Panel):
 
     def go_to_line(self, line_no=None):
         self.vw.RunScript('document.getElementById("line-' + str(line_no) + '").scrollIntoView(true);')
-        # self.go_to_left()
+        self.go_to_left()
 
     def go_to_left(self):
-        # self.vw.RunScript('window.scrollTo(0, window.pageYOffset);')
-        self.vw.RunScript('window.scrollTo(0, 0);')
+        self.vw.RunScript('window.scrollTo(0, window.pageYOffset);')
+        # self.vw.RunScript('window.scrollTo(0, 0);')
 
 
 class SearchPanel(wx.Panel):
@@ -316,6 +319,9 @@ class SearchPanel(wx.Panel):
                                                     only_mark=False,
                                                     backward=backward,
                                                     reset=reset)
+        # self.update_count_label(word_num=word_num, word_cnt=word_cnt)
+
+    def update_count_label(self, word_num: int, word_cnt: int):
         if word_num >= 0:
             self.lbl_cnt.SetLabel(f"{str(word_num + 1)}/{str(word_cnt)}")
         else:

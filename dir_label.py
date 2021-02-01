@@ -68,7 +68,8 @@ class DirLabel(wx.Panel):
                 self.open_dir(dir)
                 self.dir_path = dir
                 self.suffix = ""
-                self._refresh()
+                x, y = event.GetPosition()
+                self.update_label(x=x, y=y)
         event.Skip()
 
     def on_size(self, e):
@@ -86,15 +87,16 @@ class DirLabel(wx.Panel):
 
     def on_mouse_move(self, event):
         x, y = event.GetPosition()
+        self.update_label(x=x, y=y)
+        event.Skip()
+
+    def update_label(self, x, y):
         prefix, selected, suffix = self.hit_test(x, y)
         if self.selected != selected:
             self.prefix = prefix
             self.selected = selected
             self.suffix = suffix
-            # print(prefix, selected, suffix)
             self._refresh()
-
-        event.Skip()
 
     def set_value(self, value):
         self.dir_path = value

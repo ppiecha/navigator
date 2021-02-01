@@ -1,3 +1,5 @@
+import subprocess
+
 import wx
 import wx.html2
 import constants as cn
@@ -7,6 +9,7 @@ from code_viewer import high_code
 
 ID_FIND_NEXT = wx.NewId()
 ID_FIND_PREV = wx.NewId()
+ID_EDIT = wx.NewId()
 
 
 class MainFrame(wx.Frame):
@@ -19,23 +22,49 @@ class MainFrame(wx.Frame):
         sizer.Add(self.page_ctrl, flag=wx.EXPAND, proportion=1)
         self.SetIcon(wx.Icon(cn.CN_ICON_CODE_VIEWER))
         self.SetSizer(sizer)
-        self.CenterOnScreen()
+        print("vim rect", self.nav_frame.app_conf.vim_rect)
+        if self.nav_frame.app_conf.vim_rect:
+            print("vim", self.nav_frame.app_conf.vim_rect)
+            self.SetRect(self.nav_frame.app_conf.vim_rect)
+        else:
+            self.CenterOnParent()
+            print("vim def", self.GetRect())
 
         self.entries = []
         self.entries.append(wx.AcceleratorEntry(flags=wx.ACCEL_NORMAL, keyCode=wx.WXK_ESCAPE, cmd=wx.ID_CANCEL))
         self.entries.append(wx.AcceleratorEntry(flags=wx.ACCEL_NORMAL, keyCode=wx.WXK_F3, cmd=ID_FIND_NEXT))
         self.entries.append(wx.AcceleratorEntry(flags=wx.ACCEL_SHIFT, keyCode=wx.WXK_F3, cmd=ID_FIND_PREV))
         self.entries.append(wx.AcceleratorEntry(flags=wx.ACCEL_CTRL, keyCode=ord('F'), cmd=wx.ID_FIND))
+        self.entries.append(wx.AcceleratorEntry(flags=wx.ACCEL_NORMAL, keyCode=wx.WXK_F4, cmd=ID_EDIT))
         self.SetAcceleratorTable(wx.AcceleratorTable(self.entries))
 
         self.Bind(wx.EVT_MENU, self.on_find, id=wx.ID_FIND)
         self.Bind(wx.EVT_MENU, self.on_cancel, id=wx.ID_CANCEL)
         self.Bind(wx.EVT_MENU, self.on_find_next, id=ID_FIND_NEXT)
         self.Bind(wx.EVT_MENU, self.on_find_prev, id=ID_FIND_PREV)
+        self.Bind(wx.EVT_MENU, self.on_edit_ext, id=ID_EDIT)
         # self.page_ctrl.Bind(aui.EVT_AUINOTEBOOK_PAGE_CHANGED, self.page_changed)
         self.page_ctrl.Bind(wx.EVT_CHILD_FOCUS, self.page_changed)
         self.page_ctrl.Bind(aui.EVT_AUINOTEBOOK_PAGE_CLOSE, self.page_close)
+        self.page_ctrl.Bind(aui.EVT_AUINOTEBOOK_BEGIN_DRAG, self.on_start_drag)
         self.Bind(wx.EVT_CLOSE, self.on_close)
+
+    def on_edit_ext(self, e):
+        selected = self.get_active_page().browser.get_file_name()
+        if not selected:
+            return
+        args = [self.nav_frame.app_conf.text_editor]
+        args.extend([selected])
+        subprocess.Popen(args, shell=False)
+
+    def on_start_drag(self, e):
+        selected = self.get_active_page().browser.get_file_name()
+        if not selected:
+            return
+        files = wx.FileDataObject()
+        files.AddFile(selected)
+        drag_src = wx.DropSource(win=self, data=files)
+        result = drag_src.DoDragDrop()
 
     def page_close(self, e):
         pt = wx.GetMousePosition()

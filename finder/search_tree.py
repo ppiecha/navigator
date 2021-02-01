@@ -21,7 +21,9 @@ def find_words_in_line(text, opt):
     matches = {}
     for word in opt.words:
         matches[word] = []
-        for match in re.finditer(pattern=word, string=text, flags=flags):
+        pattern = r"\b" + word + r"\b" if opt.whole_words else r"" + word + r""
+        # print("find words in line", pattern)
+        for match in re.finditer(pattern=pattern, string=text, flags=flags):
             matches[word].append(match.span())
     return matches
 
@@ -36,13 +38,7 @@ class SearchTree(CT.CustomTreeCtrl):
         self.file_nodes = []
         self.dir_nodes = []
         self.search_nodes = {}
-        # self.extension_images = {}
-        # self.SetHilightFocusColour(wx.SystemSettings.GetColour(wx.SYS_COLOUR_LISTBOX))
-        # self.SetHilightNonFocusColour(self.GetBackgroundColour())
         self.EnableSelectionVista()
-        # self.SetBorderPen(self.GetConnectionPen())
-        # self.SetSeparatorColour(self.GetConnectionPen().GetColour())
-        # self.SetDoubleBuffered(True)
 
         # Image list
         self.il = res_frame.finder.nav_frame.im_list
@@ -59,11 +55,21 @@ class SearchTree(CT.CustomTreeCtrl):
         self.Bind(wx.EVT_TREE_SEL_CHANGED, self.on_sel_changed)
         self.Bind(wx.EVT_TREE_ITEM_ACTIVATED, self.on_db_click)
         self.Bind(wx.EVT_TREE_ITEM_RIGHT_CLICK, self.on_right_click)
+        self.Bind(wx.EVT_TREE_BEGIN_DRAG, self.on_start_drag)
 
         self.register_topic(cn.CN_TOPIC_ADD_NODE)
         self.register_topic(cn.CN_TOPIC_UPDATE_STATUS)
         self.register_topic(cn.CN_TOPIC_SEARCH_NODE_COMPLETED)
         self.register_topic(cn.CN_TOPIC_SEARCH_COMPLETED)
+
+    def on_start_drag(self, e):
+        selected = e.GetItem().GetData()
+        if not selected or not hasattr(selected, "file_full_name"):
+            return
+        files = wx.FileDataObject()
+        files.AddFile(selected.file_full_name)
+        drag_src = wx.DropSource(win=self.res_frame, data=files)
+        result = drag_src.DoDragDrop()
 
     def register_topic(self, topic):
         if topic == cn.CN_TOPIC_ADD_NODE:
@@ -88,11 +94,13 @@ class SearchTree(CT.CustomTreeCtrl):
     def listen_for_search_node_completed(self, search_dir, node):
         wx.CallAfter(self.search_node_completed, search_dir, node)
 
-    def listen_for_search_completed(self):
-        wx.CallAfter(self.search_completed)
+    def listen_for_search_completed(self, results):
+        wx.CallAfter(self.search_completed, results)
 
-    def search_completed(self):
+    def search_completed(self, results):
         self.res_frame.change_icon(self.res_frame.search_thread.event)
+        for item in results:
+            self.add_nodes(item[0], item[1])
 
     def search_node_completed(self, search_dir, node):
         # self.res_frame.change_icon(self.res_frame.search_thread.event)
@@ -231,6 +239,7 @@ class SearchTree(CT.CustomTreeCtrl):
     def init_tree(self, params=None):
         self.clear_list()
         self.AddRoot("root")
+        self.res_frame.output.preview.browser.clear()
         wx.Yield()
 
     def update_node_text(self, node, text):
@@ -273,9 +282,9 @@ class SearchTree(CT.CustomTreeCtrl):
         else:
             self.add_search_node(search_node=SearchNode(path=search_dir))
         self.update_search_node(search_dir=search_dir, node=None)
-        # self.Update()
+        self.Update()
         wx.Yield()
-        # wx.GetApp().ProcessPendingEvents()
+        wx.GetApp().ProcessPendingEvents()
 
     def add_dir_node(self, search_node, dir_node):
         path = Path(dir_node.dir)
@@ -416,7 +425,6 @@ class HtmlLabel(html.HtmlWindow):
 
     def set_value(self, value):
         self.line_text = self.template.replace("$text", value)
-        # print(self.line_text)
         self.SetPage(source=self.line_text)
         dc = wx.WindowDC(self.tree)
         width, height = dc.GetTextExtent(self.ToText())

@@ -52,7 +52,7 @@ class LinkItem:
 class SimpleMiniFrame(wx.MiniFrame):
     def __init__(self, frame, is_left, is_read_only):
         super().__init__(parent=frame, title=cn.CN_TOOL_NAME + " (left)" if is_left else cn.CN_TOOL_NAME + " (right)",
-                         style=wx.CAPTION | wx.RESIZE_BORDER | wx.CLOSE_BOX, size=(500, 400))
+                         style=wx.CAPTION | wx.RESIZE_BORDER | wx.CLOSE_BOX, size=(600, 400))
         self.frame = frame
         self.is_left = is_left
         self.is_read_only = is_read_only
@@ -94,6 +94,10 @@ class SimpleMiniFrame(wx.MiniFrame):
         self.btn_cancel.Bind(wx.EVT_BUTTON, self.on_close, id=wx.ID_CANCEL)
 
     def on_close(self, e):
+        if self.is_left:
+            self.frame.app_conf.left_assistant_rect = (self.GetRect())
+        else:
+            self.frame.app_conf.right_assistant_rect = (self.GetRect())
         self.Destroy()
 
     def change_layout(self, is_read_only):
@@ -104,12 +108,18 @@ class SimpleMiniFrame(wx.MiniFrame):
     def show(self):
         # self.main_sizer.Fit(self)
         # self.SetSize(self.GetEffectiveMinSize())
-        _left, _top = self.frame.GetPosition()
-        _width, _height = self.frame.GetSize()
-        if self.is_left:
-            self.SetPosition((_left - self.GetSize().GetWidth(), _top))
+        if not self.frame.app_conf.left_assistant_rect:
+            _left, _top = self.frame.GetPosition()
+            _width, _height = self.frame.GetSize()
+            if self.is_left:
+                self.SetPosition((_left - self.GetSize().GetWidth(), _top))
+            else:
+                self.SetPosition((_left + _width, _top))
         else:
-            self.SetPosition((_left + _width, _top))
+            if self.is_left:
+                self.SetRect(self.frame.app_conf.left_assistant_rect)
+            else:
+                self.SetRect(self.frame.app_conf.left_assistant_rect)
         return self.Show()
 
 

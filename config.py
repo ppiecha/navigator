@@ -70,8 +70,6 @@ class NavigatorConf:
         self.show_hidden = False
         self.text_editor = ""
         self.diff_editor = ""
-        self.pos = None
-        self.size = None
         self.history_limit = 15
         self.hist_retention_days = 30
         self.left_active_tab = None
@@ -83,6 +81,12 @@ class NavigatorConf:
         self.folder_hist = {}
         self.file_hist = Dict[str, HistItem]
         self.file_hist = {}
+        self.nav_rect = None
+        self.vim_rect = None
+        self.finder_rect = None
+        self.find_res_rect = None
+        self.left_assistant_rect = None
+        self.right_assistant_rect = None
 
     def __str__(self):
         return "Left browser: " + str(self.left_browser) + "\n" + "Right browser: " + str(self.right_browser)

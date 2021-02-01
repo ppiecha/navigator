@@ -26,7 +26,10 @@ class MainFrame(wx.Frame):
         self.search_thread = None
         self.output = MainPanel(res_frame=self)
 
-        self.CenterOnScreen()
+        if self.nav_frame.app_conf.find_res_rect:
+            self.SetRect(self.nav_frame.app_conf.find_res_rect)
+        else:
+            self.CentreOnParent()
 
         self.entries = []
         self.entries.append(wx.AcceleratorEntry(flags=wx.ACCEL_NORMAL, keyCode=wx.WXK_ESCAPE, cmd=wx.ID_CANCEL))

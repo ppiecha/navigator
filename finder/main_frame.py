@@ -19,7 +19,11 @@ class MainFrame(wx.Frame):
         self.app.SetAppName(cn.CN_APP_NAME)
         self.SetIcon(wx.Icon(cn.CN_ICON_FILE_NAME))
         self.SetMinSize(self.GetEffectiveMinSize())
-        self.CenterOnScreen()
+        if self.nav_frame.app_conf.finder_rect:
+            x, y, w, h = self.nav_frame.app_conf.finder_rect
+            self.SetPosition((x, y))
+        else:
+            self.CentreOnParent()
 
         self.entries = []
         self.entries.append(wx.AcceleratorEntry(flags=wx.ACCEL_NORMAL, keyCode=wx.WXK_ESCAPE, cmd=wx.ID_CANCEL))
@@ -198,7 +202,7 @@ class SearchParams:
         self.masks = self.set_match_pattern(self.masks)
 
     def __repr__(self):
-        return str(self.words) + str(self.dirs_pattern) + str(self.dirs) + str(self.ex_dirs) + str(self.masks)
+        return str(self.words) + str(self.dirs_pattern) + str(self.dirs) + str(self.ex_dirs) + str(self.masks) + f" {self.case_sensitive}" + f" {self.whole_words}"
 
     @staticmethod
     def get_lst(values, lower=False):
