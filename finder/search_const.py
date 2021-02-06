@@ -10,6 +10,7 @@ CN_APP_PATH = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(str(Path(CN_APP_PATH).parent))
 
 CN_ICON_FILE_NAME = os.path.join(CN_APP_PATH, "img\\finder.ico")
+CN_ICON_FILE_NAME_RES = os.path.join(CN_APP_PATH, "img\\res.ico")
 
 CN_IM_SEARCH = os.path.join(CN_APP_PATH, "img\\search.png")
 CN_IM_EXPAND = os.path.join(CN_APP_PATH, "img\\expand.png")

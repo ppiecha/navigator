@@ -277,6 +277,9 @@ class Browser(wx.ListCtrl, ListCtrlAutoWidthMixin):
         files = wx.FileDataObject()
         for item in selected:
             files.AddFile(str(self.path.joinpath(item)))
+            self.frame.app_conf.hist_update_item(item_list=self.frame.app_conf.file_hist,
+                                                 full_path=str(self.path.joinpath(item)),
+                                                 date=datetime.today())
         self.drag_src = MyDropSource(self.win_id, files)
         result = self.drag_src.DoDragDrop()
         self.drag_src = None
@@ -554,9 +557,8 @@ class Browser(wx.ListCtrl, ListCtrlAutoWidthMixin):
         self.set_tab_name(self.conf.tab_name)
         self.path_pnl.set_value(str(value))
         # self.add_hist_item(str(value))
-        self.frame.app_conf.hist_update_item(item_list=self.frame.app_conf.folder_hist,
-                                             full_path=str(value),
-                                             date=datetime.today())
+        wx.CallAfter(self.frame.app_conf.hist_update_item, self.frame.app_conf.folder_hist,
+                     str(value), datetime.today())
         self.root = str(value) == str(value.anchor)
         self._path = value
 

@@ -1,3 +1,4 @@
+import win32con
 import wx
 import browser
 import menu
@@ -218,6 +219,22 @@ class MainFrame(wx.Frame):
         self.SetDefaultItem(self.left_browser)
         self.Thaw()
         self.left_browser.get_active_browser().SetFocus()
+
+        hot_key_id = wx.NewId()
+        ok = self.RegisterHotKey(hot_key_id,  # a unique ID for this hotkey
+                                  win32con.MOD_WIN | win32con.MOD_ALT,# win32con.MOD_WIN,  # the modifier key
+                                  win32con.VK_RETURN)# win32con.VK_SPACE)  # the key to watch for
+        if not ok:
+            self.show_message(f"Cannot register hot key under number {hot_key_id}")
+        else:
+            self.Bind(wx.EVT_HOTKEY, self.handle_hot_key, id=hot_key_id)
+
+    def handle_hot_key(self, e):
+        if self.IsIconized():
+            self.Iconize(False)
+            self.Raise()
+        else:
+            self.Iconize(True)
 
     def on_size(self, e):
         size = self.GetSize()

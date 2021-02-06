@@ -62,6 +62,8 @@ class DirLabel(wx.Panel):
 
     def on_left_down(self, event):
         self.browser_panel.browser.SetFocus()
+        x, y = event.GetPosition()
+        self.update_label(x=x, y=y)
         if self.selected and "..." not in self.selected:
             dir = self.get_selected_path()
             if dir != self.dir_path:
@@ -70,7 +72,7 @@ class DirLabel(wx.Panel):
                 self.suffix = ""
                 x, y = event.GetPosition()
                 self.update_label(x=x, y=y)
-        event.Skip()
+        # event.Skip()
 
     def on_size(self, e):
         self.dir_path = self._dir_path

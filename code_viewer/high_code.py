@@ -11,15 +11,19 @@ import controls
 import constants as cn
 from pathlib import Path
 import os
+from lib4py import logger as lg
+import logging
+logger = lg.get_console_logger(name=__name__, log_level=logging.DEBUG)
 
 
 class HtmlViewer(wx.Panel):
     def __init__(self, parent):
         super().__init__(parent=parent)
         self.parent = parent
-        self.vw = wx.html2.WebView.New(self)
+        self.vw: wx.html2.WebView = wx.html2.WebView.New(self)
         self.vw.MSWSetEmulationLevel(wx.html2.WEBVIEWIE_EMU_IE11_FORCE)
         self.vw.SetZoomType(wx.html2.WEBVIEW_ZOOM_TYPE_TEXT)
+        # self.vw.AcceleratorTable = self.parent.parent.GetAcceleratorTable()
         self.search_pnl = SearchPanel(parent=self, browser=self)
         self.search_pnl.Hide()
         self.files = {}
@@ -33,6 +37,19 @@ class HtmlViewer(wx.Panel):
         sizer.Add(self.search_pnl, flag=wx.EXPAND)
         sizer.Add(self.vw, flag=wx.EXPAND, proportion=1)
         self.SetSizer(sizer)
+        # self.vw.Bind(wx.EVT_CHAR_HOOK, self.on_key_down)
+        # self.vw.Bind(wx.EVT_KEY_DOWN, self.on_key_down)
+        # self.Bind(wx.EVT_CHILD_FOCUS, self.on_child_fous)
+
+
+    def on_child_fous(self, e):
+        logger.debug(f"ww key down {type(e)} {type(wx.Window.FindFocus())}")
+        if isinstance(wx.Window.FindFocus(), wx.html2.WebView):
+            logger.debug("HTML viewer")
+        e.Skip()
+
+        # if e.GetKeyCode() == wx.WXK_CONTROL_F:
+        #     self.parent.parent.parent.on_find(e=None)
 
     def get_file_name(self):
         for file_name in self.files.keys():
@@ -86,6 +103,7 @@ class HtmlViewer(wx.Panel):
         font-family: Consolas, monaco, monospace; font-size: 12px;}""")
         self.vw.SetPage(content, "")
         # self.vw.Reload()
+        # self.vw.SetEditable(enable=True)
 
     def set_search_word(self, word):
         self.search_pnl.ed_word.SetValue(word)
@@ -125,9 +143,6 @@ class HtmlViewer(wx.Panel):
             raise Exception("Highlight options not defined")
         if not lexer:
             lexer = self.get_lexer(file_name=file_name)
-        # print(vars(lexer))
-        # self.search_pnl.ed_lexer.SetValue(lexer)
-        # print(lexer, list(get_all_lexers()))
         if not formatter:
             formatter = self.get_formatter(lines=high_opt.lines)
         self.set_page(content=self.file_as_source(file_name),
@@ -189,10 +204,8 @@ class HtmlViewer(wx.Panel):
                 return [-1, self.word_cnt]
         if match >= 0:
             match_num = self.vw.Find(word, flags)
-            print("match", match, match_num)
             while match_num != match - 1:
                 match_num = self.vw.Find(word, flags)
-                print("match2", match, match_num)
             self.search_pnl.update_count_label(word_num=match_num, word_cnt=self.word_cnt)
             return [match_num, self.word_cnt]
         else:
@@ -286,7 +299,6 @@ class SearchPanel(wx.Panel):
         self.ed_line.SetMax(max_line)
 
     def go_to_line(self, e):
-        print(f"line {self.ed_line.GetValue()} {self.ed_line.GetMax()}")
         if self.ed_line.GetValue() <= self.ed_line.GetMax():
             self.browser.go_to_line(self.ed_line.GetValue())
 
@@ -335,29 +347,41 @@ class HtmlPanel(wx.Panel):
         self.parent = parent
         self.browser = HtmlViewer(parent=self)
         self.file_name = file_name
+        self.deleted: bool = False
         if file_name:
             self.stat = os.stat(file_name, follow_symlinks=False).st_mtime
-
-        # print(self.browser.vw.Find("function", wx.html2.WEBVIEW_FIND_HIGHLIGHT_RESULT))
-        # self.browser.go_to_line(66)
-        # self.browser.SetFocus()
 
         sizer = wx.BoxSizer(wx.VERTICAL)
         sizer.Add(self.browser, flag=wx.EXPAND, proportion=1)
         self.SetSizer(sizer)
 
     def to_be_reloaded(self, file_name):
-        stat = os.stat(file_name, follow_symlinks=False).st_mtime
-        if self.stat != stat:
-            dlg = wx.MessageDialog(self, f"File {file_name} has changed. Reload?",
-                                   style=wx.YES_NO | wx.CANCEL | wx.ICON_INFORMATION,
-                                   caption=cn.CN_APP_NAME)
-            resp = dlg.ShowModal()
-            if resp == wx.ID_YES:
-                self.stat = stat
-            return resp
-        else:
-            return wx.ID_CANCEL
+        if not self.deleted:
+            if not Path(file_name).exists():
+                self.deleted = True
+                dlg = wx.MessageDialog(self, f"File {file_name} doesn't exist. Keep in code viewer?",
+                                       style=wx.YES_NO | wx.ICON_INFORMATION,
+                                       caption=cn.CN_APP_NAME)
+                resp = dlg.ShowModal()
+                if resp == wx.ID_YES:
+                    return wx.ID_CANCEL
+                else:
+                    logger.debug(f"deleting page {self.parent.GetSelection()}")
+                    wx.CallAfter(self.parent.viewer_frame.close_page, self.parent.GetSelection())
+                    return wx.ID_CANCEL
+            else:
+                # logger.debug(f"{file_name} exists")
+                stat = os.stat(file_name, follow_symlinks=False).st_mtime
+                if self.stat != stat:
+                    dlg = wx.MessageDialog(self, f"File {file_name} has changed. Reload?",
+                                           style=wx.YES_NO | wx.CANCEL | wx.ICON_INFORMATION,
+                                           caption=cn.CN_APP_NAME)
+                    resp = dlg.ShowModal()
+                    if resp == wx.ID_YES:
+                        self.stat = stat
+                    return resp
+                else:
+                    return wx.ID_CANCEL
 
     def open_file(self, high_opt):
         return self.browser.show_file(file_name=self.file_name, high_opt=high_opt)
