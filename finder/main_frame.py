@@ -105,7 +105,7 @@ class MainPanel(wx.Panel):
         self.directories = wx.ComboBox(self, value=r'c:\Users\pit')
         self.btn_dir = wx.Button(self, label="...", size=(23, 23))
         self.exclude = wx.ComboBox(self, value="")
-        self.mask = wx.ComboBox(self, value="*.sql;*.pkb;*.pks;*.py;*.java")
+        self.mask = wx.ComboBox(self, value="*.sql;*.pkb;*.pks;*.py;*.java;*.xml;")
         # self.sub_dirs = wx.CheckBox(self, label="Search subdirectories")
         # self.file_names = wx.CheckBox(self, label="Search also in folder and file names")
         dir_bord = 0

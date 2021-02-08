@@ -124,7 +124,8 @@ class Search(threading.Thread):
     def find_first(self, text, opt):
         flag = re.IGNORECASE if not opt.case_sensitive else 0
         for word in opt.words:
-            pattern = r"\b" + word + r"\b" if opt.whole_words else r"" + word + r""
+            esc_word = word if opt.reg_exp else re.escape(word)
+            pattern = r"\b" + esc_word + r"\b" if opt.whole_words else r"" + esc_word + r""
             if re.search(pattern=pattern, string=text, flags=flag):
                 return True
         return False

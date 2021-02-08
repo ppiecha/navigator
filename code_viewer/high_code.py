@@ -95,12 +95,18 @@ class HtmlViewer(wx.Panel):
                             lexer=lexer,
                             formatter=formatter)
         content = content.replace("<h2></h2>", "")
-   #      content = content.replace("""<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN"
-   # "http://www.w3.org/TR/html4/strict.dtd">""", "")
+        #      content = content.replace("""<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN"
+        # "http://www.w3.org/TR/html4/strict.dtd">""", "")
         # content = content.replace("<body>", """<body style="font-family: Consolas">""")
         # <font face='verdana'>
-        content = content.replace("body  { background: #f8f8f8; }", """body  { background: #f8f8f8;
+        content = content.replace("body .hll { background-color: #ffffcc }",
+                                  "body .hll { background-color: #282831 }")
+        content = content.replace("body { background: #1e1e27; color: #cfbfad }", """body  { background: #1e1e27; color: #cfbfad;
         font-family: Consolas, monaco, monospace; font-size: 12px;}""")
+        content = content.replace("td.linenos pre { color: #000000; background-color: #f0f0f0; padding-left: 5px; padding-right: 5px; }",
+                                  """td.linenos pre { color: #7F7F7F; background-color: #1e1e27; padding-left: 5px; padding-right: 5px; }
+                                  ::selection { color: black; background: yellow; }
+                                  """)
         self.vw.SetPage(content, "")
         # self.vw.Reload()
         # self.vw.SetEditable(enable=True)
@@ -225,7 +231,7 @@ class HtmlViewer(wx.Panel):
                 else:
                     return get_lexer_by_name('text')
 
-    def get_formatter(self, style='emacs', linenos='table', lines=[], linenostart=1):
+    def get_formatter(self, style='inkpot', linenos='table', lines=[], linenostart=1):
         return HtmlFormatter(#encoding='utf-8',
                              style=style,
                              linenos=linenos,
@@ -249,7 +255,6 @@ class SearchPanel(wx.Panel):
     def __init__(self, parent, browser):
         super().__init__(parent=parent)
         self.browser = browser
-        self.lexer_dict = get_all_lexers()
         self.ed_line = wx.SpinCtrl(parent=self, min=1, initial=1)
         self.lbl_all_lines = wx.StaticText(parent=self)
         self.ed_lexer = wx.ComboBox(self, style=wx.CB_READONLY | wx.CB_SORT)
@@ -286,7 +291,12 @@ class SearchPanel(wx.Panel):
         self.load_lexers()
 
     def load_lexers(self):
-        self.ed_lexer.SetItems([item[1][0] for item in self.lexer_dict])
+        name_tuples = [b for a, b, *c in get_all_lexers()]
+        self.ed_lexer.SetItems([name[0] for name in name_tuples if len(name) >= 1])
+        # print(name_tuples)
+        # self.ed_lexer.SetItems([item[0] for item in name_tuples])
+        # for item in get_all_lexers():
+        #     print(item[1])
 
     def on_select_lexer(self, e):
         formatter = self.browser.get_formatter(lines=[])

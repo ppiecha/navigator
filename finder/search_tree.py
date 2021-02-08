@@ -2,6 +2,7 @@ import sys
 import wx
 import wx.lib.agw.customtreectrl as CT
 import wx.html as html
+import html as pyhtml
 import search_const as cn
 from pathlib import Path
 import re
@@ -21,7 +22,8 @@ def find_words_in_line(text, opt):
     matches = {}
     for word in opt.words:
         matches[word] = []
-        pattern = r"\b" + word + r"\b" if opt.whole_words else r"" + word + r""
+        esc_word = word if opt.reg_exp else re.escape(word)
+        pattern = r"\b" + esc_word + r"\b" if opt.whole_words else r"" + esc_word + r""
         # print("find words in line", pattern)
         for match in re.finditer(pattern=pattern, string=text, flags=flags):
             matches[word].append(match.span())
@@ -338,7 +340,9 @@ class SearchTree(CT.CustomTreeCtrl):
             for s1, s2 in lst:
                 start = s1 + cnt * 7
                 stop = s2 + cnt * 7
-                html_text = html_text[:start] + "<b>" + html_text[start:stop] + "</b>" + html_text[stop:]
+                html_text = html_text[:start] + \
+                            "<b>" + html_text[start:stop] + "</b>" \
+                            + html_text[stop:]
                 cnt += 1
         item = self.AppendItem(parentId=parent_node, text="Line " + line_num + ":", data=parent_node)
         item.SetWindow(HtmlLabel(parent=self, line_item=item, text=html_text))
@@ -417,18 +421,21 @@ class HtmlLabel(html.HtmlWindow):
     def init(self):
         self.SetDefaultHTMLCursor(html.HtmlWindowInterface.HTMLCursor_Text, wx.Cursor(wx.CURSOR_ARROW))
         self.template = '''<html><body text="#000000" bgcolor=":bgcolor"><pre><code>$text</code></pre></body></html>'''
-        self.template = self.template.replace(":bgcolor",
-                                              self.tree.GetBackgroundColour().GetAsString(wx.C2S_HTML_SYNTAX))
+        # self.template = self.template.replace(":bgcolor",
+        #                                       self.tree.GetBackgroundColour().GetAsString(wx.C2S_HTML_SYNTAX))
+        self.template = self.template.replace(":bgcolor", "#FFFFFF")
         font = self.font
         self.SetStandardFonts(font.GetPointSize(), font.GetFaceName(), font.GetFaceName())
         self.SetBorders(0)
 
     def set_value(self, value):
         self.line_text = self.template.replace("$text", value)
+        print(self.line_text)
         self.SetPage(source=self.line_text)
         dc = wx.WindowDC(self.tree)
         width, height = dc.GetTextExtent(self.ToText())
-        self.SetSize(width, height)
+        print("html label width", width, height, self.ToText())
+        self.SetSize(width + 100, height)
 
 
 class SearchLabel(wx.TextCtrl):
