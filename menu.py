@@ -87,7 +87,9 @@ class MainMenu(wx.MenuBar):
         elif id == cn.ID_COPY_SEL_NAMES_AND_PATHS:
             self.frame.copy_sel2clip_with_path()
         elif id == cn.ID_COPY_CLIP_FILE_CONTENT:
-            self.frame.copy_file_content_to_clip();
+            self.frame.copy_file_content_to_clip()
+        elif id == cn.ID_PASTE_CLIP_FILE_CONTENT:
+            self.frame.new_file_from_clip()
         # Cmd
         elif id == cn.ID_TARGET_EQ_SRC:
             self.frame.target_eq_source()

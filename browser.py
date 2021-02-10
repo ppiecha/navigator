@@ -739,7 +739,8 @@ class Browser(wx.ListCtrl, ListCtrlAutoWidthMixin):
             try:
                 with open(files[0], 'r') as f:
                     if wx.TheClipboard.Open():
-                        wx.TheClipboard.SetData(wx.TextDataObject("".join(f.readlines())))
+                        if not wx.TheClipboard.SetData(wx.TextDataObject("".join(f.readlines()))):
+                            self.frame.show_message("Cannot copy file content to clipboard")
                         wx.TheClipboard.Close()
                     else:
                         self.frame.show_message("Cannot open clipboard")

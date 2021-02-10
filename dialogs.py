@@ -306,9 +306,11 @@ class TextEditDlg(BasicDlg):
     def on_upper(self, e):
         BasicDlg.change_case(self.ed_new_name, upper=True)
 
+
 class NewItemDlg(TextEditDlg):
-    def __init__(self, frame, title, browser_path, def_name, label=""):
+    def __init__(self, frame, title, browser_path, def_name, label="", validate_files: bool = True):
         super().__init__(frame=frame, title=title)
+        self.validate_files = validate_files
         self.browser_path = browser_path
         self.ed_new_name.SetValue(def_name)
         self.lbl_text.SetLabel(label)
@@ -316,16 +318,19 @@ class NewItemDlg(TextEditDlg):
     def on_ok(self, e):
         new_names = self.get_new_names()
         if new_names:
-            for i in new_names:
-                parts = i.split(os.path.sep)
-                parts = [part.rstrip() for part in parts]
-                no_spaces = os.path.sep.join(parts)
-                path = self.browser_path.joinpath(no_spaces)
-                if path.exists():
-                    self.mb(message=str(path) + " exists")
-                    return
-                else:
-                    e.Skip()
+            if self.validate_files:
+                for i in new_names:
+                    parts = i.split(os.path.sep)
+                    parts = [part.rstrip() for part in parts]
+                    no_spaces = os.path.sep.join(parts)
+                    path = self.browser_path.joinpath(no_spaces)
+                    if path.exists():
+                        self.mb(message=str(path) + " exists")
+                        return
+                    else:
+                        e.Skip()
+            else:
+                e.Skip()
         else:
             self.mb(message="New name is empty")
             return
@@ -350,8 +355,12 @@ class LockTabDlg(TextEditDlg):
 
 
 class NewFileDlg(NewItemDlg):
-    def __init__(self, frame, browser_path, def_name):
-        super().__init__(frame=frame, title="Create new text file", browser_path=browser_path, def_name=def_name)
+    def __init__(self, frame, browser_path, def_name, validate_files: bool = True):
+        super().__init__(frame=frame,
+                         title="Create new text file",
+                         browser_path=browser_path,
+                         def_name=def_name,
+                         validate_files=validate_files)
         self.lbl_text.SetLabelText("Enter new file name")
         self.cb_open = wx.CheckBox(parent=self, label="Open created file")
         self.cb_open.SetValue(wx.CHK_UNCHECKED)

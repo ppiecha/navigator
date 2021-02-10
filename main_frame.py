@@ -529,6 +529,40 @@ class MainFrame(wx.Frame):
                     if dlg.cb_open.IsChecked():
                         sh.start_file(str(path))
 
+    def new_file_from_clip(self):
+        win = self.get_active_win()
+        b = win.get_active_browser()
+        folders, files = b.get_selected_files_folders()
+        def_name = files[0].name if files else "new_file.sql"
+        with dialogs.NewFileDlg(self, b.path, def_name, validate_files=False) as dlg:
+            if dlg.show_modal() == wx.ID_OK:
+                file_names = dlg.get_new_names()
+                for f in file_names:
+                    path = b.path.joinpath(f)
+                    if Path(path).exists():
+                        if self.get_question_feedback("Overwrite?") in (wx.NO, wx.CANCEL):
+                            return
+                    try:
+                        if not wx.TheClipboard.IsSupported(wx.DataFormat(wx.DF_TEXT)):
+                            self.show_message("No text data in clipboard")
+                            return
+                        with open(path, 'w') as file:
+                            try:
+                                text_data = wx.TextDataObject()
+                                if wx.TheClipboard.Open():
+                                    success = wx.TheClipboard.GetData(text_data)
+                                    wx.TheClipboard.Close()
+                                if success:
+                                    file.write(text_data.GetText())
+                                else:
+                                    self.show_message("Cannot get text data from clipboard")
+                            except Exception as e:
+                                self.show_message(f"Cannot write clipboard text data to file \n{path} \n{str(e)}")
+                    except Exception as e:
+                        self.log_error(f"Cannot create file {path.name}\n{str(e)}")
+                    if dlg.cb_open.IsChecked():
+                        sh.start_file(str(path))
+
     def get_oper_details(self, prefix: str, folders: List[str], files: List[str], source_path: str, dest_path: str,
                          oper_id: int):
         all = folders + files
