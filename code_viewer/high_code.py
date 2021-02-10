@@ -119,8 +119,9 @@ class HtmlViewer(wx.Panel):
             try:
                 with open(file_name, "r") as f:
                     self.files[file_name] = f.readlines()
-            except (UnicodeDecodeError, PermissionError, OSError):
-                self.parent.parent.GetParent().nav_frame.show_message(f"Cannot open file {Path(file_name).absolute()}")
+            except (UnicodeDecodeError, PermissionError, OSError) as e:
+                self.parent.parent.GetParent().nav_frame.show_message(f"Cannot open file {Path(file_name).absolute()} "
+                                                                      f"\n{str(e)}")
                 return False
             else:
                 return True
@@ -386,10 +387,8 @@ class HtmlPanel(wx.Panel):
                     dlg = wx.MessageDialog(self, f"File {file_name} has changed. Reload?",
                                            style=wx.YES_NO | wx.CANCEL | wx.ICON_INFORMATION,
                                            caption=cn.CN_APP_NAME)
-                    resp = dlg.ShowModal()
-                    if resp == wx.ID_YES:
-                        self.stat = stat
-                    return resp
+                    self.stat = stat
+                    return dlg.ShowModal()
                 else:
                     return wx.ID_CANCEL
 

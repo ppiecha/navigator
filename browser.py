@@ -732,6 +732,20 @@ class Browser(wx.ListCtrl, ListCtrlAutoWidthMixin):
         else:
             self.frame.show_message(cn.CN_NO_ITEMS_SEL)
 
+    def copy_file_content_to_clip(self, files):
+        if len(files) != 1:
+            self.frame.show_message(cn.CN_SEL_ONE_FILE + " to copy content to clipboard")
+        else:
+            try:
+                with open(files[0], 'r') as f:
+                    if wx.TheClipboard.Open():
+                        wx.TheClipboard.SetData(wx.TextDataObject("".join(f.readlines())))
+                        wx.TheClipboard.Close()
+                    else:
+                        self.frame.show_message("Cannot open clipboard")
+            except (UnicodeDecodeError, PermissionError, OSError) as e:
+                self.frame.show_message(f"Cannot open file {str(files[0])} \n{str(e)}")
+
 
 class ColumnMenu(wx.Menu):
     def __init__(self, browser, column):

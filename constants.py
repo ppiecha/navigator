@@ -33,6 +33,10 @@ CN_ICON_CODE_VIEWER = os.path.join(CN_APP_PATH, "img\\code_viewer.ico")
 # Messages
 CN_NO_ITEMS_SEL = "No items selected"
 CN_SEL_ONE_ITEM = "Select one item"
+CN_SEL_ONE_FILE = "Select one file"
+
+# Hot keys
+ID_HOT_KEY_SHOW = wx.NewId()
 
 # File
 ID_NEW_FILE = wx.NewId()
@@ -48,7 +52,9 @@ ID_EXIT = wx.NewId()
 ID_CREATE_SHORTCUT = wx.NewId()
 ID_COPY2SAME = wx.NewId()
 ID_COPY_CLIP = wx.NewId()
+ID_COPY_CLIP_FILE_CONTENT = wx.NewId()
 ID_PASTE_CLIP = wx.NewId()
+ID_PASTE_CLIP_FILE_CONTENT = wx.NewId()
 # EDIT
 ID_SELECT_ALL = wx.NewId()
 ID_INVERT_SEL = wx.NewId()
@@ -106,6 +112,13 @@ dt_edit = {
                                           acc_type=wx.ACCEL_SHIFT + wx.ACCEL_CTRL),
     ID_COPY_SEL_NAMES_AND_PATHS:    MItem(id=ID_COPY_SEL_NAMES_AND_PATHS, name="Copy selected names with path",
                                           key=ord("C"), acc_type=wx.ACCEL_SHIFT),
+    wx.NewId():                     MItem(id=ID_SEP, name="-", type=wx.ITEM_SEPARATOR),
+    ID_COPY_CLIP_FILE_CONTENT:      MItem(id=ID_COPY_CLIP_FILE_CONTENT,
+                                          name="Copy file content to clipboard", key=ord("C"),
+                                          acc_type=wx.ACCEL_ALT),
+    ID_PASTE_CLIP_FILE_CONTENT:     MItem(id=ID_PASTE_CLIP_FILE_CONTENT,
+                                          name="Paste text from clipboard to file",
+                                          key=ord("V"), acc_type=wx.ACCEL_ALT),
 }
 
 dt_cmd = {

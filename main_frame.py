@@ -220,14 +220,16 @@ class MainFrame(wx.Frame):
         self.Thaw()
         self.left_browser.get_active_browser().SetFocus()
 
-        hot_key_id = wx.NewId()
-        ok = self.RegisterHotKey(hot_key_id,  # a unique ID for this hotkey
-                                  win32con.MOD_WIN | win32con.MOD_ALT,# win32con.MOD_WIN,  # the modifier key
-                                  win32con.VK_RETURN)# win32con.VK_SPACE)  # the key to watch for
+        # if not self.UnregisterHotKey(cn.ID_HOT_KEY_SHOW):
+        #     self.show_message(f"Cannot unregister hot key {cn.ID_HOT_KEY_SHOW}")
+
+        ok = self.RegisterHotKey(cn.ID_HOT_KEY_SHOW,  # a unique ID for this hotkey
+                                 win32con.MOD_WIN | win32con.MOD_ALT,# win32con.MOD_WIN,  # the modifier key
+                                 win32con.VK_RETURN)# win32con.VK_SPACE)  # the key to watch for
         if not ok:
-            self.show_message(f"Cannot register hot key under number {hot_key_id}")
+            self.show_message(f"Cannot register hot key under number {cn.ID_HOT_KEY_SHOW}")
         else:
-            self.Bind(wx.EVT_HOTKEY, self.handle_hot_key, id=hot_key_id)
+            self.Bind(wx.EVT_HOTKEY, self.handle_hot_key, id=cn.ID_HOT_KEY_SHOW)
 
     def handle_hot_key(self, e):
         if self.IsIconized():
@@ -258,6 +260,8 @@ class MainFrame(wx.Frame):
         if not self.release_resources():
             event.Veto()
             return
+        if not self.UnregisterHotKey(cn.ID_HOT_KEY_SHOW):
+            self.show_message(f"Cannot unregister hot key {cn.ID_HOT_KEY_SHOW}")
         event.Skip()
 
     def show_message(self, text):
@@ -644,6 +648,12 @@ class MainFrame(wx.Frame):
         b = win.get_active_browser()
         folders, files = b.get_selected_files_folders()
         self.copy_text2clip([str(f) for f in folders] + [str(f) for f in files])
+
+    def copy_file_content_to_clip(self):
+        win = self.get_active_win()
+        b = win.get_active_browser()
+        folders, files = b.get_selected_files_folders()
+        b.copy_file_content_to_clip(files=files)
 
     def target_eq_source(self):
         if str(self.get_inactive_win().get_active_browser().path) != \
