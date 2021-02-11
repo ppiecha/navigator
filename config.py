@@ -123,9 +123,21 @@ class NavigatorConf:
         dct = {k: v for k, v in sorted(item_list.items(), key=lambda item: item[1].rating, reverse=True)}
         return {k: dct[k] for k in list(dct)[:self.history_limit]}
 
+    def hist_update_list(self, item_list):
+        return {k: v for k, v in item_list.items() if Path(v.full_path).exists()}
+
+    def _update_history(self):
+        tit = util.Tit(text="hist update")
+        self.folder_hist = self.hist_update_list(item_list=self.folder_hist)
+        self.file_hist = self.hist_update_list(item_list=self.file_hist)
+        del tit
+
+    def update_history(self, thread_lst):
+        util.run_in_thread(target=self._update_history, args=[], lst=thread_lst)
+
 
 class HistItem:
-    def __init__(self, full_path: str, last_visited: dt.datetime=None) -> None:
+    def __init__(self, full_path: str, last_visited: dt.datetime = None) -> None:
         self.full_path = full_path
         self.last_visited = last_visited
         self.visited_cnt: int = 1

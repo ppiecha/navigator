@@ -35,7 +35,7 @@ class Search(threading.Thread):
         files_sum = 0
         user_continues = False
         user_limit = 100
-        results_lst = []
+        # results_lst = []
         for dir_item in opt.dirs:
             pub.sendMessage(cn.CN_TOPIC_ADD_NODE, search_dir=dir_item, nodes=None)
             for root, dirs, files in os.walk(Path(dir_item)):
@@ -70,8 +70,8 @@ class Search(threading.Thread):
                                           for f in file_lst]
                     if file_nodes:
                         files_found += len(file_nodes)
-                        # pub.sendMessage(cn.CN_TOPIC_ADD_NODE, search_dir=dir_item, nodes=file_nodes)
-                        results_lst.append((dir_item, file_nodes))
+                        pub.sendMessage(cn.CN_TOPIC_ADD_NODE, search_dir=dir_item, nodes=file_nodes)
+                        # results_lst.append((dir_item, file_nodes))
 
                     if files_found > user_limit and not user_continues:
                         dlg = wx.MessageDialog(parent=self.frame,
@@ -90,7 +90,7 @@ class Search(threading.Thread):
                             node=search_tree.FinalNode(text="No data found"))
         self.set_status("Searched " + "{:,}".format(dirs_sum) + " folder(s) " + "{:,}".format(files_sum) + " file(s) ")
         self.event.set()
-        pub.sendMessage(cn.CN_TOPIC_SEARCH_COMPLETED, results=results_lst)
+        pub.sendMessage(cn.CN_TOPIC_SEARCH_COMPLETED, results=[])
         return True
 
     def run(self):

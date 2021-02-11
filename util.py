@@ -2,8 +2,13 @@ from datetime import datetime
 import stat
 import os
 from lib4py import shell as sh
+from lib4py import logger as lg
 from typing import Callable, List, Sequence
 from pathlib import Path
+import logging
+import time
+
+logger = lg.get_console_logger(name=__name__, log_level=logging.DEBUG)
 
 
 def run_in_thread(target: Callable, args: Sequence, lst: List[sh.ShellThread] = None) -> None:
@@ -50,3 +55,13 @@ def is_hidden(x: Path) -> bool:
             print("temp file", ext)
     return bool(attribute & (stat.FILE_ATTRIBUTE_HIDDEN | stat.FILE_ATTRIBUTE_SYSTEM)) or str(fname).startswith(
         ".") or is_temp_file
+
+
+class Tit:
+    def __init__(self, text):
+        logger.debug(text)
+        self.text = text
+        self.start = time.time()
+
+    def __del__(self):
+        logger.debug(f"({self.text}) elapsed: {time.time() - self.start}")

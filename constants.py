@@ -65,6 +65,7 @@ ID_TARGET_EQ_SRC = wx.NewId()
 ID_SWAP_WIN = wx.NewId()
 ID_DIFF = wx.NewId()
 ID_SEARCH = wx.NewId()
+ID_CMD = wx.NewId()
 # VIEW
 ID_REREAD = wx.NewId()
 ID_CLEAR_CACHE = wx.NewId()
@@ -131,6 +132,9 @@ dt_cmd = {
                                           acc_type=wx.ACCEL_CTRL),
     wx.NewId():                     MItem(id=ID_SEP, name="-", type=wx.ITEM_SEPARATOR),
     ID_SEARCH:                      MItem(id=ID_SEARCH, name="Search", key=ord("F"),
+                                          acc_type=wx.ACCEL_CTRL),
+    wx.NewId():                     MItem(id=ID_SEP, name="-", type=wx.ITEM_SEPARATOR),
+    ID_CMD:                         MItem(id=ID_CMD, name="Run command prompt", key=ord("P"),
                                           acc_type=wx.ACCEL_CTRL)
 }
 

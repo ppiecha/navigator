@@ -117,8 +117,9 @@ class PathPanel(wx.Panel):
 
     def on_links(self, e):
         if not self.tool_dlg:
-            self.tool_dlg = links2.LinkDlg(self.frame, is_left=self.is_left,
-                                          is_read_only=False if wx.GetKeyState(wx.WXK_CONTROL) else True)
+            self.tool_dlg = links2.LinkDlg(self.frame,
+                                           is_left=self.is_left,
+                                           is_read_only=False if wx.GetKeyState(wx.WXK_CONTROL) else True)
         self.tool_dlg.show()
         self.tool_dlg.SetFocus()
 

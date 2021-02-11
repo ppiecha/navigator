@@ -213,6 +213,7 @@ class LinkList(wx.ListCtrl, ListCtrlAutoWidthMixin):
         self.filter_list(filter="")
 
         self.Bind(wx.EVT_LIST_ITEM_ACTIVATED, self.on_item_activated)
+        self.Bind(wx.EVT_LIST_BEGIN_DRAG, self.on_start_drag)
 
     def filter_list(self, filter: str) -> None:
 
@@ -254,3 +255,12 @@ class LinkList(wx.ListCtrl, ListCtrlAutoWidthMixin):
                     # self.res_frame.nav_frame.return_focus()
                     self.frame.get_active_win().get_active_browser().open_dir(dir_name=path.parent,
                                                                               sel_dir=path.name)
+
+    def on_start_drag(self, e):
+        selected = e.GetItem()
+        if not selected:
+            return
+        files = wx.FileDataObject()
+        files.AddFile(self.GetItemText(selected.GetId(), 1))
+        drag_src = wx.DropSource(win=self.frame, data=files)
+        result = drag_src.DoDragDrop()

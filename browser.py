@@ -6,7 +6,6 @@ import constants as cn
 import path_pnl
 from wx.lib.mixins.listctrl import ListCtrlAutoWidthMixin
 import filter_pnl
-import time
 import wx.aui as aui
 import config
 from pubsub import pub
@@ -26,14 +25,6 @@ import logging
 logger = lg.get_console_logger(name=__name__, log_level=logging.DEBUG)
 
 CN_MAX_HIST_COUNT = 20
-
-class Tit:
-    def __init__(self, text):
-        print(text)
-        self.start = time.time()
-
-    def __del__(self):
-        print("Elapsed: ", time.time() - self.start)
 
 
 class BrowserCtrl(aui.AuiNotebook):

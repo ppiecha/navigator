@@ -1,3 +1,5 @@
+import subprocess
+
 import win32con
 import wx
 import browser
@@ -34,7 +36,7 @@ logger = lg.get_console_logger(name=__name__, log_level=logging.DEBUG)
 class MainFrame(wx.Frame):
     def __init__(self):
         super().__init__(parent=None, title=cn.CN_APP_NAME, size=(600, 500), style=wx.DEFAULT_FRAME_STYLE)
-        self.app_conf = config.NavigatorConf()
+        self.app_conf: config.NavigatorConf = config.NavigatorConf()
         self.menu_bar = menu.MainMenu(self)
         self.SetMenuBar(self.menu_bar)
         self.dir_cache = DirCache(self)
@@ -53,7 +55,7 @@ class MainFrame(wx.Frame):
 
         self.vim = viewer.MainFrame(nav_frame=self)
         self.finder = finder.MainFrame(app=wx.GetApp(), nav_frame=self)
-        self.sql_nav = SQLFrame(nav_frame=self)
+        # self.sql_nav = SQLFrame(nav_frame=self)
 
     def go_to_left(self):
         self.left_browser.get_active_browser().SetFocus()
@@ -153,6 +155,7 @@ class MainFrame(wx.Frame):
         self.Freeze()
 
         self.app_conf = self.read_last_conf(cn.CN_APP_CONFIG, self.app_conf)
+        self.app_conf.update_history(self.thread_lst)
 
         # Menu
         self.menu_bar.menu_items_id[cn.ID_SHOW_HIDDEN].Check(self.app_conf.show_hidden)
@@ -236,7 +239,10 @@ class MainFrame(wx.Frame):
             self.Iconize(False)
             self.Raise()
         else:
-            self.Iconize(True)
+            if self.IsActive():
+                self.Iconize(True)
+            else:
+                self.Raise()
 
     def on_size(self, e):
         size = self.GetSize()
@@ -255,7 +261,8 @@ class MainFrame(wx.Frame):
         self.vim.Destroy()
         self.finder.res_frame.Destroy()
         self.finder.Destroy()
-        self.sql_nav.Destroy()
+        if hasattr(self, 'sql_nav'):
+            self.sql_nav.Destroy()
         self.write_last_conf(cn.CN_APP_CONFIG, self.app_conf)
         if not self.release_resources():
             event.Veto()
@@ -719,6 +726,17 @@ class MainFrame(wx.Frame):
         self.app_conf.show_hidden = self.menu_bar.menu_items_id[cn.ID_SHOW_HIDDEN].IsChecked()
         self.dir_cache.refresh()
         pub.sendMessage(cn.CN_TOPIC_REREAD)
+
+    def run_command_prompt(self):
+        win = self.get_active_win()
+        b = win.get_active_browser()
+        selected_path = b.path
+        if not selected_path:
+            self.show_message(f"Cannot determine selected path")
+        curr_path = os.getcwd()
+        os.chdir(selected_path)
+        subprocess.Popen(["start", "cmd"], shell=True)
+        os.chdir(curr_path)
 
 
 class DirCacheItem:

@@ -430,11 +430,11 @@ class HtmlLabel(html.HtmlWindow):
 
     def set_value(self, value):
         self.line_text = self.template.replace("$text", value)
-        print(self.line_text)
+        # print(self.line_text)
         self.SetPage(source=self.line_text)
         dc = wx.WindowDC(self.tree)
         width, height = dc.GetTextExtent(self.ToText())
-        print("html label width", width, height, self.ToText())
+        # print("html label width", width, height, self.ToText())
         self.SetSize(width + 100, height)
 
 
