@@ -85,6 +85,7 @@ class NavigatorConf:
         self.vim_rect = None
         self.finder_rect = None
         self.find_res_rect = None
+        self.clip_view_rect = None
         self.left_assistant_rect = None
         self.right_assistant_rect = None
 

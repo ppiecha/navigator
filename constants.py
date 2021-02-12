@@ -37,6 +37,7 @@ CN_SEL_ONE_FILE = "Select one file"
 
 # Hot keys
 ID_HOT_KEY_SHOW = wx.NewId()
+ID_HOT_KEY_SHOW_CLIP = wx.NewId()
 
 # File
 ID_NEW_FILE = wx.NewId()

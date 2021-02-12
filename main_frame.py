@@ -27,6 +27,7 @@ from finder import main_frame as finder
 from controls import CmdBtn
 from pubsub import pub
 import logging
+import clip
 
 from sql_nav.sql_form import SQLFrame
 
@@ -56,6 +57,7 @@ class MainFrame(wx.Frame):
         self.vim = viewer.MainFrame(nav_frame=self)
         self.finder = finder.MainFrame(app=wx.GetApp(), nav_frame=self)
         # self.sql_nav = SQLFrame(nav_frame=self)
+        self.clip_view = clip.ClipFrame(main_frame=self)
 
     def go_to_left(self):
         self.left_browser.get_active_browser().SetFocus()
@@ -232,17 +234,39 @@ class MainFrame(wx.Frame):
         if not ok:
             self.show_message(f"Cannot register hot key under number {cn.ID_HOT_KEY_SHOW}")
         else:
-            self.Bind(wx.EVT_HOTKEY, self.handle_hot_key, id=cn.ID_HOT_KEY_SHOW)
+            self.Bind(wx.EVT_HOTKEY, self.show_hide_main_frame, id=cn.ID_HOT_KEY_SHOW)
 
-    def handle_hot_key(self, e):
-        if self.IsIconized():
-            self.Iconize(False)
-            self.Raise()
+        ok = self.RegisterHotKey(cn.ID_HOT_KEY_SHOW_CLIP,  # a unique ID for this hotkey
+                                 win32con.MOD_WIN | win32con.MOD_ALT,# win32con.MOD_WIN,  # the modifier key
+                                 win32con.VK_UP)# win32con.VK_SPACE)  # the key to watch for
+        if not ok:
+            self.show_message(f"Cannot register hot key under number {cn.ID_HOT_KEY_SHOW_CLIP}")
         else:
-            if self.IsActive():
-                self.Iconize(True)
+            self.Bind(wx.EVT_HOTKEY, self.show_hide_clip, id=cn.ID_HOT_KEY_SHOW_CLIP)
+
+    def show_hide_wnd(self, wnd: wx.Frame):
+        def raise_wnd():
+            if not wnd.IsShown():
+                wnd.Show()
+            wnd.Raise()
+
+        if wnd.IsIconized():
+            wnd.Iconize(False)
+            raise_wnd()
+        else:
+            if wnd.IsActive():
+                if wnd is self:
+                    wnd.Iconize(True)
+                else:
+                    wnd.Hide()
             else:
-                self.Raise()
+                raise_wnd()
+
+    def show_hide_clip(self, e):
+        self.show_hide_wnd(wnd=self.clip_view)
+
+    def show_hide_main_frame(self, e):
+        self.show_hide_wnd(wnd=self)
 
     def on_size(self, e):
         size = self.GetSize()
@@ -258,17 +282,21 @@ class MainFrame(wx.Frame):
         self.app_conf.vim_rect = self.vim.GetRect()
         self.app_conf.find_res_rect = self.finder.res_frame.GetRect()
         self.app_conf.finder_rect = self.finder.GetRect()
+        self.app_conf.clip_view_rect = self.clip_view.GetRect()
         self.vim.Destroy()
         self.finder.res_frame.Destroy()
         self.finder.Destroy()
         if hasattr(self, 'sql_nav'):
             self.sql_nav.Destroy()
+        self.clip_view.Destroy()
         self.write_last_conf(cn.CN_APP_CONFIG, self.app_conf)
         if not self.release_resources():
             event.Veto()
             return
         if not self.UnregisterHotKey(cn.ID_HOT_KEY_SHOW):
             self.show_message(f"Cannot unregister hot key {cn.ID_HOT_KEY_SHOW}")
+        if not self.UnregisterHotKey(cn.ID_HOT_KEY_SHOW_CLIP):
+            self.show_message(f"Cannot unregister hot key {cn.ID_HOT_KEY_SHOW_CLIP}")
         event.Skip()
 
     def show_message(self, text):

@@ -222,7 +222,7 @@ class LinkList(wx.ListCtrl, ListCtrlAutoWidthMixin):
         else:
             self.filtered_dict = {k: v for k, v in self.source.items() if filter.lower() in k.lower()}
         self.DeleteAllItems()
-        for k, v in self.filtered_dict.items():
+        for k, v in sorted(self.filtered_dict.items(), key=lambda item: item[0]):
             path = Path(v.full_path)
             row = self.Append([v.name, v.full_path])
             self.SetItemImage(row,
