@@ -1,6 +1,5 @@
 import wx
-import constants as cn
-
+from util import constants as cn
 
 # EDIT
 SELECT_ALL = "Select all"
@@ -99,6 +98,8 @@ class MainMenu(wx.MenuBar):
             self.frame.compare_files()
         elif id == cn.ID_SEARCH:
             self.frame.search()
+        elif id == cn.ID_HISTORY:
+            self.frame.history()
         elif id == cn.ID_CMD:
             self.frame.run_command_prompt()
         # View

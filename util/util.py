@@ -7,6 +7,7 @@ from typing import Callable, List, Sequence
 from pathlib import Path
 import logging
 import time
+import wx
 
 logger = lg.get_console_logger(name=__name__, log_level=logging.DEBUG)
 
@@ -65,3 +66,15 @@ class Tit:
 
     def __del__(self):
         logger.debug(f"({self.text}) elapsed: {time.time() - self.start}")
+
+
+class FileDataObject(wx.FileDataObject):
+    def __init__(self, nav_frame):
+        super().__init__()
+        self.nav_frame = nav_frame
+
+    def add_file(self, file):
+        file = str(file)
+        self.AddFile(file=file)
+        if Path(file).is_file():
+            self.nav_frame.app_conf.hist_update_file(full_path=str(file), callback=self.nav_frame.refresh_lists)

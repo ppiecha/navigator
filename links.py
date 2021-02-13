@@ -1,6 +1,5 @@
 import wx
-import dialogs
-import constants as cn
+from util import constants as cn
 
 
 class LinkPages:

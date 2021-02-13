@@ -1,5 +1,5 @@
 import wx
-import constants as cn
+from util import constants as cn
 import browser
 import os
 import wx.html as html
@@ -197,13 +197,14 @@ class ExtTollTab(wx.Panel):
 
 
 class OptionsDlg(BasicDlg):
-    def __init__(self, frame, title):
+    def __init__(self, frame, title="Options", active_page=0):
         super().__init__(frame=frame, title=title, size=(500, 300))
         self.opt_book = wx.Listbook(self)
         self.path_tab = PathTab(parent=self.opt_book, main_frame=frame, frame=self)
         self.ext_tools = ExtTollTab(parent=self.opt_book, main_frame=frame, frame=self)
         self.opt_book.AddPage(page=self.path_tab, text=cn.CN_CUSTOM_PATHS, select=True)
         self.opt_book.AddPage(page=self.ext_tools, text=cn.CN_EXT_EDITORS, select=False)
+        self.opt_book.SetSelection(page=active_page)
 
         self.opt_book.GetListView().SetColumnWidth(0, wx.LIST_AUTOSIZE)
 

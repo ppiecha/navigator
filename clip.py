@@ -8,8 +8,6 @@ import win32con
 import win32clipboard
 from wx.lib.mixins.listctrl import ListCtrlAutoWidthMixin
 
-import util
-
 
 class ClipFrame(wx.MiniFrame):
     def __init__(self, main_frame):
@@ -49,15 +47,18 @@ class ClipFrame(wx.MiniFrame):
 
     def GetTextFromClipboard(self):
         clipboard = wx.Clipboard()
-        if clipboard.Open():
-            if clipboard.IsSupported(wx.DataFormat(wx.DF_TEXT)):
-                data = wx.TextDataObject()
-                clipboard.GetData(data)
-                text = data.GetText().strip()
-                if text:
-                    self.clip_dict[text] = datetime.today()
-                    self.cp.on_search(e=None)
-                clipboard.Close()
+        try:
+            if clipboard.Open():
+                if clipboard.IsSupported(wx.DataFormat(wx.DF_TEXT)):
+                    data = wx.TextDataObject()
+                    clipboard.GetData(data)
+                    text = data.GetText().strip()
+                    if text and text not in self.clip_dict.keys():
+                        self.clip_dict[text] = datetime.today()
+                        self.cp.on_search(e=None)
+                    clipboard.Close()
+        except Exception as e:
+            pass
 
     def MyWndProc (self, hWnd, msg, wParam, lParam):
         if msg == win32con.WM_CHANGECBCHAIN:
@@ -112,11 +113,11 @@ class ClipPanel(wx.Panel):
         self.h_sizer.Add(wx.StaticText(parent=self, label="Search: "),
                          flag=wx.ALIGN_CENTER_VERTICAL | wx.LEFT | wx.RIGHT,
                          border=2)
-        self.h_sizer.Add(self.search_edit)
+        self.h_sizer.Add(self.search_edit, flag=wx.ALIGN_CENTER_VERTICAL)
         self.list_ctrl = ClipList(self, frame=frame, source=source)
 
-        self.main_sizer.Add(self.h_sizer)
-        self.main_sizer.Add(self.list_ctrl, flag=wx.EXPAND, proportion=1)
+        self.main_sizer.Add(self.h_sizer, flag=wx.LEFT, border=5)
+        self.main_sizer.Add(self.list_ctrl, flag=wx.EXPAND | wx.ALL, proportion=1, border=2)
         self.SetSizerAndFit(self.main_sizer)
 
         self.search_edit.Bind(wx.EVT_TEXT, self.on_search)
@@ -133,7 +134,7 @@ class ClipPanel(wx.Panel):
 
 class ClipList(wx.ListCtrl, ListCtrlAutoWidthMixin):
     def __init__(self, parent, frame, source):
-        super().__init__(parent=parent, style=wx.LC_REPORT | wx.LC_SINGLE_SEL) # | wx.LC_NO_HEADER)
+        super().__init__(parent=parent, style=wx.LC_REPORT | wx.LC_SINGLE_SEL | wx.LC_NO_HEADER)
         ListCtrlAutoWidthMixin.__init__(self)
         self.setResizeColumn(0)
         self.source = source
@@ -143,6 +144,8 @@ class ClipList(wx.ListCtrl, ListCtrlAutoWidthMixin):
         self.frame = frame
         self.AppendColumn("Text")
         self.AppendColumn("Time")
+        self.SetBackgroundColour(wx.SystemSettings.GetColour(wx.SYS_COLOUR_GRADIENTINACTIVECAPTION))
+        self.SetImageList(self.frame.im_list, wx.IMAGE_LIST_SMALL)
         self.filter_list(filter="")
 
         self.Bind(wx.EVT_LIST_ITEM_ACTIVATED, self.on_item_activated)
@@ -164,11 +167,12 @@ class ClipList(wx.ListCtrl, ListCtrlAutoWidthMixin):
             self.filtered_dict = {k: v for k, v in self.source.items() if filter.lower() in k.lower()}
         self.DeleteAllItems()
         for k, v in sorted(self.filtered_dict.items(), key=lambda item: item[1], reverse=True):
-            self.Append([k, v.strftime("%H:%M:%S")])
+            row = self.Append([k, v.strftime("%H:%M:%S")])
+            self.SetItemImage(row, self.frame.img_clip)
 
 
 if __name__ == '__main__':
     app = wx.App()
-    f = ClipFrame()
+    f = ClipFrame(None)
     f.Show()
     app.MainLoop()

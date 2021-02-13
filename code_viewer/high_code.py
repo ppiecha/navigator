@@ -6,9 +6,8 @@ from pygments.lexers import guess_lexer_for_filename
 from pygments.lexers import get_all_lexers
 from pygments.lexers import get_lexer_by_name
 from pygments.formatters import HtmlFormatter
-from pygments.styles import get_all_styles
 import controls
-import constants as cn
+from util import constants as cn
 from pathlib import Path
 import os
 from lib4py import logger as lg
@@ -20,6 +19,7 @@ class HtmlViewer(wx.Panel):
     def __init__(self, parent):
         super().__init__(parent=parent)
         self.parent = parent
+        self.nav_frame = self.parent.parent.GetParent().nav_frame
         self.vw: wx.html2.WebView = wx.html2.WebView.New(self)
         self.vw.MSWSetEmulationLevel(wx.html2.WEBVIEWIE_EMU_IE11_FORCE)
         self.vw.SetZoomType(wx.html2.WEBVIEW_ZOOM_TYPE_TEXT)
@@ -119,9 +119,11 @@ class HtmlViewer(wx.Panel):
             try:
                 with open(file_name, "r") as f:
                     self.files[file_name] = f.readlines()
+                if not reread:
+                    self.nav_frame.app_conf.hist_update_file(full_path=str(file_name),
+                                                             callback=self.nav_frame.refresh_lists)
             except (UnicodeDecodeError, PermissionError, OSError) as e:
-                self.parent.parent.GetParent().nav_frame.show_message(f"Cannot open file {Path(file_name).absolute()} "
-                                                                      f"\n{str(e)}")
+                self.nav_frame.show_message(f"Cannot open file {Path(file_name).absolute()} \n{str(e)}")
                 return False
             else:
                 return True

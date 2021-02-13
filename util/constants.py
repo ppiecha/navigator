@@ -21,14 +21,14 @@ CN_GO_BACK = ".."
 
 CN_APP_PATH = os.path.dirname(os.path.abspath(__file__))
 
-CN_APP_CONFIG = os.path.join(CN_APP_PATH, "config.dat")
-CN_APP_LOG = os.path.join(CN_APP_PATH, "navigator.log")
+CN_APP_CONFIG = os.path.join(CN_APP_PATH, "../config.dat")
+CN_APP_LOG = os.path.join(CN_APP_PATH, "../navigator.log")
 
 CN_VIEWER_APP = Path(os.path.join(CN_APP_PATH, "viewer\\viewer.py"))
-CN_FINDER_APP = Path(os.path.join(CN_APP_PATH, "finder\\finder.py"))
+CN_FINDER_APP = Path(os.path.join(CN_APP_PATH, "../finder/finder.py"))
 
-CN_ICON_FILE_NAME = os.path.join(CN_APP_PATH, "img\\navigator4.ico")
-CN_ICON_CODE_VIEWER = os.path.join(CN_APP_PATH, "img\\code_viewer.ico")
+CN_ICON_FILE_NAME = os.path.join(CN_APP_PATH, "../img/navigator4.ico")
+CN_ICON_CODE_VIEWER = os.path.join(CN_APP_PATH, "../img/code_viewer.ico")
 
 # Messages
 CN_NO_ITEMS_SEL = "No items selected"
@@ -66,6 +66,7 @@ ID_TARGET_EQ_SRC = wx.NewId()
 ID_SWAP_WIN = wx.NewId()
 ID_DIFF = wx.NewId()
 ID_SEARCH = wx.NewId()
+ID_HISTORY = wx.NewId()
 ID_CMD = wx.NewId()
 # VIEW
 ID_REREAD = wx.NewId()
@@ -132,8 +133,9 @@ dt_cmd = {
     ID_DIFF:                        MItem(id=ID_DIFF, name="Compare files (diff)", key=ord("D"),
                                           acc_type=wx.ACCEL_CTRL),
     wx.NewId():                     MItem(id=ID_SEP, name="-", type=wx.ITEM_SEPARATOR),
-    ID_SEARCH:                      MItem(id=ID_SEARCH, name="Search", key=ord("F"),
-                                          acc_type=wx.ACCEL_CTRL),
+    ID_SEARCH:                      MItem(id=ID_SEARCH, name="Search", key=ord("F"), acc_type=wx.ACCEL_CTRL),
+    ID_HISTORY:                     MItem(id=ID_HISTORY, name="History",
+                                          key=ord("H"), acc_type=wx.ACCEL_CTRL),
     wx.NewId():                     MItem(id=ID_SEP, name="-", type=wx.ITEM_SEPARATOR),
     ID_CMD:                         MItem(id=ID_CMD, name="Run command prompt", key=ord("P"),
                                           acc_type=wx.ACCEL_CTRL)
@@ -148,41 +150,41 @@ dt_view = {
                                           type=wx.ITEM_CHECK, acc_type=wx.ACCEL_CTRL)
 }
 
-CN_IM_FOLDER = os.path.join(CN_APP_PATH, "img\\folder.png")
-CN_IM_FILE = os.path.join(CN_APP_PATH, "img\\file.png")
-CN_IM_GO_UP = os.path.join(CN_APP_PATH, "img\\go_up.png")
-CN_IM_ARROW_UP = os.path.join(CN_APP_PATH, "img\\arrow_up.png")
-CN_IM_ARROW_DOWN = os.path.join(CN_APP_PATH, "img\\arrow_down.png")
-CN_IM_SEARCH = os.path.join(CN_APP_PATH, "img\\search.png")
-CN_IM_FILTER = os.path.join(CN_APP_PATH, "img\\filter.png")
-CN_IM_FILTER_OFF = os.path.join(CN_APP_PATH, "img\\filter_off.png")
-CN_IM_FAV = os.path.join(CN_APP_PATH, "img\\star.png")
-CN_IM_HIST = os.path.join(CN_APP_PATH, "img\\hist.png")
-CN_IM_OK = os.path.join(CN_APP_PATH, "img\\ok.png")
-CN_IM_ADD = os.path.join(CN_APP_PATH, "img\\add.png")
-CN_IM_EDIT = os.path.join(CN_APP_PATH, "img\\edit.png")
-CN_IM_REMOVE = os.path.join(CN_APP_PATH, "img\\remove.png")
-CN_IM_HARD_DISK = os.path.join(CN_APP_PATH, "img\\hard_disk.png")
-CN_IM_TOOLS = os.path.join(CN_APP_PATH, "img\\gear_wheel.png")
-CN_IM_ANCHOR = os.path.join(CN_APP_PATH, "img\\anchor.png")
-CN_IM_HOME = os.path.join(CN_APP_PATH, "img\\home.png")
-CN_IM_USER = os.path.join(CN_APP_PATH, "img\\user.png")
-CN_IM_PARENT = os.path.join(CN_APP_PATH, "img\\parent.png")
-CN_IM_CHILD = os.path.join(CN_APP_PATH, "img\\child.png")
-CN_IM_NEW_FOLDER = os.path.join(CN_APP_PATH, "img\\new_folder.png")
-CN_IM_NEW_FILE = os.path.join(CN_APP_PATH, "img\\new_file.png")
-CN_IM_LINK = os.path.join(CN_APP_PATH, "img\\link.png")
-CN_IM_SHORTCUT = os.path.join(CN_APP_PATH, "img\\shortcut.png")
+CN_IM_FOLDER = os.path.join(CN_APP_PATH, "../img/folder.png")
+CN_IM_FILE = os.path.join(CN_APP_PATH, "../img/file.png")
+CN_IM_GO_UP = os.path.join(CN_APP_PATH, "../img/go_up.png")
+CN_IM_ARROW_UP = os.path.join(CN_APP_PATH, "../img/arrow_up.png")
+CN_IM_ARROW_DOWN = os.path.join(CN_APP_PATH, "../img/arrow_down.png")
+CN_IM_SEARCH = os.path.join(CN_APP_PATH, "../img/search.png")
+CN_IM_FILTER = os.path.join(CN_APP_PATH, "../img/filter.png")
+CN_IM_FILTER_OFF = os.path.join(CN_APP_PATH, "../img/filter_off.png")
+CN_IM_FAV = os.path.join(CN_APP_PATH, "../img/star.png")
+CN_IM_HIST = os.path.join(CN_APP_PATH, "../img/hist.png")
+CN_IM_OK = os.path.join(CN_APP_PATH, "../img/ok.png")
+CN_IM_ADD = os.path.join(CN_APP_PATH, "../img/add.png")
+CN_IM_EDIT = os.path.join(CN_APP_PATH, "../img/edit.png")
+CN_IM_REMOVE = os.path.join(CN_APP_PATH, "../img/remove.png")
+CN_IM_HARD_DISK = os.path.join(CN_APP_PATH, "../img/hard_disk.png")
+CN_IM_TOOLS = os.path.join(CN_APP_PATH, "../img/gear_wheel.png")
+CN_IM_ANCHOR = os.path.join(CN_APP_PATH, "../img/anchor.png")
+CN_IM_HOME = os.path.join(CN_APP_PATH, "../img/home.png")
+CN_IM_USER = os.path.join(CN_APP_PATH, "../img/user.png")
+CN_IM_PARENT = os.path.join(CN_APP_PATH, "../img/parent.png")
+CN_IM_CHILD = os.path.join(CN_APP_PATH, "../img/child.png")
+CN_IM_NEW_FOLDER = os.path.join(CN_APP_PATH, "../img/new_folder.png")
+CN_IM_NEW_FILE = os.path.join(CN_APP_PATH, "../img/new_file.png")
+CN_IM_LINK = os.path.join(CN_APP_PATH, "../img/link.png")
+CN_IM_SHORTCUT = os.path.join(CN_APP_PATH, "../img/shortcut.png")
 # CN_IM_DELETE = os.path.join(CN_APP_PATH, "img\\delete.png")
 # CN_IM_NEW_FILE = os.path.join(CN_APP_PATH, "img\\new_file.png")
 # CN_IM_EDITOR = os.path.join(CN_APP_PATH, "img\\editor.png")
-CN_IM_SEARCH_DOWN = os.path.join(CN_APP_PATH, "img\\search_down.png")
-CN_IM_SEARCH_UP = os.path.join(CN_APP_PATH, "img\\search_up.png")
-CN_IM_CLOSE = os.path.join(CN_APP_PATH, "img\\delete.png")
-CN_IM_WORD = os.path.join(CN_APP_PATH, "img\\word.png")
-CN_IM_WORD_OFF = os.path.join(CN_APP_PATH, "img\\word_off.png")
-CN_IM_CASE = os.path.join(CN_APP_PATH, "img\\case.png")
-CN_IM_CASE_OFF = os.path.join(CN_APP_PATH, "img\\case_off.png")
+CN_IM_SEARCH_DOWN = os.path.join(CN_APP_PATH, "../img/search_down.png")
+CN_IM_SEARCH_UP = os.path.join(CN_APP_PATH, "../img/search_up.png")
+CN_IM_CLOSE = os.path.join(CN_APP_PATH, "../img/delete.png")
+CN_IM_WORD = os.path.join(CN_APP_PATH, "../img/word.png")
+CN_IM_WORD_OFF = os.path.join(CN_APP_PATH, "../img/word_off.png")
+CN_IM_CASE = os.path.join(CN_APP_PATH, "../img/case.png")
+CN_IM_CASE_OFF = os.path.join(CN_APP_PATH, "../img/case_off.png")
 
 CN_COL_LNAME = 0
 CN_COL_DATE = 1

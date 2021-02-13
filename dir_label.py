@@ -2,7 +2,7 @@ import wx
 from pathlib import Path
 import os
 import subprocess
-import constants as cn
+from util import constants as cn
 import ctypes.wintypes
 
 

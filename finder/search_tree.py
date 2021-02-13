@@ -1,18 +1,16 @@
-import sys
 import wx
 import wx.lib.agw.customtreectrl as CT
 import wx.html as html
-import html as pyhtml
 import search_const as cn
 from pathlib import Path
 import re
 import wx.dataview
 from lib4py import shell as sh
 from pubsub import pub
-from threading import Thread
 from code_viewer import high_code
 import logging
 from lib4py import logger as lg
+from util import util as util
 
 logger = lg.get_console_logger(name=__name__, log_level=logging.DEBUG)
 
@@ -68,8 +66,8 @@ class SearchTree(CT.CustomTreeCtrl):
         selected = e.GetItem().GetData()
         if not selected or not hasattr(selected, "file_full_name"):
             return
-        files = wx.FileDataObject()
-        files.AddFile(selected.file_full_name)
+        files = util.FileDataObject(nav_frame=self.res_frame.finder.nav_frame)
+        files.add_file(file=selected.file_full_name)
         drag_src = wx.DropSource(win=self.res_frame, data=files)
         result = drag_src.DoDragDrop()
 

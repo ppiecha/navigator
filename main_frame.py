@@ -3,9 +3,9 @@ import subprocess
 import win32con
 import wx
 import browser
+import links2
 import menu
-import constants as cn
-import util
+from util import util as util, constants as cn
 import config
 import pickle
 import os
@@ -28,8 +28,6 @@ from controls import CmdBtn
 from pubsub import pub
 import logging
 import clip
-
-from sql_nav.sql_form import SQLFrame
 
 logger = lg.get_console_logger(name=__name__, log_level=logging.DEBUG)
 
@@ -58,6 +56,11 @@ class MainFrame(wx.Frame):
         self.finder = finder.MainFrame(app=wx.GetApp(), nav_frame=self)
         # self.sql_nav = SQLFrame(nav_frame=self)
         self.clip_view = clip.ClipFrame(main_frame=self)
+        self.items_history = None
+
+    def refresh_lists(self):
+        if self.items_history:
+            self.items_history.refresh_lists()
 
     def go_to_left(self):
         self.left_browser.get_active_browser().SetFocus()
@@ -176,7 +179,7 @@ class MainFrame(wx.Frame):
         self.img_parent = self.im_list.Add(wx.Bitmap(cn.CN_IM_PARENT, wx.BITMAP_TYPE_PNG))
         self.img_child = self.im_list.Add(wx.Bitmap(cn.CN_IM_CHILD, wx.BITMAP_TYPE_PNG))
         # self.img_link_folder = self.im_list.Add(wx.Bitmap(cn.CN_IM_NEW_FOLDER, wx.BITMAP_TYPE_PNG))
-        # self.img_link_file = self.im_list.Add(wx.Bitmap(cn.CN_IM_NEW_FILE, wx.BITMAP_TYPE_PNG))
+        self.img_clip = self.im_list.Add(wx.Bitmap(cn.CN_IM_NEW_FILE, wx.BITMAP_TYPE_PNG))
         # self.img_link = self.im_list.Add(wx.Bitmap(cn.CN_IM_LINK, wx.BITMAP_TYPE_PNG))
         # self.img_link_shortcut = self.im_list.Add(wx.Bitmap(cn.CN_IM_SHORTCUT, wx.BITMAP_TYPE_PNG))
 
@@ -289,6 +292,8 @@ class MainFrame(wx.Frame):
         if hasattr(self, 'sql_nav'):
             self.sql_nav.Destroy()
         self.clip_view.Destroy()
+        if self.items_history:
+            self.items_history.Destroy()
         self.write_last_conf(cn.CN_APP_CONFIG, self.app_conf)
         if not self.release_resources():
             event.Veto()
@@ -407,9 +412,9 @@ class MainFrame(wx.Frame):
         lst = [str(path.joinpath(b)) for b in b.get_selected()]
         if lst:
             if wx.TheClipboard.Open():
-                data = wx.FileDataObject()
+                data = util.FileDataObject(nav_frame=self)
                 for item in lst:
-                    data.AddFile(item)
+                    data.add_file(file=item)
                 wx.TheClipboard.SetData(data)
                 wx.TheClipboard.Close()
                 self.show_wait()
@@ -765,6 +770,19 @@ class MainFrame(wx.Frame):
         os.chdir(selected_path)
         subprocess.Popen(["start", "cmd"], shell=True)
         os.chdir(curr_path)
+
+    def history(self):
+        if not self.items_history:
+            self.items_history = links2.LinkDlg(self, is_left=self.get_active_win().is_left, is_read_only=True)
+        self.items_history.refresh_lists()
+        self.items_history.show()
+        self.items_history.SetFocus()
+
+    def show_options(self, active_page):
+        with dialogs.OptionsDlg(frame=self, active_page=active_page) as dlg:
+            ret = dlg.show_modal()
+            del dlg
+            return ret
 
 
 class DirCacheItem:

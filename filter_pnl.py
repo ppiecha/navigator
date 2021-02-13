@@ -1,6 +1,6 @@
 import wx
 import controls
-import constants as cn
+from util import constants as cn
 
 
 class FilterPnl(wx.Panel):

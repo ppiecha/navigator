@@ -2,8 +2,8 @@ import wx
 from pathlib import Path
 from typing import Dict
 import config
-import constants as cn
 from wx.lib.mixins.listctrl import ListCtrlAutoWidthMixin
+from util import util as util, constants as cn
 
 
 class LinkPages:
@@ -24,6 +24,7 @@ class LinkPage:
         self.page_name = page_name
         self.page_items = page_items
         self.children = children
+
 
 class LinkItem:
     """
@@ -56,10 +57,10 @@ class SimpleMiniFrame(wx.MiniFrame):
         self.frame = frame
         self.is_left = is_left
         self.is_read_only = is_read_only
-
-        self.SetAcceleratorTable(wx.AcceleratorTable([wx.AcceleratorEntry(flags=wx.ACCEL_NORMAL,
-                                                                          keyCode=wx.WXK_ESCAPE,
-                                                                          cmd=wx.ID_CANCEL)]))
+        self.entries = []
+        self.entries.append(wx.AcceleratorEntry(flags=wx.ACCEL_NORMAL, keyCode=wx.WXK_ESCAPE, cmd=wx.ID_CANCEL))
+        self.entries.append(wx.AcceleratorEntry(flags=wx.ACCEL_NORMAL, keyCode=wx.WXK_F3, cmd=wx.ID_EDIT))
+        self.SetAcceleratorTable(wx.AcceleratorTable(self.entries))
 
         # sizers
         self.main_sizer = wx.BoxSizer(wx.VERTICAL)
@@ -92,13 +93,17 @@ class SimpleMiniFrame(wx.MiniFrame):
 
         self.Bind(wx.EVT_CLOSE, self.on_close, id=wx.ID_CANCEL)
         self.btn_cancel.Bind(wx.EVT_BUTTON, self.on_close, id=wx.ID_CANCEL)
+        self.Bind(wx.EVT_MENU, self.show_files, id=wx.ID_EDIT)
+
+    def show_files(self, e):
+        pass
 
     def on_close(self, e):
         if self.is_left:
             self.frame.app_conf.left_assistant_rect = (self.GetRect())
         else:
             self.frame.app_conf.right_assistant_rect = (self.GetRect())
-        self.Destroy()
+        self.Hide()
 
     def change_layout(self, is_read_only):
         self.top_sizer.ShowItems(not is_read_only)
@@ -127,8 +132,14 @@ class LinkDlg(SimpleMiniFrame):
     def __init__(self, frame, is_left, is_read_only):
         super().__init__(frame, is_left, is_read_only)
         self.page_ctrl = LinkPageCtrl(self, frame)
-        # self.page_ctrl.load_pages(self.link_pages.pages)
         self.mid_sizer.Add(self.page_ctrl, flag=wx.EXPAND, proportion=1)
+
+    def show_files(self, e):
+        self.page_ctrl.hist_page.file_page.list_ctrl.show_files(e=e)
+
+    def refresh_lists(self):
+        self.page_ctrl.hist_page.folder_page.on_search(e=None)
+        self.page_ctrl.hist_page.file_page.on_search(e=None)
 
     def show(self):
         self.page_ctrl.SetSelection(0)
@@ -179,10 +190,10 @@ class ListPanel(wx.Panel):
         self.h_sizer.Add(wx.StaticText(parent=self, label="Search: "),
                          flag=wx.ALIGN_CENTER_VERTICAL | wx.LEFT | wx.RIGHT,
                          border=2)
-        self.h_sizer.Add(self.search_edit)
+        self.h_sizer.Add(self.search_edit, flag=wx.ALIGN_CENTER_VERTICAL)
         self.list_ctrl = LinkList(self, frame=frame, source=source)
 
-        self.main_sizer.Add(self.h_sizer)
+        self.main_sizer.Add(self.h_sizer, flag=wx.LEFT, border=2)
         self.main_sizer.Add(self.list_ctrl, flag=wx.EXPAND, proportion=1)
         self.SetSizerAndFit(self.main_sizer)
 
@@ -214,6 +225,14 @@ class LinkList(wx.ListCtrl, ListCtrlAutoWidthMixin):
 
         self.Bind(wx.EVT_LIST_ITEM_ACTIVATED, self.on_item_activated)
         self.Bind(wx.EVT_LIST_BEGIN_DRAG, self.on_start_drag)
+
+    def show_files(self, e):
+        row = self.GetFirstSelected()
+        if row >= 0:
+            item_name = self.GetItemText(row, 1)
+            path = Path(item_name)
+            if path.exists() and path.is_file():
+                self.frame.vim.show_files(file_names=[str(path)])
 
     def filter_list(self, filter: str) -> None:
 
@@ -260,7 +279,7 @@ class LinkList(wx.ListCtrl, ListCtrlAutoWidthMixin):
         selected = e.GetItem()
         if not selected:
             return
-        files = wx.FileDataObject()
-        files.AddFile(self.GetItemText(selected.GetId(), 1))
+        files = util.FileDataObject(nav_frame=self.frame)
+        files.add_file(file=self.GetItemText(selected.GetId(), 1))
         drag_src = wx.DropSource(win=self.frame, data=files)
         result = drag_src.DoDragDrop()

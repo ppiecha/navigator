@@ -1,7 +1,7 @@
 from pathlib import Path
-import util
+from util import util as util
 import datetime as dt
-from typing import Dict, Sequence
+from typing import Dict, Sequence, Callable
 
 
 class BrowserConf:
@@ -105,12 +105,20 @@ class NavigatorConf:
     #     while len(self.search_history) > self.search_hist_limit:
     #         self.search_history.pop()
 
-    def hist_update_item(self, item_list, full_path: str, date: dt.datetime) -> None:
+    def hist_update_item(self, item_list, full_path: str, date: dt.datetime, callback: Callable = None) -> None:
         if full_path in item_list.keys():
             item_list[full_path].visited_cnt += 1
             item_list[full_path].last_visited = date
         else:
             item_list[full_path] = HistItem(full_path=full_path, last_visited=date)
+            if callback:
+                callback()
+
+    def hist_update_file(self, full_path: str, callback: Callable = None):
+        self.hist_update_item(item_list=self.file_hist,
+                              full_path=full_path,
+                              date=dt.datetime.today(),
+                              callback=callback)
 
     def hist_calc_rating(self, item_list):
         to_delete = []

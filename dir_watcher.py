@@ -1,7 +1,6 @@
 import os
-import wx
 from threading import Thread
-import constants as cn
+from util import constants as cn
 from pubsub import pub
 import win32file
 import win32event

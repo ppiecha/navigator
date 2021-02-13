@@ -1,8 +1,7 @@
 from __future__ import annotations
 import wx
 from pathlib import Path
-import util
-import constants as cn
+from util import util as util, constants as cn
 import path_pnl
 from wx.lib.mixins.listctrl import ListCtrlAutoWidthMixin
 import filter_pnl
@@ -265,12 +264,11 @@ class Browser(wx.ListCtrl, ListCtrlAutoWidthMixin):
         selected = self.get_selected()
         if not selected:
             return
-        files = wx.FileDataObject()
+        selected = [str(self.path.joinpath(item)) for item in selected]
+        # selected = [str(item) for item in selected if item.is_file()]
+        files = util.FileDataObject(nav_frame=self.frame)
         for item in selected:
-            files.AddFile(str(self.path.joinpath(item)))
-            self.frame.app_conf.hist_update_item(item_list=self.frame.app_conf.file_hist,
-                                                 full_path=str(self.path.joinpath(item)),
-                                                 date=datetime.today())
+            files.add_file(item)
         self.drag_src = MyDropSource(self.win_id, files)
         result = self.drag_src.DoDragDrop()
         self.drag_src = None
@@ -709,9 +707,16 @@ class Browser(wx.ListCtrl, ListCtrlAutoWidthMixin):
 
     def shell_editor(self, files):
         if len(files) > 0:
-            args = [self.frame.app_conf.text_editor]
-            args.extend([str(f) for f in files])
-            subprocess.Popen(args, shell=False)
+            args = [self.frame.app_conf.text_editor] if self.frame.app_conf.text_editor else []
+            if not args:
+                self.frame.show_options(active_page=1)
+                args = [self.frame.app_conf.text_editor] if self.frame.app_conf.text_editor else []
+                if args:
+                    for file_name in files:
+                        self.frame.app_conf.hist_update_file(full_path=str(file_name),
+                                                             callback=self.frame.refresh_lists)
+                    args.extend([str(f) for f in files])
+                    subprocess.Popen(args, shell=False)
         else:
             self.frame.show_message(cn.CN_NO_ITEMS_SEL)
 
