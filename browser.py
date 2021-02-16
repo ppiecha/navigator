@@ -711,12 +711,12 @@ class Browser(wx.ListCtrl, ListCtrlAutoWidthMixin):
             if not args:
                 self.frame.show_options(active_page=1)
                 args = [self.frame.app_conf.text_editor] if self.frame.app_conf.text_editor else []
-                if args:
-                    for file_name in files:
-                        self.frame.app_conf.hist_update_file(full_path=str(file_name),
-                                                             callback=self.frame.refresh_lists)
-                    args.extend([str(f) for f in files])
-                    subprocess.Popen(args, shell=False)
+            if args:
+                for file_name in files:
+                    self.frame.app_conf.hist_update_file(full_path=str(file_name),
+                                                         callback=self.frame.refresh_lists)
+                args.extend([str(f) for f in files])
+                subprocess.Popen(args, shell=False)
         else:
             self.frame.show_message(cn.CN_NO_ITEMS_SEL)
 
