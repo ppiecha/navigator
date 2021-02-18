@@ -39,6 +39,10 @@ class ClipFrame(wx.MiniFrame):
             else:
                 raise
         self.cp = ClipPanel(parent=self, frame=main_frame, source=self.clip_dict)
+        self.SetBackgroundColour(self.cp.GetBackgroundColour())
+        self.sizer = wx.BoxSizer(wx.HORIZONTAL)
+        self.sizer.Add(self.cp, flag=wx.EXPAND | wx.ALL, proportion=1, border=3)
+        self.SetSizer(self.sizer)
 
         self.Bind(wx.EVT_CLOSE, self.on_close)
 

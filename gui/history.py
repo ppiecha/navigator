@@ -1,7 +1,7 @@
 import wx
 from pathlib import Path
 from typing import Dict
-import config
+from gui import config
 from wx.lib.mixins.listctrl import ListCtrlAutoWidthMixin
 from util import util as util, constants as cn
 

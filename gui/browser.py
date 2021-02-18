@@ -2,14 +2,14 @@ from __future__ import annotations
 import wx
 from pathlib import Path
 from util import util as util, constants as cn
-import path_pnl
+from gui import path_pnl
 from wx.lib.mixins.listctrl import ListCtrlAutoWidthMixin
-import filter_pnl
+from gui import filter_pnl
 import wx.aui as aui
-import config
+from gui import config
 from pubsub import pub
 import os
-import dialogs
+from gui import dialogs
 from lib4py import shell as sh
 from lib4py import logger as lg
 from typing import Sequence, List, Tuple
@@ -17,7 +17,7 @@ from datetime import datetime
 import subprocess
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:
-    import main_frame as mf
+    from gui import main_frame as mf
     import config as cfg
 import logging
 

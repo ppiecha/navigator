@@ -1,5 +1,5 @@
 import wx
-import controls
+from gui import controls
 from util import constants as cn
 
 

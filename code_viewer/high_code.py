@@ -6,7 +6,7 @@ from pygments.lexers import guess_lexer_for_filename
 from pygments.lexers import get_all_lexers
 from pygments.lexers import get_lexer_by_name
 from pygments.formatters import HtmlFormatter
-import controls
+from gui import controls
 from util import constants as cn
 from pathlib import Path
 import os
@@ -271,6 +271,7 @@ class SearchPanel(wx.Panel):
         self.btn_case = controls.ToggleBtn(self, cn.CN_IM_CASE_OFF, cn.CN_IM_CASE, def_ctrl=[browser])
         self.btn_whole = controls.ToggleBtn(self, cn.CN_IM_WORD_OFF, cn.CN_IM_WORD, def_ctrl=[browser])
         # self.btn_close = controls.ToolBtn(self, cn.CN_IM_CLOSE, def_ctrl=[browser])
+        self.cb_stay_on_top = wx.CheckBox(parent=self, label="Stay on top")
 
         self.sizer = wx.BoxSizer(wx.HORIZONTAL)
         self.sizer.Add(wx.StaticText(parent=self, label="Line"), flag=wx.LEFT | wx.ALIGN_CENTER_VERTICAL, border=5)
@@ -280,6 +281,7 @@ class SearchPanel(wx.Panel):
         self.sizer.Add(wx.Panel(self), flag=wx.EXPAND, proportion=1)
         self.sizer.Add(self.lbl_cnt, flag=wx.ALIGN_CENTER_VERTICAL | wx.RIGHT, border=5)
         self.sizer.AddMany([self.ed_word, self.btn_prev, self.btn_next, self.btn_case, self.btn_whole])
+        self.sizer.Add(self.cb_stay_on_top, flag=wx.LEFT | wx.RIGHT | wx.ALIGN_CENTER_VERTICAL, border=5)
         self.SetSizer(self.sizer)
 
         self.ed_word.Bind(wx.EVT_TEXT, self.on_search_forward)
@@ -290,8 +292,12 @@ class SearchPanel(wx.Panel):
         self.btn_case.Bind(wx.EVT_TOGGLEBUTTON, self.on_reset_search)
         self.btn_whole.Bind(wx.EVT_TOGGLEBUTTON, self.on_reset_search)
         self.ed_lexer.Bind(wx.EVT_COMBOBOX, self.on_select_lexer)
+        self.cb_stay_on_top.Bind(wx.EVT_CHECKBOX, self.on_top)
 
         self.load_lexers()
+
+    def on_top(self, e):
+        self.browser.parent.parent.viewer_frame.ToggleWindowStyle(wx.STAY_ON_TOP)
 
     def load_lexers(self):
         name_tuples = [b for a, b, *c in get_all_lexers()]

@@ -1,11 +1,11 @@
 import wx
 from util import constants as cn
-import browser
+from gui import browser
 import os
 import wx.html as html
 import wx.propgrid as pg
 from pathlib import Path
-import controls
+from gui import controls
 
 CN_ID_LOWER = wx.NewId()
 CN_ID_UPPER = wx.NewId()

@@ -2,19 +2,18 @@ import subprocess
 
 import win32con
 import wx
-import browser
-import history
-import menu
-from util import util as util, constants as cn
-import config
+from gui import browser
+from gui import history
+from gui import menu
+from util import util as util, constants as cn, dir_watcher
+from gui import config
 import pickle
 import os
-import dir_watcher
 from operator import itemgetter
 from pathlib import Path
 import fnmatch
 import wx.aui as aui
-import dialogs
+from gui import dialogs
 import traceback
 import wx.adv
 import sys
@@ -24,10 +23,10 @@ from lib4py import shell as sh
 from lib4py import logger as lg
 from code_viewer import viewer
 from finder import main_frame as finder
-from controls import CmdBtn
+from gui.controls import CmdBtn
 from pubsub import pub
 import logging
-import clip
+from gui import clip
 
 logger = lg.get_console_logger(name=__name__, log_level=logging.DEBUG)
 
@@ -580,11 +579,6 @@ class MainFrame(wx.Frame):
                                     self.log_error(f"Cannot create file {path.name}\n{str(e)}")
                     if dlg.cb_open.IsChecked():
                         sh.start_file(str(path))
-
-                # folders = dlg.get_new_names()
-                # for f in folders:
-                #     path = b.path
-
 
 
     def new_file_from_clip(self):

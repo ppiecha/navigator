@@ -3,15 +3,12 @@ import wx
 import os
 from util import constants as cn
 from pathlib import Path
-import dir_label
-import dialogs
-import controls
-import history
+from gui import path_label
+from gui import controls
 from lib4py import shell as sh
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:
-    import main_frame as mf
-    import browser
+    from gui import main_frame as mf, browser
 
 
 class PathPanel(wx.Panel):
@@ -24,7 +21,7 @@ class PathPanel(wx.Panel):
         # self.tool_dlg = None
         self._read_only = True
         self.drive_combo = self.get_drive_combo()
-        self.path_lbl = dir_label.DirLabel(self, self.frame)
+        self.path_lbl = path_label.DirLabel(self, self.frame)
         self.path_edit = PathEdit(self, self.frame)
         self.edit_btn = controls.NoFocusImgBtn(parent=self, image=cn.CN_IM_OK, def_ctrl=self.browser, callable=self.on_ok)
         self.path_edit.Show(False)
