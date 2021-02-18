@@ -560,14 +560,32 @@ class MainFrame(wx.Frame):
         with dialogs.NewFileDlg(self, b.path, def_name) as dlg:
             if dlg.show_modal() == wx.ID_OK:
                 file_names = dlg.get_new_names()
+                print(Path(file_names[0]).parts)
                 for f in file_names:
-                    path = b.path.joinpath(f)
-                    try:
-                        sh.new_file(str(path))
-                    except Exception as e:
-                        self.log_error(f"Cannot create file {path.name}\n{str(e)}")
+                    file_path = b.path.joinpath(f)
+                    path: Path = b.path
+                    for part in file_path.parts:
+                        path = path.joinpath(part.rstrip())
+                        if not path.exists():
+                            print("adding", str(path))
+                            if path.name == path.stem:
+                                try:
+                                    sh.new_folder(str(path))
+                                except Exception as e:
+                                    self.log_error(f"Cannot create folder {path.name}\n{str(e)}")
+                            else:
+                                try:
+                                    sh.new_file(str(path))
+                                except Exception as e:
+                                    self.log_error(f"Cannot create file {path.name}\n{str(e)}")
                     if dlg.cb_open.IsChecked():
                         sh.start_file(str(path))
+
+                # folders = dlg.get_new_names()
+                # for f in folders:
+                #     path = b.path
+
+
 
     def new_file_from_clip(self):
         win = self.get_active_win()

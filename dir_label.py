@@ -76,6 +76,7 @@ class DirLabel(wx.Panel):
 
     def on_size(self, e):
         self.dir_path = self._dir_path
+        self._refresh()
 
     def on_menu(self, event):
         self.browser_panel.browser.SetFocus()

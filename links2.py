@@ -187,10 +187,13 @@ class ListPanel(wx.Panel):
         self.main_sizer = wx.BoxSizer(wx.VERTICAL)
         self.h_sizer = wx.BoxSizer(wx.HORIZONTAL)
         self.search_edit = wx.SearchCtrl(parent=self, style=wx.WANTS_CHARS)
+        self.cb_only_names = wx.CheckBox(parent=self, label="Search only in names")
+        self.cb_only_names.SetValue(state=wx.CHK_CHECKED)
         self.h_sizer.Add(wx.StaticText(parent=self, label="Search: "),
                          flag=wx.ALIGN_CENTER_VERTICAL | wx.LEFT | wx.RIGHT,
                          border=2)
         self.h_sizer.Add(self.search_edit, flag=wx.ALIGN_CENTER_VERTICAL)
+        self.h_sizer.Add(self.cb_only_names, flag=wx.ALIGN_CENTER_VERTICAL | wx.LEFT | wx.RIGHT, border=5)
         self.list_ctrl = LinkList(self, frame=frame, source=source)
 
         self.main_sizer.Add(self.h_sizer, flag=wx.LEFT, border=2)
@@ -199,9 +202,10 @@ class ListPanel(wx.Panel):
 
         self.search_edit.Bind(wx.EVT_TEXT, self.on_search)
         self.search_edit.Bind(wx.EVT_CHAR, self.on_key_down)
+        self.cb_only_names.Bind(wx.EVT_CHECKBOX, self.on_search)
 
     def on_search(self, e):
-        self.list_ctrl.filter_list(self.search_edit.GetValue())
+        self.list_ctrl.filter_list(filter=self.search_edit.GetValue(), only_names=self.cb_only_names.IsChecked())
 
     def on_key_down(self, e):
         if e.GetKeyCode() in [wx.WXK_UP, wx.WXK_DOWN]:
@@ -234,12 +238,13 @@ class LinkList(wx.ListCtrl, ListCtrlAutoWidthMixin):
             if path.exists() and path.is_file():
                 self.frame.vim.show_files(file_names=[str(path)])
 
-    def filter_list(self, filter: str) -> None:
+    def filter_list(self, filter: str, only_names: bool = True) -> None:
 
         if filter == "":
             self.filtered_dict = self.source
         else:
-            self.filtered_dict = {k: v for k, v in self.source.items() if filter.lower() in k.lower()}
+            self.filtered_dict = {k: v for k, v in self.source.items()
+                                  if filter.lower() in (Path(k).name.lower() if only_names else k.lower())}
         self.DeleteAllItems()
         for k, v in sorted(self.filtered_dict.items(), key=lambda item: item[0]):
             path = Path(v.full_path)
