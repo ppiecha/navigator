@@ -6,7 +6,7 @@ from pathlib import Path
 import dir_label
 import dialogs
 import controls
-import links2
+import history
 from lib4py import shell as sh
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:

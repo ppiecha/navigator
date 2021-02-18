@@ -3,7 +3,7 @@ import subprocess
 import win32con
 import wx
 import browser
-import links2
+import history
 import menu
 from util import util as util, constants as cn
 import config
@@ -791,7 +791,7 @@ class MainFrame(wx.Frame):
 
     def history(self):
         if not self.items_history:
-            self.items_history = links2.LinkDlg(self, is_left=self.get_active_win().is_left, is_read_only=True)
+            self.items_history = history.LinkDlg(self, is_left=self.get_active_win().is_left, is_read_only=True)
         self.items_history.refresh_lists()
         self.items_history.show()
         self.items_history.SetFocus()
