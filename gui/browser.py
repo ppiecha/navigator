@@ -546,8 +546,7 @@ class Browser(wx.ListCtrl, ListCtrlAutoWidthMixin):
         self.set_tab_name(self.conf.tab_name)
         self.path_pnl.set_value(str(value))
         # self.add_hist_item(str(value))
-        wx.CallAfter(self.frame.app_conf.hist_update_item, self.frame.app_conf.folder_hist,
-                     str(value), datetime.today())
+        wx.CallAfter(self.frame.app_conf.hist_update_folder, str(value), self.frame.refresh_lists)
         self.root = str(value) == str(value.anchor)
         self._path = value
 
@@ -559,7 +558,7 @@ class Browser(wx.ListCtrl, ListCtrlAutoWidthMixin):
             pattern = list(map(lambda x: "*" + x + "*",
                                [part.strip() for part in pattern.split(";") if part.strip()]))
         self.conf.pattern = pattern
-        self.open_dir(self.path, sel_dir=cn.CN_GO_BACK)
+        self.open_dir(str(self.path), sel_dir=cn.CN_GO_BACK)
         self.select_first_one()
 
     def sort_by_column(self, sort_key, desc, reread=True):

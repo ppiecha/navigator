@@ -92,6 +92,11 @@ class NavigatorConf:
     def __str__(self):
         return "Left browser: " + str(self.left_browser) + "\n" + "Right browser: " + str(self.right_browser)
 
+    def serialize(self):
+        d = {'__classname__': type(self).__name__}
+        d.update(vars(self))
+        print(d)
+
     # def add_search_hist_item(self, item):
     #     if not [h for h in self.search_history if h.startswith(item)]:
     #         self.search_history.insert(0, item)
@@ -116,6 +121,12 @@ class NavigatorConf:
 
     def hist_update_file(self, full_path: str, callback: Callable = None):
         self.hist_update_item(item_list=self.file_hist,
+                              full_path=full_path,
+                              date=dt.datetime.today(),
+                              callback=callback)
+
+    def hist_update_folder(self, full_path: str, callback: Callable = None):
+        self.hist_update_item(item_list=self.folder_hist,
                               full_path=full_path,
                               date=dt.datetime.today(),
                               callback=callback)
