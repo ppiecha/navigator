@@ -1,7 +1,7 @@
 from __future__ import annotations
 import wx
 from pathlib import Path
-from util import util as util, constants as cn
+from util import util as util, constants as cn, util_file
 from gui import path_pnl
 from wx.lib.mixins.listctrl import ListCtrlAutoWidthMixin
 from gui import filter_pnl
@@ -236,10 +236,8 @@ class Browser(wx.ListCtrl, ListCtrlAutoWidthMixin):
     def get_cache_item(self, row: int, col: int):
         if not (0 <= row < len(self._dir_cache)):
             return None
-            #raise ValueError(f"Wrong row index: {row}")
         if not (0 <= col <= cn.CN_COL_FULL_PATH):
             return None
-            #raise ValueError(f"Wrong column index: {col}")
         return self._dir_cache[row][col]
 
     def on_process_dropped_files(self, x: int, y: int, file_names: List[str]) -> bool:
@@ -250,7 +248,7 @@ class Browser(wx.ListCtrl, ListCtrlAutoWidthMixin):
         if same_win:
             self.frame.move([f for f in file_names if Path(f).is_dir()],
                             [f for f in file_names if Path(f).is_file()],
-                            self.path.joinpath(self.GetItemText(item)))
+                            str(self.path.joinpath(self.GetItemText(item))))
             return True
         else:
             if src_id < 0:
@@ -266,7 +264,7 @@ class Browser(wx.ListCtrl, ListCtrlAutoWidthMixin):
             return
         selected = [str(self.path.joinpath(item)) for item in selected]
         # selected = [str(item) for item in selected if item.is_file()]
-        files = util.FileDataObject(nav_frame=self.frame)
+        files = util_file.FileDataObject(nav_frame=self.frame)
         for item in selected:
             files.add_file(item)
         self.drag_src = MyDropSource(self.win_id, files)
@@ -343,9 +341,9 @@ class Browser(wx.ListCtrl, ListCtrlAutoWidthMixin):
 
         def gci(item, col):
             if col == cn.CN_COL_DATE:
-                return util.format_date(self.get_cache_item(row=item, col=col))
+                return util_file.format_date(self.get_cache_item(row=item, col=col))
             elif col == cn.CN_COL_SIZE:
-                return util.format_size(self.get_cache_item(row=item, col=col))
+                return util_file.format_size(self.get_cache_item(row=item, col=col))
             else:
                 return self.get_cache_item(row=item, col=col)
 
@@ -381,12 +379,12 @@ class Browser(wx.ListCtrl, ListCtrlAutoWidthMixin):
         if not (0 <= item < len(self._dir_cache)):
             return None
         try:
-            if util.is_hidden(self.get_cache_item(row=item, col=cn.CN_COL_FULL_PATH)):
+            if util_file.is_hidden(self.get_cache_item(row=item, col=cn.CN_COL_FULL_PATH)):
                 return self.hidden_attr
             else:
                 return None
-        except:
-            raise ValueError(f"Cache length {len(self._dir_cache)} item {item}")
+        except Exception as e:
+            raise ValueError(f"Cache length {len(self._dir_cache)} item {item} exception {str(e)}")
 
     def init_ui(self, conf):
         for index, name in enumerate(self.columns):
@@ -422,7 +420,6 @@ class Browser(wx.ListCtrl, ListCtrlAutoWidthMixin):
             self.history.insert(0, path)
             if len(self.history) > self.frame.app_conf.history_limit:
                 self.history.pop()
-
 
     def on_select(self, event):
         self.update_summary_lbl()

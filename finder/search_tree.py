@@ -413,15 +413,14 @@ class HtmlLabel(html.HtmlWindow):
 
     def on_left_down(self, e):
         self.tree.SelectItem(item=self.line_item, select=True)
-        # self.SelectAll()
         e.Skip()
 
     def init(self):
         self.SetDefaultHTMLCursor(html.HtmlWindowInterface.HTMLCursor_Text, wx.Cursor(wx.CURSOR_ARROW))
         self.template = '''<html><body text="#000000" bgcolor=":bgcolor"><pre><code>$text</code></pre></body></html>'''
-        # self.template = self.template.replace(":bgcolor",
-        #                                       self.tree.GetBackgroundColour().GetAsString(wx.C2S_HTML_SYNTAX))
-        self.template = self.template.replace(":bgcolor", "#FFFFFF")
+        self.template = self.template.replace(":bgcolor",
+                                              self.tree.GetBackgroundColour().GetAsString(wx.C2S_HTML_SYNTAX))
+        # self.template = self.template.replace(":bgcolor", "#FFFFFF")
         font = self.font
         self.SetStandardFonts(font.GetPointSize(), font.GetFaceName(), font.GetFaceName())
         self.SetBorders(0)
