@@ -1,5 +1,6 @@
 import wx
 from gui import main_frame as mf
+from time import perf_counter
 
 
 class Navigator(wx.App):
@@ -10,5 +11,7 @@ class Navigator(wx.App):
 
 
 if __name__ == '__main__':
+    start = perf_counter()
     app = Navigator()
+    app.frame.show_message(f"Load time {round(perf_counter() - start, 5)} secs")
     app.MainLoop()

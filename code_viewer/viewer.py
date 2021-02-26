@@ -4,7 +4,7 @@ import wx
 import wx.html2
 import wx.aui as aui
 from pathlib import Path
-from util import util as util, constants as cn
+from util import util as util, constants as cn, util_file
 from code_viewer import high_code
 from lib4py import logger as lg
 import logging
@@ -47,7 +47,7 @@ class ViewerCtrl(aui.AuiNotebook):
         selected = self.viewer_frame.get_active_page().browser.get_file_name()
         if not selected:
             return
-        files = util.FileDataObject(nav_frame=self.viewer_frame.nav_frame)
+        files = util_file.FileDataObject(nav_frame=self.viewer_frame.nav_frame)
         files.add_file(file=selected)
         drag_src = wx.DropSource(win=self, data=files)
         result = drag_src.DoDragDrop()

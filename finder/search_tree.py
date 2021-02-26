@@ -10,7 +10,7 @@ from pubsub import pub
 from code_viewer import high_code
 import logging
 from lib4py import logger as lg
-from util import util as util
+from util import util as util, util_file
 
 logger = lg.get_console_logger(name=__name__, log_level=logging.DEBUG)
 
@@ -66,7 +66,7 @@ class SearchTree(CT.CustomTreeCtrl):
         selected = e.GetItem().GetData()
         if not selected or not hasattr(selected, "file_full_name"):
             return
-        files = util.FileDataObject(nav_frame=self.res_frame.finder.nav_frame)
+        files = util_file.FileDataObject(nav_frame=self.res_frame.finder.nav_frame)
         files.add_file(file=selected.file_full_name)
         drag_src = wx.DropSource(win=self.res_frame, data=files)
         result = drag_src.DoDragDrop()

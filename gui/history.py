@@ -3,7 +3,7 @@ from pathlib import Path
 from typing import Dict
 from gui import config
 from wx.lib.mixins.listctrl import ListCtrlAutoWidthMixin
-from util import util as util, constants as cn
+from util import util as util, constants as cn, util_file
 
 
 class LinkPages:
@@ -284,7 +284,7 @@ class LinkList(wx.ListCtrl, ListCtrlAutoWidthMixin):
         selected = e.GetItem()
         if not selected:
             return
-        files = util.FileDataObject(nav_frame=self.frame)
+        files = util_file.FileDataObject(nav_frame=self.frame)
         files.add_file(file=self.GetItemText(selected.GetId(), 1))
         drag_src = wx.DropSource(win=self.frame, data=files)
         result = drag_src.DoDragDrop()
