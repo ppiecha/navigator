@@ -1,10 +1,39 @@
+import webbrowser
+
 from lib4py import shell as sh
 from lib4py import logger as lg
 from typing import Callable, List, Sequence
 import logging
 import time
+import wx
 
 logger = lg.get_console_logger(name=__name__, log_level=logging.DEBUG)
+
+
+def open_url(url: str) -> None:
+    try:
+        webbrowser.get(using="google-chrome").open_new_tab(url=url)
+    except webbrowser.Error as e:
+        webbrowser.get(using=None).open_new_tab(url=url)
+
+
+def get_text_from_clip() -> str:
+    clipboard = wx.Clipboard()
+    try:
+        if clipboard.Open():
+            if clipboard.IsSupported(wx.DataFormat(wx.DF_TEXT)):
+                data = wx.TextDataObject()
+                clipboard.GetData(data)
+                text = data.GetText()
+                clipboard.Close()
+                return text
+    except Exception as e:
+        clipboard.Close()
+        return ""
+
+
+def open_clip_url() -> None:
+    open_url(url=get_text_from_clip())
 
 
 def run_in_thread(target: Callable, args: Sequence, lst: List[sh.ShellThread] = None) -> None:
@@ -22,3 +51,4 @@ class Tit:
 
     def __del__(self):
         logger.debug(f"({self.text}) elapsed: {time.time() - self.start}")
+

@@ -4,7 +4,7 @@ from operator import itemgetter
 from threading import Thread
 from typing import List, Tuple, Sequence, Dict
 from util import constants as cn, util_file
-from util.util_type import PathItem
+from util.com_type import PathItem
 from pubsub import pub
 import win32file
 import win32event

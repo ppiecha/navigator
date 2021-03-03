@@ -70,6 +70,7 @@ class NavigatorConf:
         self.show_hidden = False
         self.text_editor = ""
         self.diff_editor = ""
+        self.url_left = ""
         self.history_limit = 15
         self.hist_retention_days = 30
         self.left_active_tab = None

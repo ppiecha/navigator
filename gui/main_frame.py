@@ -25,6 +25,7 @@ from gui.controls import CmdBtn
 from pubsub import pub
 import logging
 from gui import clip
+from util.com_type import HotKey
 from util.dir_watcher import DirCache
 
 logger = lg.get_console_logger(name=__name__, log_level=logging.DEBUG)
@@ -224,24 +225,34 @@ class MainFrame(wx.Frame):
         self.Thaw()
         self.left_browser.get_active_browser().SetFocus()
 
-        # if not self.UnregisterHotKey(cn.ID_HOT_KEY_SHOW):
-        #     self.show_message(f"Cannot unregister hot key {cn.ID_HOT_KEY_SHOW}")
+        mod_key = win32con.MOD_WIN | win32con.MOD_ALT
 
-        ok = self.RegisterHotKey(cn.ID_HOT_KEY_SHOW,  # a unique ID for this hotkey
-                                 win32con.MOD_WIN | win32con.MOD_ALT,# win32con.MOD_WIN,  # the modifier key
-                                 win32con.VK_RETURN)# win32con.VK_SPACE)  # the key to watch for
-        if not ok:
-            self.show_message(f"Cannot register hot key under number {cn.ID_HOT_KEY_SHOW}")
-        else:
-            self.Bind(wx.EVT_HOTKEY, self.show_hide_main_frame, id=cn.ID_HOT_KEY_SHOW)
+        self.register_hot_key(hot_key=HotKey(id=cn.ID_HOT_KEY_SHOW, mod_key=mod_key,
+                                             key=win32con.VK_RETURN, action=self.show_hide_main_frame))
 
-        ok = self.RegisterHotKey(cn.ID_HOT_KEY_SHOW_CLIP,  # a unique ID for this hotkey
-                                 win32con.MOD_WIN | win32con.MOD_ALT,# win32con.MOD_WIN,  # the modifier key
-                                 win32con.VK_UP)# win32con.VK_SPACE)  # the key to watch for
+        self.register_hot_key(hot_key=HotKey(id=cn.ID_HOT_KEY_SHOW_CLIP, mod_key=mod_key,
+                                             key=win32con.VK_UP, action=self.show_hide_clip))
+
+        self.register_hot_key(hot_key=HotKey(id=cn.ID_HOT_KEY_CLIP_URL, mod_key=mod_key,
+                                             key=win32con.VK_DOWN, action=self.open_clip_url))
+
+        self.register_hot_key(hot_key=HotKey(id=cn.ID_HOT_KEY_LEFT_URL, mod_key=mod_key,
+                                             key=win32con.VK_LEFT, action=self.open_left_url))
+
+    def register_hot_key(self, hot_key: HotKey) -> None:
+        ok = self.RegisterHotKey(hotkeyId=hot_key.id,  # a unique ID for this hotkey
+                                 modifiers=hot_key.mod_key,  # win32con.MOD_WIN,  # the modifier key
+                                 virtualKeyCode=hot_key.key)  # win32con.VK_SPACE)  # the key to watch for
         if not ok:
-            self.show_message(f"Cannot register hot key under number {cn.ID_HOT_KEY_SHOW_CLIP}")
+            self.show_message(f"Cannot register hot key under number {hot_key.id}")
         else:
-            self.Bind(wx.EVT_HOTKEY, self.show_hide_clip, id=cn.ID_HOT_KEY_SHOW_CLIP)
+            self.Bind(wx.EVT_HOTKEY, hot_key.action, id=hot_key.id)
+
+    def open_left_url(self, e):
+        util.open_url(self.app_conf.url_left)
+
+    def open_clip_url(self, e):
+        util.open_clip_url()
 
     def show_hide_wnd(self, wnd: wx.Frame):
         def raise_wnd():

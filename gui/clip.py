@@ -8,6 +8,8 @@ import win32con
 import win32clipboard
 from wx.lib.mixins.listctrl import ListCtrlAutoWidthMixin
 
+from util import util
+
 
 class ClipFrame(wx.MiniFrame):
     def __init__(self, main_frame):
@@ -49,20 +51,12 @@ class ClipFrame(wx.MiniFrame):
     def on_close(self, e):
         self.Hide()
 
-    def GetTextFromClipboard(self):
-        clipboard = wx.Clipboard()
-        try:
-            if clipboard.Open():
-                if clipboard.IsSupported(wx.DataFormat(wx.DF_TEXT)):
-                    data = wx.TextDataObject()
-                    clipboard.GetData(data)
-                    text = data.GetText().strip()
-                    if text and text not in self.clip_dict.keys():
-                        self.clip_dict[text] = datetime.today()
-                        self.cp.on_search(e=None)
-                    clipboard.Close()
-        except Exception as e:
-            pass
+    def get_text_from_clip(self):
+        text = util.get_text_from_clip().strip()
+        if text and text not in self.clip_dict.keys():
+            self.clip_dict[text] = datetime.today()
+            self.cp.on_search(e=None)
+
 
     def MyWndProc (self, hWnd, msg, wParam, lParam):
         if msg == win32con.WM_CHANGECBCHAIN:
@@ -100,7 +94,7 @@ class ClipFrame(wx.MiniFrame):
         if self.first:
             self.first = False
         else:
-            self.GetTextFromClipboard()
+            self.get_text_from_clip()
         if self.nextWnd:
             # pass the message to the next window in chain
             win32api.SendMessage(self.nextWnd, msg, wParam, lParam)

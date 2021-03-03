@@ -182,7 +182,6 @@ class ExtTollTab(wx.Panel):
         main_sizer = wx.BoxSizer(wx.VERTICAL)
 
         self.ext_tools = pg.PropertyGrid(parent=self, style=pg.PGMAN_DEFAULT_STYLE | pg.PG_SPLITTER_AUTO_CENTER)
-        # self.ext_tools.SetCaptionBackgroundColour(wx.Colour(0, 0, 0))
         self.ext_tools.SetCaptionTextColour(wx.Colour(0, 0, 0))
         self.ext_tools.Append(pg.PropertyCategory(label=cn.CN_EXT_EDITORS))
         self.ext_tools.Append(pg.FileProperty(label=cn.CN_EXT_TEXT_EDIT, value=self.main_frame.app_conf.text_editor))
@@ -196,14 +195,37 @@ class ExtTollTab(wx.Panel):
         self.main_frame.app_conf.diff_editor = self.ext_tools.GetProperty(cn.CN_EXT_DIFF_EDIT).GetValue()
 
 
+class UrlTab(wx.Panel):
+    def __init__(self, parent, main_frame, frame):
+        super().__init__(parent=parent)
+        self.frame = frame
+        self.main_frame = main_frame
+
+        # Sizers
+        main_sizer = wx.BoxSizer(wx.VERTICAL)
+
+        self.urls = pg.PropertyGrid(parent=self, style=pg.PGMAN_DEFAULT_STYLE | pg.PG_SPLITTER_AUTO_CENTER)
+        self.urls.SetCaptionTextColour(wx.Colour(0, 0, 0))
+        self.urls.Append(pg.PropertyCategory(label=cn.CN_URLS))
+        self.urls.Append(pg.StringProperty(label=cn.CN_URL_LEFT, value=self.main_frame.app_conf.url_left))
+
+        main_sizer.Add(self.urls, flag=wx.EXPAND, proportion=1)
+        self.SetSizerAndFit(main_sizer)
+
+    def save_urls(self):
+        self.main_frame.app_conf.url_left = self.urls.GetProperty(cn.CN_URL_LEFT).GetValue()
+
+
 class OptionsDlg(BasicDlg):
     def __init__(self, frame, title="Options", active_page=0):
         super().__init__(frame=frame, title=title, size=(500, 300))
         self.opt_book = wx.Listbook(self)
         self.path_tab = PathTab(parent=self.opt_book, main_frame=frame, frame=self)
         self.ext_tools = ExtTollTab(parent=self.opt_book, main_frame=frame, frame=self)
+        self.urls = UrlTab(parent=self.opt_book, main_frame=frame, frame=self)
         self.opt_book.AddPage(page=self.path_tab, text=cn.CN_CUSTOM_PATHS, select=True)
         self.opt_book.AddPage(page=self.ext_tools, text=cn.CN_EXT_EDITORS, select=False)
+        self.opt_book.AddPage(page=self.urls, text=cn.CN_URLS, select=False)
         self.opt_book.SetSelection(page=active_page)
 
         self.opt_book.GetListView().SetColumnWidth(0, wx.LIST_AUTOSIZE)
@@ -216,6 +238,7 @@ class OptionsDlg(BasicDlg):
         if self.path_tab.path_edt.validate_cust_paths():
             self.path_tab.save_cust_paths()
             self.ext_tools.save_ext_tools()
+            self.urls.save_urls()
             e.Skip()
         else:
             return

@@ -16,6 +16,8 @@ CN_CUSTOM_PATHS = "Custom paths"
 CN_EXT_EDITORS = "External editors"
 CN_EXT_TEXT_EDIT = "External text editor"
 CN_EXT_DIFF_EDIT = "Diff editor"
+CN_URLS = "URLs"
+CN_URL_LEFT = "Left arrow url"
 
 CN_GO_BACK = ".."
 
@@ -38,6 +40,8 @@ CN_SEL_ONE_FILE = "Select one file"
 # Hot keys
 ID_HOT_KEY_SHOW = wx.NewId()
 ID_HOT_KEY_SHOW_CLIP = wx.NewId()
+ID_HOT_KEY_CLIP_URL = wx.NewId()
+ID_HOT_KEY_LEFT_URL = wx.NewId()
 
 # File
 ID_NEW_FILE = wx.NewId()
