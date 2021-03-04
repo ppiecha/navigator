@@ -249,10 +249,12 @@ class MainFrame(wx.Frame):
             self.Bind(wx.EVT_HOTKEY, hot_key.action, id=hot_key.id)
 
     def open_left_url(self, e):
-        util.open_url(self.app_conf.url_left)
+        if not self.app_conf.url_left:
+            self.show_message("Left url is not defined in settings")
+        util.open_url(url=self.app_conf.url_left, browser_path=self.app_conf.web_browser)
 
     def open_clip_url(self, e):
-        util.open_clip_url()
+        util.open_clip_url(browser_path=self.app_conf.web_browser)
 
     def show_hide_wnd(self, wnd: wx.Frame):
         def raise_wnd():

@@ -11,7 +11,7 @@ class Navigator(wx.App):
 
 
 if __name__ == '__main__':
-    start = perf_counter()
+    # start = perf_counter()
     app = Navigator()
-    app.frame.show_message(f"Load time {round(perf_counter() - start, 5)} secs")
+    # app.frame.show_message(f"Load time {round(perf_counter() - start, 5)} secs")
     app.MainLoop()

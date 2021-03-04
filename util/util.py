@@ -10,9 +10,13 @@ import wx
 logger = lg.get_console_logger(name=__name__, log_level=logging.DEBUG)
 
 
-def open_url(url: str) -> None:
+def open_url(url: str, browser_path: str = "") -> None:
+    if not browser_path:
+        browser_path = "google-chrome"
+    else:
+        logger.debug(f"Web browser path {browser_path}")
     try:
-        webbrowser.get(using="google-chrome").open_new_tab(url=url)
+        webbrowser.get(using=browser_path).open_new_tab(url=url)
     except webbrowser.Error as e:
         webbrowser.get(using=None).open_new_tab(url=url)
 
@@ -32,8 +36,8 @@ def get_text_from_clip() -> str:
         return ""
 
 
-def open_clip_url() -> None:
-    open_url(url=get_text_from_clip())
+def open_clip_url(browser_path: str = "") -> None:
+    open_url(url=get_text_from_clip(), browser_path=browser_path)
 
 
 def run_in_thread(target: Callable, args: Sequence, lst: List[sh.ShellThread] = None) -> None:

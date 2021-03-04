@@ -16,6 +16,7 @@ CN_CUSTOM_PATHS = "Custom paths"
 CN_EXT_EDITORS = "External editors"
 CN_EXT_TEXT_EDIT = "External text editor"
 CN_EXT_DIFF_EDIT = "Diff editor"
+CN_EXT_BROWSER = "Web browser"
 CN_URLS = "URLs"
 CN_URL_LEFT = "Left arrow url"
 

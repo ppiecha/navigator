@@ -186,6 +186,7 @@ class ExtTollTab(wx.Panel):
         self.ext_tools.Append(pg.PropertyCategory(label=cn.CN_EXT_EDITORS))
         self.ext_tools.Append(pg.FileProperty(label=cn.CN_EXT_TEXT_EDIT, value=self.main_frame.app_conf.text_editor))
         self.ext_tools.Append(pg.FileProperty(label=cn.CN_EXT_DIFF_EDIT, value=self.main_frame.app_conf.diff_editor))
+        self.ext_tools.Append(pg.FileProperty(label=cn.CN_EXT_BROWSER, value=self.main_frame.app_conf.web_browser))
 
         main_sizer.Add(self.ext_tools, flag=wx.EXPAND, proportion=1)
         self.SetSizerAndFit(main_sizer)
@@ -193,6 +194,7 @@ class ExtTollTab(wx.Panel):
     def save_ext_tools(self):
         self.main_frame.app_conf.text_editor = self.ext_tools.GetProperty(cn.CN_EXT_TEXT_EDIT).GetValue()
         self.main_frame.app_conf.diff_editor = self.ext_tools.GetProperty(cn.CN_EXT_DIFF_EDIT).GetValue()
+        self.main_frame.app_conf.web_browser = self.ext_tools.GetProperty(cn.CN_EXT_BROWSER).GetValue()
 
 
 class UrlTab(wx.Panel):
