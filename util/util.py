@@ -1,4 +1,5 @@
 import webbrowser
+from pathlib import Path
 
 from lib4py import shell as sh
 from lib4py import logger as lg
@@ -14,10 +15,12 @@ def open_url(url: str, browser_path: str = "") -> None:
     if not browser_path:
         browser_path = "google-chrome"
     else:
+        browser_path = Path(browser_path).as_posix() + " %s"
         logger.debug(f"Web browser path {browser_path}")
     try:
         webbrowser.get(using=browser_path).open_new_tab(url=url)
     except webbrowser.Error as e:
+
         webbrowser.get(using=None).open_new_tab(url=url)
 
 
