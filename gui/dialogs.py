@@ -209,13 +209,22 @@ class UrlTab(wx.Panel):
         self.urls = pg.PropertyGrid(parent=self, style=pg.PGMAN_DEFAULT_STYLE | pg.PG_SPLITTER_AUTO_CENTER)
         self.urls.SetCaptionTextColour(wx.Colour(0, 0, 0))
         self.urls.Append(pg.PropertyCategory(label=cn.CN_URLS))
-        self.urls.Append(pg.StringProperty(label=cn.CN_URL_LEFT, value=self.main_frame.app_conf.url_left))
+        self.urls.Append(pg.StringProperty(label=cn.CN_URL_LEFT,
+                                           value=self.main_frame.app_conf.urls.get(cn.ID_HOT_KEY_LEFT_URL, "")))
+        self.urls.Append(pg.StringProperty(label=cn.CN_URL_RIGHT,
+                                           value=self.main_frame.app_conf.urls.get(cn.ID_HOT_KEY_RIGHT_URL, "")))
+        for k, v in cn.ID_HOT_KEY_NUMPAD_URL.items():
+            self.urls.Append(pg.StringProperty(label=cn.dt_hot_keys[v].caption,
+                                               value=self.main_frame.app_conf.urls.get(v, "")))
 
         main_sizer.Add(self.urls, flag=wx.EXPAND, proportion=1)
         self.SetSizerAndFit(main_sizer)
 
     def save_urls(self):
-        self.main_frame.app_conf.url_left = self.urls.GetProperty(cn.CN_URL_LEFT).GetValue()
+        self.main_frame.app_conf.urls[cn.ID_HOT_KEY_LEFT_URL] = self.urls.GetProperty(cn.CN_URL_LEFT).GetValue()
+        self.main_frame.app_conf.urls[cn.ID_HOT_KEY_RIGHT_URL] = self.urls.GetProperty(cn.CN_URL_RIGHT).GetValue()
+        for k, v in cn.ID_HOT_KEY_NUMPAD_URL.items():
+            self.main_frame.app_conf.urls[v] = self.urls.GetProperty(cn.dt_hot_keys[v].caption).GetValue()
 
 
 class OptionsDlg(BasicDlg):

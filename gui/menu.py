@@ -103,6 +103,8 @@ class MainMenu(wx.MenuBar):
         elif id == cn.ID_CMD:
             self.frame.run_command_prompt()
         # View
+        elif id == cn.ID_ALWAYS_ON_TOP:
+            self.frame.always_on_top()
         elif id == cn.ID_REREAD:
             self.frame.reread_source()
         elif id == cn.ID_CLEAR_CACHE:

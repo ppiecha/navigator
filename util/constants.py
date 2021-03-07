@@ -1,8 +1,9 @@
 import os
+
+import win32con
 import wx.lib.newevent
 from pathlib import Path
-import logging
-
+from util.com_type import HotKey
 
 ID_SPLITTER = wx.NewId()
 ID_SQL_SPLITTER1 = wx.NewId()
@@ -19,6 +20,7 @@ CN_EXT_DIFF_EDIT = "Diff editor"
 CN_EXT_BROWSER = "Web browser"
 CN_URLS = "URLs"
 CN_URL_LEFT = "Left arrow url"
+CN_URL_RIGHT = "Right arrow url"
 
 CN_GO_BACK = ".."
 
@@ -43,6 +45,11 @@ ID_HOT_KEY_SHOW = wx.NewId()
 ID_HOT_KEY_SHOW_CLIP = wx.NewId()
 ID_HOT_KEY_CLIP_URL = wx.NewId()
 ID_HOT_KEY_LEFT_URL = wx.NewId()
+ID_HOT_KEY_RIGHT_URL = wx.NewId()
+ID_HOT_KEY_NUMPAD_URL = {}
+for key in range(9):
+    ID_HOT_KEY_NUMPAD_URL[str(key + 1)] = wx.NewId()
+
 
 # File
 ID_NEW_FILE = wx.NewId()
@@ -74,9 +81,12 @@ ID_SEARCH = wx.NewId()
 ID_HISTORY = wx.NewId()
 ID_CMD = wx.NewId()
 # VIEW
+ID_ALWAYS_ON_TOP = wx.NewId()
 ID_REREAD = wx.NewId()
 ID_CLEAR_CACHE = wx.NewId()
 ID_SHOW_HIDDEN = wx.NewId()
+
+MOD_KEY = win32con.MOD_WIN | win32con.MOD_ALT
 
 
 class MItem:
@@ -88,6 +98,24 @@ class MItem:
         self.key = key
         self.hidden = hidden
 
+
+dt_hot_keys = {
+    ID_HOT_KEY_SHOW:        HotKey(id=ID_HOT_KEY_SHOW, mod_key=MOD_KEY, key=win32con.VK_RETURN,
+                                   action=None, url="", caption=""),
+    ID_HOT_KEY_SHOW_CLIP:   HotKey(id=ID_HOT_KEY_SHOW_CLIP, mod_key=MOD_KEY, key=win32con.VK_UP,
+                                   action=None, url="", caption=""),
+    ID_HOT_KEY_CLIP_URL:    HotKey(id=ID_HOT_KEY_CLIP_URL, mod_key=MOD_KEY, key=win32con.VK_DOWN,
+                                   action=None, url="", caption=""),
+    ID_HOT_KEY_LEFT_URL:    HotKey(id=ID_HOT_KEY_LEFT_URL, mod_key=MOD_KEY, key=win32con.VK_LEFT,
+                                   action=None, url="", caption=CN_URL_LEFT),
+    ID_HOT_KEY_RIGHT_URL:   HotKey(id=ID_HOT_KEY_RIGHT_URL, mod_key=MOD_KEY, key=win32con.VK_RIGHT,
+                                   action=None, url="", caption=CN_URL_RIGHT)
+}
+
+num_keys = [win32con.VK_NUMPAD1, win32con.VK_NUMPAD2, win32con.VK_NUMPAD3, win32con.VK_NUMPAD4, win32con.VK_NUMPAD5,
+            win32con.VK_NUMPAD6, win32con.VK_NUMPAD7, win32con.VK_NUMPAD8, win32con.VK_NUMPAD9]
+for ind, (key, num) in enumerate(zip(ID_HOT_KEY_NUMPAD_URL.values(), num_keys), start=1):
+    dt_hot_keys[key] = HotKey(id=key, mod_key=MOD_KEY, key=num, action=None, url="", caption=f"Numpad {ind}")
 
 dt_file = {
     ID_RENAME:          MItem(id=ID_RENAME, name="Rename", key=wx.WXK_F2),
@@ -147,6 +175,9 @@ dt_cmd = {
 }
 
 dt_view = {
+    ID_ALWAYS_ON_TOP:               MItem(id=ID_ALWAYS_ON_TOP, name="Always on top", key=None,
+                                          acc_type=None, type=wx.ITEM_CHECK),
+    wx.NewId():                     MItem(id=ID_SEP, name="-", type=wx.ITEM_SEPARATOR),
     ID_REREAD:                      MItem(id=ID_REREAD, name="Reread source", key=ord("R"),
                                           acc_type=wx.ACCEL_CTRL),
     ID_CLEAR_CACHE:                 MItem(id=ID_CLEAR_CACHE, name="Clear cache"),

@@ -71,7 +71,6 @@ class NavigatorConf:
         self.text_editor = ""
         self.diff_editor = ""
         self.web_browser = ""
-        self.url_left = ""
         self.history_limit = 15
         self.hist_retention_days = 30
         self.left_active_tab = None
@@ -90,6 +89,8 @@ class NavigatorConf:
         self.clip_view_rect = None
         self.left_assistant_rect = None
         self.right_assistant_rect = None
+        self.urls = {}
+        self.always_on_top = False
 
     def __str__(self):
         return "Left browser: " + str(self.left_browser) + "\n" + "Right browser: " + str(self.right_browser)

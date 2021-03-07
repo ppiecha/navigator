@@ -161,6 +161,9 @@ class MainFrame(wx.Frame):
 
         # Menu
         self.menu_bar.menu_items_id[cn.ID_SHOW_HIDDEN].Check(self.app_conf.show_hidden)
+        self.menu_bar.menu_items_id[cn.ID_ALWAYS_ON_TOP].Check(self.app_conf.always_on_top)
+        if self.app_conf.always_on_top:
+            self.ToggleWindowStyle(wx.STAY_ON_TOP)
 
         self.img_folder = self.im_list.Add(wx.Bitmap(cn.CN_IM_FOLDER, wx.BITMAP_TYPE_PNG))
         self.img_file = self.im_list.Add(wx.Bitmap(cn.CN_IM_FILE, wx.BITMAP_TYPE_PNG))
@@ -225,19 +228,24 @@ class MainFrame(wx.Frame):
         self.Thaw()
         self.left_browser.get_active_browser().SetFocus()
 
-        mod_key = win32con.MOD_WIN | win32con.MOD_ALT
+        cn.dt_hot_keys[cn.ID_HOT_KEY_SHOW].action = self.show_hide_main_frame
+        self.register_hot_key(hot_key=cn.dt_hot_keys[cn.ID_HOT_KEY_SHOW])
 
-        self.register_hot_key(hot_key=HotKey(id=cn.ID_HOT_KEY_SHOW, mod_key=mod_key,
-                                             key=win32con.VK_RETURN, action=self.show_hide_main_frame))
+        cn.dt_hot_keys[cn.ID_HOT_KEY_SHOW_CLIP].action = self.show_hide_clip
+        self.register_hot_key(hot_key=cn.dt_hot_keys[cn.ID_HOT_KEY_SHOW_CLIP])
 
-        self.register_hot_key(hot_key=HotKey(id=cn.ID_HOT_KEY_SHOW_CLIP, mod_key=mod_key,
-                                             key=win32con.VK_UP, action=self.show_hide_clip))
+        cn.dt_hot_keys[cn.ID_HOT_KEY_CLIP_URL].action = self.open_clip_url
+        self.register_hot_key(hot_key=cn.dt_hot_keys[cn.ID_HOT_KEY_CLIP_URL])
 
-        self.register_hot_key(hot_key=HotKey(id=cn.ID_HOT_KEY_CLIP_URL, mod_key=mod_key,
-                                             key=win32con.VK_DOWN, action=self.open_clip_url))
+        cn.dt_hot_keys[cn.ID_HOT_KEY_LEFT_URL].action = self.open_url
+        self.register_hot_key(hot_key=cn.dt_hot_keys[cn.ID_HOT_KEY_LEFT_URL])
 
-        self.register_hot_key(hot_key=HotKey(id=cn.ID_HOT_KEY_LEFT_URL, mod_key=mod_key,
-                                             key=win32con.VK_LEFT, action=self.open_left_url))
+        cn.dt_hot_keys[cn.ID_HOT_KEY_RIGHT_URL].action = self.open_url
+        self.register_hot_key(hot_key=cn.dt_hot_keys[cn.ID_HOT_KEY_RIGHT_URL])
+
+        for k, v in cn.ID_HOT_KEY_NUMPAD_URL.items():
+            cn.dt_hot_keys[v].action = self.open_url
+            self.register_hot_key(hot_key=cn.dt_hot_keys[v])
 
     def register_hot_key(self, hot_key: HotKey) -> None:
         ok = self.RegisterHotKey(hotkeyId=hot_key.id,  # a unique ID for this hotkey
@@ -248,10 +256,19 @@ class MainFrame(wx.Frame):
         else:
             self.Bind(wx.EVT_HOTKEY, hot_key.action, id=hot_key.id)
 
-    def open_left_url(self, e):
-        if not self.app_conf.url_left:
-            self.show_message("Left url is not defined in settings")
-        util.open_url(url=self.app_conf.url_left, browser_path=self.app_conf.web_browser)
+    def unregister_hot_keys(self):
+        for key in cn.dt_hot_keys.keys():
+            if not self.UnregisterHotKey(hotkeyId=key):
+                self.show_message(f"Cannot unregister hot key {key}")
+
+    def open_url(self, e):
+        print("open url", self.app_conf.urls.get(e.GetId(), ""), e.GetId())
+        url = self.app_conf.urls.get(e.GetId(), "")
+        if not url:
+            self.show_message(f"Url not defined for key {e.GetId()}")
+            return
+
+        util.open_url(url=url, browser_path=self.app_conf.web_browser)
 
     def open_clip_url(self, e):
         util.open_clip_url(browser_path=self.app_conf.web_browser)
@@ -307,10 +324,7 @@ class MainFrame(wx.Frame):
         if not self.release_resources():
             event.Veto()
             return
-        if not self.UnregisterHotKey(cn.ID_HOT_KEY_SHOW):
-            self.show_message(f"Cannot unregister hot key {cn.ID_HOT_KEY_SHOW}")
-        if not self.UnregisterHotKey(cn.ID_HOT_KEY_SHOW_CLIP):
-            self.show_message(f"Cannot unregister hot key {cn.ID_HOT_KEY_SHOW_CLIP}")
+        self.unregister_hot_keys()
         event.Skip()
 
     def show_message(self, text):
@@ -783,6 +797,10 @@ class MainFrame(wx.Frame):
         self.app_conf.show_hidden = self.menu_bar.menu_items_id[cn.ID_SHOW_HIDDEN].IsChecked()
         self.dir_cache.refresh()
         pub.sendMessage(cn.CN_TOPIC_REREAD)
+
+    def always_on_top(self):
+        self.app_conf.always_on_top = self.menu_bar.menu_items_id[cn.ID_ALWAYS_ON_TOP].IsChecked()
+        self.ToggleWindowStyle(flag=wx.STAY_ON_TOP)
 
     def run_command_prompt(self):
         win = self.get_active_win()

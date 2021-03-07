@@ -13,7 +13,7 @@ from util import util
 
 class ClipFrame(wx.MiniFrame):
     def __init__(self, main_frame):
-        wx.Frame.__init__(self, None, title="Clipboard viewer", size=(250, 250),
+        wx.Frame.__init__(self, None, title="Clipboard viewer", size=(400, 400),
                           style=wx.CAPTION | wx.RESIZE_BORDER | wx.CLOSE_BOX)
         self.ToggleWindowStyle(wx.STAY_ON_TOP)
         if main_frame.app_conf.clip_view_rect:
@@ -25,17 +25,16 @@ class ClipFrame(wx.MiniFrame):
 
         # Get native window handle of this wxWidget Frame.
         self.hwnd = self.GetHandle()
-        print(self.hwnd)
 
         # Set the WndProc to our function.
         self.oldWndProc = win32gui.SetWindowLong (self.hwnd,
                                                   win32con.GWL_WNDPROC,
-                                                  self.MyWndProc)
+                                                  self.win_proc)
 
         try:
             self.nextWnd = win32clipboard.SetClipboardViewer(self.hwnd)
         except win32api.error:
-            if win32api.GetLastError () == 0:
+            if win32api.GetLastError() == 0:
                 # information that there is no other window in chain
                 pass
             else:
@@ -57,40 +56,39 @@ class ClipFrame(wx.MiniFrame):
             self.clip_dict[text] = datetime.today()
             self.cp.on_search(e=None)
 
-
-    def MyWndProc (self, hWnd, msg, wParam, lParam):
+    def win_proc (self, hWnd, msg, wParam, lParam):
         if msg == win32con.WM_CHANGECBCHAIN:
-            self.OnChangeCBChain (msg, wParam, lParam)
+            self.on_change_chain (msg, wParam, lParam)
         elif msg == win32con.WM_DRAWCLIPBOARD:
-            self.OnDrawClipboard (msg, wParam, lParam)
+            self.on_draw_clip (msg, wParam, lParam)
 
         # Restore the old WndProc. Notice the use of win32api
         # instead of win32gui here. This is to avoid an error due to
         # not passing a callable object.
         if msg == win32con.WM_DESTROY:
             if self.nextWnd:
-               win32clipboard.ChangeClipboardChain(self.hwnd, self.nextWnd)
+                win32clipboard.ChangeClipboardChain(self.hwnd, self.nextWnd)
             else:
-               win32clipboard.ChangeClipboardChain(self.hwnd, 0)
+                win32clipboard.ChangeClipboardChain(self.hwnd, 0)
 
-            win32api.SetWindowLong (self.hwnd,
-                                    win32con.GWL_WNDPROC,
-                                    self.oldWndProc)
+            win32api.SetWindowLong(self.hwnd,
+                                   win32con.GWL_WNDPROC,
+                                   self.oldWndProc)
 
         # Pass all messages (in this case, yours may be different) on
         # to the original WndProc
-        return win32gui.CallWindowProc (self.oldWndProc,
-                                        hWnd, msg, wParam, lParam)
+        return win32gui.CallWindowProc(self.oldWndProc,
+                                       hWnd, msg, wParam, lParam)
 
-    def OnChangeCBChain (self, msg, wParam, lParam):
+    def on_change_chain (self, msg, wParam, lParam):
         if self.nextWnd == wParam:
-           # repair the chain
-           self.nextWnd = lParam
+            # repair the chain
+            self.nextWnd = lParam
         if self.nextWnd:
-           # pass the message to the next window in chain
-           win32api.SendMessage (self.nextWnd, msg, wParam, lParam)
+            # pass the message to the next window in chain
+            win32api.SendMessage(self.nextWnd, msg, wParam, lParam)
 
-    def OnDrawClipboard(self, msg, wParam, lParam):
+    def on_draw_clip(self, msg, wParam, lParam):
         if self.first:
             self.first = False
         else:
