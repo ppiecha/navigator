@@ -5,7 +5,7 @@ import wx
 from gui import browser
 from gui import history
 from gui import menu
-from util import util as util, constants as cn
+from util import util as util, constants as cn, util_file
 from gui import config
 import pickle
 import os
@@ -435,7 +435,7 @@ class MainFrame(wx.Frame):
         lst = [str(path.joinpath(b)) for b in b.get_selected()]
         if lst:
             if wx.TheClipboard.Open():
-                data = util.FileDataObject(nav_frame=self)
+                data = util_file.FileDataObject(nav_frame=self)
                 for item in lst:
                     data.add_file(file=item)
                 wx.TheClipboard.SetData(data)

@@ -1,3 +1,4 @@
+import threading
 import webbrowser
 from pathlib import Path
 
@@ -26,17 +27,23 @@ def open_url(url: str, browser_path: str = "") -> None:
 
 def get_text_from_clip() -> str:
     clipboard = wx.Clipboard()
+    data = wx.TextDataObject()
     try:
         if clipboard.Open():
             if clipboard.IsSupported(wx.DataFormat(wx.DF_TEXT)):
-                data = wx.TextDataObject()
                 clipboard.GetData(data)
-                text = data.GetText()
-                clipboard.Close()
-                return text
+            else:
+                return ""
+        else:
+            return ""
     except Exception as e:
+        logger.debug(str(e))
+        text = ""
+    else:
+        text = data.GetText()
+    finally:
         clipboard.Close()
-        return ""
+    return text
 
 
 def open_clip_url(browser_path: str = "") -> None:

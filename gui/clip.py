@@ -1,3 +1,5 @@
+import threading
+import time
 from datetime import datetime
 from typing import Dict
 
@@ -10,12 +12,19 @@ from wx.lib.mixins.listctrl import ListCtrlAutoWidthMixin
 
 from util import util
 
+import logging
+from lib4py import logger as lg
+
+logger = lg.get_console_logger(name=__name__, log_level=logging.DEBUG)
+
 
 class ClipFrame(wx.MiniFrame):
     def __init__(self, main_frame):
         wx.Frame.__init__(self, None, title="Clipboard viewer", size=(400, 400),
                           style=wx.CAPTION | wx.RESIZE_BORDER | wx.CLOSE_BOX)
         self.ToggleWindowStyle(wx.STAY_ON_TOP)
+        self.main_frame = main_frame
+        self.lock = threading.Lock()
         if main_frame.app_conf.clip_view_rect:
             self.SetRect(main_frame.app_conf.clip_view_rect)
         self.clip_dict = {}
@@ -51,8 +60,12 @@ class ClipFrame(wx.MiniFrame):
         self.Hide()
 
     def get_text_from_clip(self):
-        text = util.get_text_from_clip().strip()
-        if text and text not in self.clip_dict.keys():
+        text = util.get_text_from_clip()
+        if not text:
+            return
+        else:
+            text = text.strip()
+        if text not in self.clip_dict.keys():
             self.clip_dict[text] = datetime.today()
             self.cp.on_search(e=None)
 
@@ -60,7 +73,11 @@ class ClipFrame(wx.MiniFrame):
         if msg == win32con.WM_CHANGECBCHAIN:
             self.on_change_chain (msg, wParam, lParam)
         elif msg == win32con.WM_DRAWCLIPBOARD:
-            self.on_draw_clip (msg, wParam, lParam)
+            # with self.lock:
+            #     logger.debug("locked")
+            wx.CallAfter(self.on_draw_clip, msg, wParam, lParam)
+            # self.on_draw_clip (msg, wParam, lParam)
+            # logger.debug('releasing lock')
 
         # Restore the old WndProc. Notice the use of win32api
         # instead of win32gui here. This is to avoid an error due to
@@ -77,8 +94,12 @@ class ClipFrame(wx.MiniFrame):
 
         # Pass all messages (in this case, yours may be different) on
         # to the original WndProc
-        return win32gui.CallWindowProc(self.oldWndProc,
-                                       hWnd, msg, wParam, lParam)
+
+        # with self.lock:
+        # time.sleep(0.01)
+        rst = win32gui.CallWindowProc(self.oldWndProc, hWnd, msg, wParam, lParam)
+        return rst
+
 
     def on_change_chain (self, msg, wParam, lParam):
         if self.nextWnd == wParam:

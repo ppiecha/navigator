@@ -61,16 +61,24 @@ class Search(threading.Thread):
                                 and self.match(file, opt.dirs_pattern)]
                     file_nodes = []
                     if opt.words:
+                        _futures = {}
                         with futures.ThreadPoolExecutor(max_workers=10) as ex:
-                            results = ex.map(lambda x: self.process_file(x, opt, self.event), file_lst)
-                            file_nodes = [n for n in results if n is not None]
+                            for file in file_lst:
+                                _futures[ex.submit(self.process_file, file, opt, self.event)] = file
+                            for future in futures.as_completed(_futures):
+                                file_node = future.result()
+                                if file_node is not None:
+                                    files_found += 1
+                                    pub.sendMessage(cn.CN_TOPIC_ADD_NODE, search_dir=dir_item, nodes=[file_node])
+                            # results = ex.map(lambda x: self.process_file(x, opt, self.event), file_lst)
+                            # file_nodes = [n for n in results if n is not None]
                     else:
                         if file_lst:
                             file_nodes = [search_tree.FileNode(file_full_name=f, opt=opt)
                                           for f in file_lst]
-                    if file_nodes:
-                        files_found += len(file_nodes)
-                        pub.sendMessage(cn.CN_TOPIC_ADD_NODE, search_dir=dir_item, nodes=file_nodes)
+                    # if file_nodes:
+                    #     files_found += len(file_nodes)
+                    #     pub.sendMessage(cn.CN_TOPIC_ADD_NODE, search_dir=dir_item, nodes=file_nodes)
                         # results_lst.append((dir_item, file_nodes))
 
                     if files_found > user_limit and not user_continues:
