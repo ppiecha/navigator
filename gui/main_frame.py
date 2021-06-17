@@ -53,7 +53,7 @@ class MainFrame(wx.Frame):
 
         self.vim = viewer.MainFrame(nav_frame=self)
         self.finder = finder.MainFrame(app=wx.GetApp(), nav_frame=self)
-        self.clip_view = clip.ClipFrame(main_frame=self)
+        self.clip_view = None # clip.ClipFrame(main_frame=self)
         self.items_history = None
 
     def refresh_lists(self):

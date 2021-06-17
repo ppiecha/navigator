@@ -73,9 +73,9 @@ class ClipFrame(wx.MiniFrame):
         if msg == win32con.WM_CHANGECBCHAIN:
             self.on_change_chain (msg, wParam, lParam)
         elif msg == win32con.WM_DRAWCLIPBOARD:
-            # with self.lock:
+            with self.lock:
             #     logger.debug("locked")
-            wx.CallAfter(self.on_draw_clip, msg, wParam, lParam)
+                wx.CallAfter(self.on_draw_clip, msg, wParam, lParam)
             # self.on_draw_clip (msg, wParam, lParam)
             # logger.debug('releasing lock')
 
