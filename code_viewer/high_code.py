@@ -6,20 +6,24 @@ from pygments.lexers import guess_lexer_for_filename
 from pygments.lexers import get_all_lexers
 from pygments.lexers import get_lexer_by_name
 from pygments.formatters import HtmlFormatter
-from pygments.styles import get_all_styles
-import controls
-import constants as cn
+from gui import controls
+from util import constants as cn
 from pathlib import Path
 import os
+from lib4py import logger as lg
+import logging
+logger = lg.get_console_logger(name=__name__, log_level=logging.DEBUG)
 
 
 class HtmlViewer(wx.Panel):
     def __init__(self, parent):
         super().__init__(parent=parent)
         self.parent = parent
-        self.vw = wx.html2.WebView.New(self)
+        self.nav_frame = self.parent.parent.GetParent().nav_frame
+        self.vw: wx.html2.WebView = wx.html2.WebView.New(self)
         self.vw.MSWSetEmulationLevel(wx.html2.WEBVIEWIE_EMU_IE11_FORCE)
         self.vw.SetZoomType(wx.html2.WEBVIEW_ZOOM_TYPE_TEXT)
+        # self.vw.AcceleratorTable = self.parent.parent.GetAcceleratorTable()
         self.search_pnl = SearchPanel(parent=self, browser=self)
         self.search_pnl.Hide()
         self.files = {}
@@ -33,6 +37,19 @@ class HtmlViewer(wx.Panel):
         sizer.Add(self.search_pnl, flag=wx.EXPAND)
         sizer.Add(self.vw, flag=wx.EXPAND, proportion=1)
         self.SetSizer(sizer)
+        # self.vw.Bind(wx.EVT_CHAR_HOOK, self.on_key_down)
+        # self.vw.Bind(wx.EVT_KEY_DOWN, self.on_key_down)
+        # self.Bind(wx.EVT_CHILD_FOCUS, self.on_child_fous)
+
+
+    def on_child_fous(self, e):
+        logger.debug(f"ww key down {type(e)} {type(wx.Window.FindFocus())}")
+        if isinstance(wx.Window.FindFocus(), wx.html2.WebView):
+            logger.debug("HTML viewer")
+        e.Skip()
+
+        # if e.GetKeyCode() == wx.WXK_CONTROL_F:
+        #     self.parent.parent.parent.on_find(e=None)
 
     def get_file_name(self):
         for file_name in self.files.keys():
@@ -78,14 +95,21 @@ class HtmlViewer(wx.Panel):
                             lexer=lexer,
                             formatter=formatter)
         content = content.replace("<h2></h2>", "")
-   #      content = content.replace("""<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN"
-   # "http://www.w3.org/TR/html4/strict.dtd">""", "")
+        #      content = content.replace("""<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN"
+        # "http://www.w3.org/TR/html4/strict.dtd">""", "")
         # content = content.replace("<body>", """<body style="font-family: Consolas">""")
         # <font face='verdana'>
-        content = content.replace("body  { background: #f8f8f8; }", """body  { background: #f8f8f8;
+        content = content.replace("body .hll { background-color: #ffffcc }",
+                                  "body .hll { background-color: #282831 }")
+        content = content.replace("body { background: #1e1e27; color: #cfbfad }", """body  { background: #1e1e27; color: #cfbfad;
         font-family: Consolas, monaco, monospace; font-size: 12px;}""")
+        content = content.replace("td.linenos pre { color: #000000; background-color: #f0f0f0; padding-left: 5px; padding-right: 5px; }",
+                                  """td.linenos pre { color: #7F7F7F; background-color: #1e1e27; padding-left: 5px; padding-right: 5px; }
+                                  ::selection { color: black; background: yellow; }
+                                  """)
         self.vw.SetPage(content, "")
         # self.vw.Reload()
+        # self.vw.SetEditable(enable=True)
 
     def set_search_word(self, word):
         self.search_pnl.ed_word.SetValue(word)
@@ -95,8 +119,11 @@ class HtmlViewer(wx.Panel):
             try:
                 with open(file_name, "r") as f:
                     self.files[file_name] = f.readlines()
-            except (UnicodeDecodeError, PermissionError, OSError):
-                self.parent.parent.GetParent().nav_frame.show_message(f"Cannot open file {Path(file_name).absolute()}")
+                if not reread:
+                    self.nav_frame.app_conf.hist_update_file(full_path=str(file_name),
+                                                             callback=self.nav_frame.refresh_lists)
+            except (UnicodeDecodeError, PermissionError, OSError) as e:
+                self.nav_frame.show_message(f"Cannot open file {Path(file_name).absolute()} \n{str(e)}")
                 return False
             else:
                 return True
@@ -125,9 +152,6 @@ class HtmlViewer(wx.Panel):
             raise Exception("Highlight options not defined")
         if not lexer:
             lexer = self.get_lexer(file_name=file_name)
-        # print(vars(lexer))
-        # self.search_pnl.ed_lexer.SetValue(lexer)
-        # print(lexer, list(get_all_lexers()))
         if not formatter:
             formatter = self.get_formatter(lines=high_opt.lines)
         self.set_page(content=self.file_as_source(file_name),
@@ -142,6 +166,7 @@ class HtmlViewer(wx.Panel):
                            only_mark=False,
                            backward=False,
                            match=high_opt.match)
+            self.go_to_left()
         return True
 
     def show_part(self, file_name, high_opt, line_delta, lexer=None, formatter=None):
@@ -188,13 +213,13 @@ class HtmlViewer(wx.Panel):
                 return [-1, self.word_cnt]
         if match >= 0:
             match_num = self.vw.Find(word, flags)
-            print("match", match, match_num)
             while match_num != match - 1:
                 match_num = self.vw.Find(word, flags)
-                print("match2", match, match_num)
+            self.search_pnl.update_count_label(word_num=match_num, word_cnt=self.word_cnt)
             return [match_num, self.word_cnt]
         else:
             match_num = self.vw.Find(word, flags)
+            self.search_pnl.update_count_label(word_num=match_num, word_cnt=self.word_cnt)
             return [match_num, self.word_cnt]
 
     def get_lexer(self, file_name, lexer=""):
@@ -209,7 +234,7 @@ class HtmlViewer(wx.Panel):
                 else:
                     return get_lexer_by_name('text')
 
-    def get_formatter(self, style='emacs', linenos='table', lines=[], linenostart=1):
+    def get_formatter(self, style='inkpot', linenos='table', lines=[], linenostart=1):
         return HtmlFormatter(#encoding='utf-8',
                              style=style,
                              linenos=linenos,
@@ -222,18 +247,17 @@ class HtmlViewer(wx.Panel):
 
     def go_to_line(self, line_no=None):
         self.vw.RunScript('document.getElementById("line-' + str(line_no) + '").scrollIntoView(true);')
-        # self.go_to_left()
+        self.go_to_left()
 
     def go_to_left(self):
-        # self.vw.RunScript('window.scrollTo(0, window.pageYOffset);')
-        self.vw.RunScript('window.scrollTo(0, 0);')
+        self.vw.RunScript('window.scrollTo(0, window.pageYOffset);')
+        # self.vw.RunScript('window.scrollTo(0, 0);')
 
 
 class SearchPanel(wx.Panel):
     def __init__(self, parent, browser):
         super().__init__(parent=parent)
         self.browser = browser
-        self.lexer_dict = get_all_lexers()
         self.ed_line = wx.SpinCtrl(parent=self, min=1, initial=1)
         self.lbl_all_lines = wx.StaticText(parent=self)
         self.ed_lexer = wx.ComboBox(self, style=wx.CB_READONLY | wx.CB_SORT)
@@ -247,6 +271,7 @@ class SearchPanel(wx.Panel):
         self.btn_case = controls.ToggleBtn(self, cn.CN_IM_CASE_OFF, cn.CN_IM_CASE, def_ctrl=[browser])
         self.btn_whole = controls.ToggleBtn(self, cn.CN_IM_WORD_OFF, cn.CN_IM_WORD, def_ctrl=[browser])
         # self.btn_close = controls.ToolBtn(self, cn.CN_IM_CLOSE, def_ctrl=[browser])
+        self.cb_stay_on_top = wx.CheckBox(parent=self, label="Stay on top")
 
         self.sizer = wx.BoxSizer(wx.HORIZONTAL)
         self.sizer.Add(wx.StaticText(parent=self, label="Line"), flag=wx.LEFT | wx.ALIGN_CENTER_VERTICAL, border=5)
@@ -256,6 +281,7 @@ class SearchPanel(wx.Panel):
         self.sizer.Add(wx.Panel(self), flag=wx.EXPAND, proportion=1)
         self.sizer.Add(self.lbl_cnt, flag=wx.ALIGN_CENTER_VERTICAL | wx.RIGHT, border=5)
         self.sizer.AddMany([self.ed_word, self.btn_prev, self.btn_next, self.btn_case, self.btn_whole])
+        self.sizer.Add(self.cb_stay_on_top, flag=wx.LEFT | wx.RIGHT | wx.ALIGN_CENTER_VERTICAL, border=5)
         self.SetSizer(self.sizer)
 
         self.ed_word.Bind(wx.EVT_TEXT, self.on_search_forward)
@@ -266,11 +292,20 @@ class SearchPanel(wx.Panel):
         self.btn_case.Bind(wx.EVT_TOGGLEBUTTON, self.on_reset_search)
         self.btn_whole.Bind(wx.EVT_TOGGLEBUTTON, self.on_reset_search)
         self.ed_lexer.Bind(wx.EVT_COMBOBOX, self.on_select_lexer)
+        self.cb_stay_on_top.Bind(wx.EVT_CHECKBOX, self.on_top)
 
         self.load_lexers()
 
+    def on_top(self, e):
+        self.browser.parent.parent.viewer_frame.ToggleWindowStyle(wx.STAY_ON_TOP)
+
     def load_lexers(self):
-        self.ed_lexer.SetItems([item[1][0] for item in self.lexer_dict])
+        name_tuples = [b for a, b, *c in get_all_lexers()]
+        self.ed_lexer.SetItems([name[0] for name in name_tuples if len(name) >= 1])
+        # print(name_tuples)
+        # self.ed_lexer.SetItems([item[0] for item in name_tuples])
+        # for item in get_all_lexers():
+        #     print(item[1])
 
     def on_select_lexer(self, e):
         formatter = self.browser.get_formatter(lines=[])
@@ -283,7 +318,6 @@ class SearchPanel(wx.Panel):
         self.ed_line.SetMax(max_line)
 
     def go_to_line(self, e):
-        print(f"line {self.ed_line.GetValue()} {self.ed_line.GetMax()}")
         if self.ed_line.GetValue() <= self.ed_line.GetMax():
             self.browser.go_to_line(self.ed_line.GetValue())
 
@@ -316,6 +350,9 @@ class SearchPanel(wx.Panel):
                                                     only_mark=False,
                                                     backward=backward,
                                                     reset=reset)
+        # self.update_count_label(word_num=word_num, word_cnt=word_cnt)
+
+    def update_count_label(self, word_num: int, word_cnt: int):
         if word_num >= 0:
             self.lbl_cnt.SetLabel(f"{str(word_num + 1)}/{str(word_cnt)}")
         else:
@@ -329,29 +366,39 @@ class HtmlPanel(wx.Panel):
         self.parent = parent
         self.browser = HtmlViewer(parent=self)
         self.file_name = file_name
+        self.deleted: bool = False
         if file_name:
             self.stat = os.stat(file_name, follow_symlinks=False).st_mtime
-
-        # print(self.browser.vw.Find("function", wx.html2.WEBVIEW_FIND_HIGHLIGHT_RESULT))
-        # self.browser.go_to_line(66)
-        # self.browser.SetFocus()
 
         sizer = wx.BoxSizer(wx.VERTICAL)
         sizer.Add(self.browser, flag=wx.EXPAND, proportion=1)
         self.SetSizer(sizer)
 
     def to_be_reloaded(self, file_name):
-        stat = os.stat(file_name, follow_symlinks=False).st_mtime
-        if self.stat != stat:
-            dlg = wx.MessageDialog(self, f"File {file_name} has changed. Reload?",
-                                   style=wx.YES_NO | wx.CANCEL | wx.ICON_INFORMATION,
-                                   caption=cn.CN_APP_NAME)
-            resp = dlg.ShowModal()
-            if resp == wx.ID_YES:
-                self.stat = stat
-            return resp
-        else:
-            return wx.ID_CANCEL
+        if not self.deleted:
+            if not Path(file_name).exists():
+                self.deleted = True
+                dlg = wx.MessageDialog(self, f"File {file_name} doesn't exist. Keep in code viewer?",
+                                       style=wx.YES_NO | wx.ICON_INFORMATION,
+                                       caption=cn.CN_APP_NAME)
+                resp = dlg.ShowModal()
+                if resp == wx.ID_YES:
+                    return wx.ID_CANCEL
+                else:
+                    logger.debug(f"deleting page {self.parent.GetSelection()}")
+                    wx.CallAfter(self.parent.viewer_frame.close_page, self.parent.GetSelection())
+                    return wx.ID_CANCEL
+            else:
+                # logger.debug(f"{file_name} exists")
+                stat = os.stat(file_name, follow_symlinks=False).st_mtime
+                if self.stat != stat:
+                    dlg = wx.MessageDialog(self, f"File {file_name} has changed. Reload?",
+                                           style=wx.YES_NO | wx.CANCEL | wx.ICON_INFORMATION,
+                                           caption=cn.CN_APP_NAME)
+                    self.stat = stat
+                    return dlg.ShowModal()
+                else:
+                    return wx.ID_CANCEL
 
     def open_file(self, high_opt):
         return self.browser.show_file(file_name=self.file_name, high_opt=high_opt)

@@ -1,11 +1,11 @@
 import wx
-import constants as cn
-import browser
+from util import constants as cn
+from gui import browser
 import os
 import wx.html as html
 import wx.propgrid as pg
 from pathlib import Path
-import controls
+from gui import controls
 
 CN_ID_LOWER = wx.NewId()
 CN_ID_UPPER = wx.NewId()
@@ -182,11 +182,11 @@ class ExtTollTab(wx.Panel):
         main_sizer = wx.BoxSizer(wx.VERTICAL)
 
         self.ext_tools = pg.PropertyGrid(parent=self, style=pg.PGMAN_DEFAULT_STYLE | pg.PG_SPLITTER_AUTO_CENTER)
-        # self.ext_tools.SetCaptionBackgroundColour(wx.Colour(0, 0, 0))
         self.ext_tools.SetCaptionTextColour(wx.Colour(0, 0, 0))
         self.ext_tools.Append(pg.PropertyCategory(label=cn.CN_EXT_EDITORS))
         self.ext_tools.Append(pg.FileProperty(label=cn.CN_EXT_TEXT_EDIT, value=self.main_frame.app_conf.text_editor))
         self.ext_tools.Append(pg.FileProperty(label=cn.CN_EXT_DIFF_EDIT, value=self.main_frame.app_conf.diff_editor))
+        self.ext_tools.Append(pg.FileProperty(label=cn.CN_EXT_BROWSER, value=self.main_frame.app_conf.web_browser))
 
         main_sizer.Add(self.ext_tools, flag=wx.EXPAND, proportion=1)
         self.SetSizerAndFit(main_sizer)
@@ -194,16 +194,50 @@ class ExtTollTab(wx.Panel):
     def save_ext_tools(self):
         self.main_frame.app_conf.text_editor = self.ext_tools.GetProperty(cn.CN_EXT_TEXT_EDIT).GetValue()
         self.main_frame.app_conf.diff_editor = self.ext_tools.GetProperty(cn.CN_EXT_DIFF_EDIT).GetValue()
+        self.main_frame.app_conf.web_browser = self.ext_tools.GetProperty(cn.CN_EXT_BROWSER).GetValue()
+
+
+class UrlTab(wx.Panel):
+    def __init__(self, parent, main_frame, frame):
+        super().__init__(parent=parent)
+        self.frame = frame
+        self.main_frame = main_frame
+
+        # Sizers
+        main_sizer = wx.BoxSizer(wx.VERTICAL)
+
+        self.urls = pg.PropertyGrid(parent=self, style=pg.PGMAN_DEFAULT_STYLE | pg.PG_SPLITTER_AUTO_CENTER)
+        self.urls.SetCaptionTextColour(wx.Colour(0, 0, 0))
+        self.urls.Append(pg.PropertyCategory(label=cn.CN_URLS))
+        self.urls.Append(pg.StringProperty(label=cn.CN_URL_LEFT,
+                                           value=self.main_frame.app_conf.urls.get(cn.ID_HOT_KEY_LEFT_URL, "")))
+        self.urls.Append(pg.StringProperty(label=cn.CN_URL_RIGHT,
+                                           value=self.main_frame.app_conf.urls.get(cn.ID_HOT_KEY_RIGHT_URL, "")))
+        for k, v in cn.ID_HOT_KEY_NUMPAD_URL.items():
+            self.urls.Append(pg.StringProperty(label=cn.dt_hot_keys[v].caption,
+                                               value=self.main_frame.app_conf.urls.get(v, "")))
+
+        main_sizer.Add(self.urls, flag=wx.EXPAND, proportion=1)
+        self.SetSizerAndFit(main_sizer)
+
+    def save_urls(self):
+        self.main_frame.app_conf.urls[cn.ID_HOT_KEY_LEFT_URL] = self.urls.GetProperty(cn.CN_URL_LEFT).GetValue()
+        self.main_frame.app_conf.urls[cn.ID_HOT_KEY_RIGHT_URL] = self.urls.GetProperty(cn.CN_URL_RIGHT).GetValue()
+        for k, v in cn.ID_HOT_KEY_NUMPAD_URL.items():
+            self.main_frame.app_conf.urls[v] = self.urls.GetProperty(cn.dt_hot_keys[v].caption).GetValue()
 
 
 class OptionsDlg(BasicDlg):
-    def __init__(self, frame, title):
+    def __init__(self, frame, title="Options", active_page=0):
         super().__init__(frame=frame, title=title, size=(500, 300))
         self.opt_book = wx.Listbook(self)
         self.path_tab = PathTab(parent=self.opt_book, main_frame=frame, frame=self)
         self.ext_tools = ExtTollTab(parent=self.opt_book, main_frame=frame, frame=self)
+        self.urls = UrlTab(parent=self.opt_book, main_frame=frame, frame=self)
         self.opt_book.AddPage(page=self.path_tab, text=cn.CN_CUSTOM_PATHS, select=True)
         self.opt_book.AddPage(page=self.ext_tools, text=cn.CN_EXT_EDITORS, select=False)
+        self.opt_book.AddPage(page=self.urls, text=cn.CN_URLS, select=False)
+        self.opt_book.SetSelection(page=active_page)
 
         self.opt_book.GetListView().SetColumnWidth(0, wx.LIST_AUTOSIZE)
 
@@ -215,6 +249,7 @@ class OptionsDlg(BasicDlg):
         if self.path_tab.path_edt.validate_cust_paths():
             self.path_tab.save_cust_paths()
             self.ext_tools.save_ext_tools()
+            self.urls.save_urls()
             e.Skip()
         else:
             return
@@ -306,9 +341,11 @@ class TextEditDlg(BasicDlg):
     def on_upper(self, e):
         BasicDlg.change_case(self.ed_new_name, upper=True)
 
+
 class NewItemDlg(TextEditDlg):
-    def __init__(self, frame, title, browser_path, def_name, label=""):
+    def __init__(self, frame, title, browser_path, def_name, label="", validate_files: bool = True):
         super().__init__(frame=frame, title=title)
+        self.validate_files = validate_files
         self.browser_path = browser_path
         self.ed_new_name.SetValue(def_name)
         self.lbl_text.SetLabel(label)
@@ -316,16 +353,19 @@ class NewItemDlg(TextEditDlg):
     def on_ok(self, e):
         new_names = self.get_new_names()
         if new_names:
-            for i in new_names:
-                parts = i.split(os.path.sep)
-                parts = [part.rstrip() for part in parts]
-                no_spaces = os.path.sep.join(parts)
-                path = self.browser_path.joinpath(no_spaces)
-                if path.exists():
-                    self.mb(message=str(path) + " exists")
-                    return
-                else:
-                    e.Skip()
+            if self.validate_files:
+                for i in new_names:
+                    parts = i.split(os.path.sep)
+                    parts = [part.rstrip() for part in parts]
+                    no_spaces = os.path.sep.join(parts)
+                    path = self.browser_path.joinpath(no_spaces)
+                    if path.exists():
+                        self.mb(message=str(path) + " exists")
+                        return
+                    else:
+                        e.Skip()
+            else:
+                e.Skip()
         else:
             self.mb(message="New name is empty")
             return
@@ -350,8 +390,12 @@ class LockTabDlg(TextEditDlg):
 
 
 class NewFileDlg(NewItemDlg):
-    def __init__(self, frame, browser_path, def_name):
-        super().__init__(frame=frame, title="Create new text file", browser_path=browser_path, def_name=def_name)
+    def __init__(self, frame, browser_path, def_name, validate_files: bool = True):
+        super().__init__(frame=frame,
+                         title="Create new text file",
+                         browser_path=browser_path,
+                         def_name=def_name,
+                         validate_files=validate_files)
         self.lbl_text.SetLabelText("Enter new file name")
         self.cb_open = wx.CheckBox(parent=self, label="Open created file")
         self.cb_open.SetValue(wx.CHK_UNCHECKED)

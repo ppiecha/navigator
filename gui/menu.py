@@ -1,6 +1,5 @@
 import wx
-import constants as cn
-
+from util import constants as cn
 
 # EDIT
 SELECT_ALL = "Select all"
@@ -86,6 +85,10 @@ class MainMenu(wx.MenuBar):
             self.frame.copy_sel2clip()
         elif id == cn.ID_COPY_SEL_NAMES_AND_PATHS:
             self.frame.copy_sel2clip_with_path()
+        elif id == cn.ID_COPY_CLIP_FILE_CONTENT:
+            self.frame.copy_file_content_to_clip()
+        elif id == cn.ID_PASTE_CLIP_FILE_CONTENT:
+            self.frame.new_file_from_clip()
         # Cmd
         elif id == cn.ID_TARGET_EQ_SRC:
             self.frame.target_eq_source()
@@ -95,7 +98,13 @@ class MainMenu(wx.MenuBar):
             self.frame.compare_files()
         elif id == cn.ID_SEARCH:
             self.frame.search()
+        elif id == cn.ID_HISTORY:
+            self.frame.history()
+        elif id == cn.ID_CMD:
+            self.frame.run_command_prompt()
         # View
+        elif id == cn.ID_ALWAYS_ON_TOP:
+            self.frame.always_on_top()
         elif id == cn.ID_REREAD:
             self.frame.reread_source()
         elif id == cn.ID_CLEAR_CACHE:

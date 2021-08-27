@@ -1,16 +1,8 @@
-from datetime import datetime
-import stat
 import os
-from lib4py import shell as sh
-from typing import Callable, List, Sequence
+import stat
+import wx
+from datetime import datetime
 from pathlib import Path
-
-
-def run_in_thread(target: Callable, args: Sequence, lst: List[sh.ShellThread] = None) -> None:
-    th = sh.ShellThread(target=target, args=args)
-    th.start()
-    if lst is not None:
-        lst.append(th)
 
 
 def format_date(timestamp, format="%Y-%m-%d %H:%M"):
@@ -50,3 +42,15 @@ def is_hidden(x: Path) -> bool:
             print("temp file", ext)
     return bool(attribute & (stat.FILE_ATTRIBUTE_HIDDEN | stat.FILE_ATTRIBUTE_SYSTEM)) or str(fname).startswith(
         ".") or is_temp_file
+
+
+class FileDataObject(wx.FileDataObject):
+    def __init__(self, nav_frame):
+        super().__init__()
+        self.nav_frame = nav_frame
+
+    def add_file(self, file):
+        file = str(file)
+        self.AddFile(file=file)
+        if Path(file).is_file():
+            self.nav_frame.app_conf.hist_update_file(full_path=str(file), callback=self.nav_frame.refresh_lists)

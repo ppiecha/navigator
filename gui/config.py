@@ -1,7 +1,7 @@
 from pathlib import Path
-import util
+from util import util as util
 import datetime as dt
-from typing import Dict, Sequence
+from typing import Dict, Sequence, Callable
 
 
 class BrowserConf:
@@ -70,8 +70,7 @@ class NavigatorConf:
         self.show_hidden = False
         self.text_editor = ""
         self.diff_editor = ""
-        self.pos = None
-        self.size = None
+        self.web_browser = ""
         self.history_limit = 15
         self.hist_retention_days = 30
         self.left_active_tab = None
@@ -83,9 +82,23 @@ class NavigatorConf:
         self.folder_hist = {}
         self.file_hist = Dict[str, HistItem]
         self.file_hist = {}
+        self.nav_rect = None
+        self.vim_rect = None
+        self.finder_rect = None
+        self.find_res_rect = None
+        self.clip_view_rect = None
+        self.left_assistant_rect = None
+        self.right_assistant_rect = None
+        self.urls = {}
+        self.always_on_top = False
 
     def __str__(self):
         return "Left browser: " + str(self.left_browser) + "\n" + "Right browser: " + str(self.right_browser)
+
+    def serialize(self):
+        d = {'__classname__': type(self).__name__}
+        d.update(vars(self))
+        print(d)
 
     # def add_search_hist_item(self, item):
     #     if not [h for h in self.search_history if h.startswith(item)]:
@@ -100,12 +113,26 @@ class NavigatorConf:
     #     while len(self.search_history) > self.search_hist_limit:
     #         self.search_history.pop()
 
-    def hist_update_item(self, item_list, full_path: str, date: dt.datetime) -> None:
+    def hist_update_item(self, item_list, full_path: str, date: dt.datetime, callback: Callable = None) -> None:
         if full_path in item_list.keys():
             item_list[full_path].visited_cnt += 1
             item_list[full_path].last_visited = date
         else:
             item_list[full_path] = HistItem(full_path=full_path, last_visited=date)
+            if callback:
+                callback()
+
+    def hist_update_file(self, full_path: str, callback: Callable = None):
+        self.hist_update_item(item_list=self.file_hist,
+                              full_path=full_path,
+                              date=dt.datetime.today(),
+                              callback=callback)
+
+    def hist_update_folder(self, full_path: str, callback: Callable = None):
+        self.hist_update_item(item_list=self.folder_hist,
+                              full_path=full_path,
+                              date=dt.datetime.today(),
+                              callback=callback)
 
     def hist_calc_rating(self, item_list):
         to_delete = []
@@ -119,9 +146,21 @@ class NavigatorConf:
         dct = {k: v for k, v in sorted(item_list.items(), key=lambda item: item[1].rating, reverse=True)}
         return {k: dct[k] for k in list(dct)[:self.history_limit]}
 
+    def hist_update_list(self, item_list):
+        return {k: v for k, v in item_list.items() if Path(v.full_path).exists()}
+
+    def _update_history(self):
+        tit = util.Tit(text="hist update")
+        self.folder_hist = self.hist_update_list(item_list=self.folder_hist)
+        self.file_hist = self.hist_update_list(item_list=self.file_hist)
+        del tit
+
+    def update_history(self, thread_lst):
+        util.run_in_thread(target=self._update_history, args=[], lst=thread_lst)
+
 
 class HistItem:
-    def __init__(self, full_path: str, last_visited: dt.datetime=None) -> None:
+    def __init__(self, full_path: str, last_visited: dt.datetime = None) -> None:
         self.full_path = full_path
         self.last_visited = last_visited
         self.visited_cnt: int = 1

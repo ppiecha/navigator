@@ -1,18 +1,14 @@
 from __future__ import annotations
 import wx
 import os
-import constants as cn
+from util import constants as cn
 from pathlib import Path
-import dir_label
-import links
-import dialogs
-import controls
-import links2
+from gui import path_label
+from gui import controls
 from lib4py import shell as sh
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:
-    import main_frame as mf
-    import browser
+    from gui import main_frame as mf, browser
 
 
 class PathPanel(wx.Panel):
@@ -22,10 +18,10 @@ class PathPanel(wx.Panel):
         self.frame = frame
         self.browser: browser.Browser = None
         self.is_left = is_left
-        self.tool_dlg = None
+        # self.tool_dlg = None
         self._read_only = True
         self.drive_combo = self.get_drive_combo()
-        self.path_lbl = dir_label.DirLabel(self, self.frame)
+        self.path_lbl = path_label.DirLabel(self, self.frame)
         self.path_edit = PathEdit(self, self.frame)
         self.edit_btn = controls.NoFocusImgBtn(parent=self, image=cn.CN_IM_OK, def_ctrl=self.browser, callable=self.on_ok)
         self.path_edit.Show(False)
@@ -36,10 +32,10 @@ class PathPanel(wx.Panel):
         self.sep = wx.Panel(self)
         self.links_btn = controls.NoFocusImgBtn(parent=self, image=cn.CN_IM_FAV, def_ctrl=self.browser, callable=self.on_links)
         # self.hist_btn = controls.NoFocusImgBtn(parent=self, image=cn.CN_IM_HIST, def_ctrl=self.browser, callable=self.on_history)
-        self.dir_btn = controls.NoFocusImgBtn(parent=self, image=cn.CN_IM_FOLDER, def_ctrl=self.browser, callable=self.on_change_folder)
-        self.smart_fold_btn = controls.NoFocusImgBtn(parent=self, image=cn.CN_IM_LINK, def_ctrl=self.browser, callable=self.on_smart_fold)
-        self.smart_file_btn = controls.NoFocusImgBtn(parent=self, image=cn.CN_IM_SHORTCUT, def_ctrl=self.browser,
-                                                     callable=self.on_smart_file)
+        # self.dir_btn = controls.NoFocusImgBtn(parent=self, image=cn.CN_IM_FOLDER, def_ctrl=self.browser, callable=self.on_change_folder)
+        # self.smart_fold_btn = controls.NoFocusImgBtn(parent=self, image=cn.CN_IM_LINK, def_ctrl=self.browser, callable=self.on_smart_fold)
+        # self.smart_file_btn = controls.NoFocusImgBtn(parent=self, image=cn.CN_IM_SHORTCUT, def_ctrl=self.browser,
+        #                                              callable=self.on_smart_file)
         self.hist_menu = HistMenu()
         self.smart_fold_menu = SmartFoldMenu(frame=frame)
         self.smart_file_menu = SmartFileMenu(frame=frame)
@@ -48,7 +44,7 @@ class PathPanel(wx.Panel):
         self.sizer_h.Add(self.drive_combo)
         self.sizer_h.Add(self.sep, flag=wx.EXPAND, proportion=1)
         # self.sizer_h.Add(self.dir_btn)
-        self.sizer_h.Add(self.links_btn)
+        # self.sizer_h.Add(self.links_btn)
         # self.sizer_h.Add(self.smart_file_btn)
         # self.sizer_h.Add(self.smart_fold_btn)
         # self.sizer_h.Add(self.hist_btn)
@@ -57,11 +53,11 @@ class PathPanel(wx.Panel):
         self.sizer_v.Add(self.sizer_h, flag=wx.EXPAND, proportion=1)
         self.SetSizerAndFit(self.sizer_v)
 
-        self.dir_btn.Bind(wx.EVT_BUTTON, self.on_change_folder)
-        self.smart_fold_btn.Bind(wx.EVT_BUTTON, self.on_smart_fold)
-        self.smart_file_btn.Bind(wx.EVT_BUTTON, self.on_smart_file)
+        # self.dir_btn.Bind(wx.EVT_BUTTON, self.on_change_folder)
+        # self.smart_fold_btn.Bind(wx.EVT_BUTTON, self.on_smart_fold)
+        # self.smart_file_btn.Bind(wx.EVT_BUTTON, self.on_smart_file)
         # self.hist_btn.Bind(wx.EVT_BUTTON, self.on_history)
-        self.links_btn.Bind(wx.EVT_BUTTON, self.on_links)
+        # self.links_btn.Bind(wx.EVT_BUTTON, self.on_links)
         self.edit_btn.Bind(wx.EVT_BUTTON, self.on_ok)
 
         wx.CallAfter(self.set_read_only, True)
@@ -116,11 +112,7 @@ class PathPanel(wx.Panel):
         return False
 
     def on_links(self, e):
-        if not self.tool_dlg:
-            self.tool_dlg = links2.LinkDlg(self.frame, is_left=self.is_left,
-                                          is_read_only=False if wx.GetKeyState(wx.WXK_CONTROL) else True)
-        self.tool_dlg.show()
-        self.tool_dlg.SetFocus()
+        pass
 
     def on_history(self, e):
         self.hist_menu.update()
@@ -307,9 +299,7 @@ class ListCtrlComboPopup(wx.ComboPopup):
         if self.item > -1:
             if self.lc.GetItemText(self.item) == CN_CONFIGURE:
                 self.Dismiss()
-                with dialogs.OptionsDlg(frame=self.frame, title="Options") as dlg:
-                    dlg.show_modal()
-                    del dlg
+                self.frame.show_options(active_page=0)
             else:
                 self.Dismiss()
                 self.path_pnl.path_lbl.open_dir(dir=self.get_sel_path(self.item))

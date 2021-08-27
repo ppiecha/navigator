@@ -1,31 +1,32 @@
+import subprocess
+
+import win32con
 import wx
-import browser
-import menu
-import constants as cn
-import util
-import config
+from gui import browser
+from gui import history
+from gui import menu
+from util import util as util, constants as cn, util_file
+from gui import config
 import pickle
 import os
-import dir_watcher
-from operator import itemgetter
 from pathlib import Path
-import fnmatch
 import wx.aui as aui
-import dialogs
+from gui import dialogs
 import traceback
 import wx.adv
 import sys
 from datetime import datetime
-from typing import List, Dict, Sequence, Tuple
+from typing import List
 from lib4py import shell as sh
 from lib4py import logger as lg
 from code_viewer import viewer
 from finder import main_frame as finder
-from controls import CmdBtn
+from gui.controls import CmdBtn
 from pubsub import pub
 import logging
-
-from sql_nav.sql_form import SQLFrame
+from gui import clip
+from util.com_type import HotKey
+from util.dir_watcher import DirCache
 
 logger = lg.get_console_logger(name=__name__, log_level=logging.DEBUG)
 
@@ -33,7 +34,7 @@ logger = lg.get_console_logger(name=__name__, log_level=logging.DEBUG)
 class MainFrame(wx.Frame):
     def __init__(self):
         super().__init__(parent=None, title=cn.CN_APP_NAME, size=(600, 500), style=wx.DEFAULT_FRAME_STYLE)
-        self.app_conf = config.NavigatorConf()
+        self.app_conf: config.NavigatorConf = config.NavigatorConf()
         self.menu_bar = menu.MainMenu(self)
         self.SetMenuBar(self.menu_bar)
         self.dir_cache = DirCache(self)
@@ -44,14 +45,20 @@ class MainFrame(wx.Frame):
         self.sizer = None
         self.wait = None
         self.last_active_browser = None
-        self.vim = viewer.MainFrame(nav_frame=self)
-        self.finder = finder.MainFrame(app=wx.GetApp(), nav_frame=self)
-        self.sql_nav = SQLFrame(nav_frame=self)
 
         self.InitUI()
         self.process_args()
 
         self.Bind(wx.EVT_CLOSE, self.on_close)
+
+        self.vim = viewer.MainFrame(nav_frame=self)
+        self.finder = finder.MainFrame(app=wx.GetApp(), nav_frame=self)
+        self.clip_view = None # clip.ClipFrame(main_frame=self)
+        self.items_history = None
+
+    def refresh_lists(self):
+        if self.items_history:
+            self.items_history.refresh_lists()
 
     def go_to_left(self):
         self.left_browser.get_active_browser().SetFocus()
@@ -65,7 +72,6 @@ class MainFrame(wx.Frame):
             args = [arg for arg in sys.argv[1:] if not arg.startswith("-")]
             if "-w" in opts:
                 sys.excepthook = self.except_hook
-                self.show_message("Output redirected to UI")
         else:
             pass
 
@@ -129,8 +135,6 @@ class MainFrame(wx.Frame):
 
     def write_last_conf(self, conf_file, app_conf):
         try:
-            app_conf.size = self.GetSize()
-            app_conf.pos = self.GetPosition()
             with open(conf_file, 'wb') as ac:
                 pickle.dump(app_conf, ac)
         except IOError:
@@ -153,9 +157,13 @@ class MainFrame(wx.Frame):
         self.Freeze()
 
         self.app_conf = self.read_last_conf(cn.CN_APP_CONFIG, self.app_conf)
+        self.app_conf.update_history(self.thread_lst)
 
         # Menu
         self.menu_bar.menu_items_id[cn.ID_SHOW_HIDDEN].Check(self.app_conf.show_hidden)
+        self.menu_bar.menu_items_id[cn.ID_ALWAYS_ON_TOP].Check(self.app_conf.always_on_top)
+        if self.app_conf.always_on_top:
+            self.ToggleWindowStyle(wx.STAY_ON_TOP)
 
         self.img_folder = self.im_list.Add(wx.Bitmap(cn.CN_IM_FOLDER, wx.BITMAP_TYPE_PNG))
         self.img_file = self.im_list.Add(wx.Bitmap(cn.CN_IM_FILE, wx.BITMAP_TYPE_PNG))
@@ -171,7 +179,7 @@ class MainFrame(wx.Frame):
         self.img_parent = self.im_list.Add(wx.Bitmap(cn.CN_IM_PARENT, wx.BITMAP_TYPE_PNG))
         self.img_child = self.im_list.Add(wx.Bitmap(cn.CN_IM_CHILD, wx.BITMAP_TYPE_PNG))
         # self.img_link_folder = self.im_list.Add(wx.Bitmap(cn.CN_IM_NEW_FOLDER, wx.BITMAP_TYPE_PNG))
-        # self.img_link_file = self.im_list.Add(wx.Bitmap(cn.CN_IM_NEW_FILE, wx.BITMAP_TYPE_PNG))
+        self.img_clip = self.im_list.Add(wx.Bitmap(cn.CN_IM_NEW_FILE, wx.BITMAP_TYPE_PNG))
         # self.img_link = self.im_list.Add(wx.Bitmap(cn.CN_IM_LINK, wx.BITMAP_TYPE_PNG))
         # self.img_link_shortcut = self.im_list.Add(wx.Bitmap(cn.CN_IM_SHORTCUT, wx.BITMAP_TYPE_PNG))
 
@@ -210,16 +218,84 @@ class MainFrame(wx.Frame):
         self.SetSizer(self.sizer)
         # self.SetMinSize(self.GetEffectiveMinSize())
 
-        if self.app_conf.size:
-            self.SetSize(self.app_conf.size)
-            self.SetPosition(self.app_conf.pos)
+        if self.app_conf.nav_rect:
+            self.SetRect(self.app_conf.nav_rect)
         else:
-            self.SetSize((600, 500))
+            self.SetSize((700, 500))
             self.Center()
 
         self.SetDefaultItem(self.left_browser)
         self.Thaw()
         self.left_browser.get_active_browser().SetFocus()
+
+        cn.dt_hot_keys[cn.ID_HOT_KEY_SHOW].action = self.show_hide_main_frame
+        self.register_hot_key(hot_key=cn.dt_hot_keys[cn.ID_HOT_KEY_SHOW])
+
+        cn.dt_hot_keys[cn.ID_HOT_KEY_SHOW_CLIP].action = self.show_hide_clip
+        self.register_hot_key(hot_key=cn.dt_hot_keys[cn.ID_HOT_KEY_SHOW_CLIP])
+
+        cn.dt_hot_keys[cn.ID_HOT_KEY_CLIP_URL].action = self.open_clip_url
+        self.register_hot_key(hot_key=cn.dt_hot_keys[cn.ID_HOT_KEY_CLIP_URL])
+
+        cn.dt_hot_keys[cn.ID_HOT_KEY_LEFT_URL].action = self.open_url
+        self.register_hot_key(hot_key=cn.dt_hot_keys[cn.ID_HOT_KEY_LEFT_URL])
+
+        cn.dt_hot_keys[cn.ID_HOT_KEY_RIGHT_URL].action = self.open_url
+        self.register_hot_key(hot_key=cn.dt_hot_keys[cn.ID_HOT_KEY_RIGHT_URL])
+
+        for k, v in cn.ID_HOT_KEY_NUMPAD_URL.items():
+            cn.dt_hot_keys[v].action = self.open_url
+            self.register_hot_key(hot_key=cn.dt_hot_keys[v])
+
+    def register_hot_key(self, hot_key: HotKey) -> None:
+        ok = self.RegisterHotKey(hotkeyId=hot_key.id,  # a unique ID for this hotkey
+                                 modifiers=hot_key.mod_key,  # win32con.MOD_WIN,  # the modifier key
+                                 virtualKeyCode=hot_key.key)  # win32con.VK_SPACE)  # the key to watch for
+        if not ok:
+            self.show_message(f"Cannot register hot key under number {hot_key.id}")
+        else:
+            self.Bind(wx.EVT_HOTKEY, hot_key.action, id=hot_key.id)
+
+    def unregister_hot_keys(self):
+        for key in cn.dt_hot_keys.keys():
+            if not self.UnregisterHotKey(hotkeyId=key):
+                self.show_message(f"Cannot unregister hot key {key}")
+
+    def open_url(self, e):
+        print("open url", self.app_conf.urls.get(e.GetId(), ""), e.GetId())
+        url = self.app_conf.urls.get(e.GetId(), "")
+        if not url:
+            self.show_message(f"Url not defined for key {e.GetId()}")
+            return
+
+        util.open_url(url=url, browser_path=self.app_conf.web_browser)
+
+    def open_clip_url(self, e):
+        util.open_clip_url(browser_path=self.app_conf.web_browser)
+
+    def show_hide_wnd(self, wnd: wx.Frame):
+        def raise_wnd():
+            if not wnd.IsShown():
+                wnd.Show()
+            wnd.Raise()
+
+        if wnd.IsIconized():
+            wnd.Iconize(False)
+            raise_wnd()
+        else:
+            if wnd.IsActive():
+                if wnd is self:
+                    wnd.Iconize(True)
+                else:
+                    wnd.Hide()
+            else:
+                raise_wnd()
+
+    def show_hide_clip(self, e):
+        self.show_hide_wnd(wnd=self.clip_view)
+
+    def show_hide_main_frame(self, e):
+        self.show_hide_wnd(wnd=self)
 
     def on_size(self, e):
         size = self.GetSize()
@@ -231,14 +307,24 @@ class MainFrame(wx.Frame):
         self.splitter.SetSashPosition(size.x / 2)
 
     def on_close(self, event):
+        self.app_conf.nav_rect = self.GetRect()
+        self.app_conf.vim_rect = self.vim.GetRect()
+        self.app_conf.find_res_rect = self.finder.res_frame.GetRect()
+        self.app_conf.finder_rect = self.finder.GetRect()
+        # self.app_conf.clip_view_rect = self.clip_view.GetRect()
         self.vim.Destroy()
         self.finder.res_frame.Destroy()
         self.finder.Destroy()
-        self.sql_nav.Destroy()
+        if hasattr(self, 'sql_nav'):
+            self.sql_nav.Destroy()
+        # self.clip_view.Destroy()
+        if self.items_history:
+            self.items_history.Destroy()
         self.write_last_conf(cn.CN_APP_CONFIG, self.app_conf)
         if not self.release_resources():
             event.Veto()
             return
+        self.unregister_hot_keys()
         event.Skip()
 
     def show_message(self, text):
@@ -349,9 +435,9 @@ class MainFrame(wx.Frame):
         lst = [str(path.joinpath(b)) for b in b.get_selected()]
         if lst:
             if wx.TheClipboard.Open():
-                data = wx.FileDataObject()
+                data = util_file.FileDataObject(nav_frame=self)
                 for item in lst:
-                    data.AddFile(item)
+                    data.add_file(file=item)
                 wx.TheClipboard.SetData(data)
                 wx.TheClipboard.Close()
                 self.show_wait()
@@ -482,6 +568,8 @@ class MainFrame(wx.Frame):
                 message += "<br/>" + str(len(files)) + " file(s): <b>" + \
                            ", ".join([f.name for f in files]) + "</b>"
             with dialogs.DeleteDlg(self, message) as dlg:
+                if wx.GetKeyState(wx.WXK_CONTROL):
+                    dlg.cb_perm.SetValue(wx.CHK_CHECKED)
                 if dlg.show_modal() == wx.ID_OK:
                     util.run_in_thread(target=sh.delete,
                                        args=(folders + files, dlg.cb_perm.IsChecked()),
@@ -497,10 +585,57 @@ class MainFrame(wx.Frame):
         with dialogs.NewFileDlg(self, b.path, def_name) as dlg:
             if dlg.show_modal() == wx.ID_OK:
                 file_names = dlg.get_new_names()
+                print(Path(file_names[0]).parts)
+                for f in file_names:
+                    file_path = b.path.joinpath(f)
+                    path: Path = b.path
+                    for part in file_path.parts:
+                        path = path.joinpath(part.rstrip())
+                        if not path.exists():
+                            print("adding", str(path))
+                            if path.name == path.stem:
+                                try:
+                                    sh.new_folder(str(path))
+                                except Exception as e:
+                                    self.log_error(f"Cannot create folder {path.name}\n{str(e)}")
+                            else:
+                                try:
+                                    sh.new_file(str(path))
+                                except Exception as e:
+                                    self.log_error(f"Cannot create file {path.name}\n{str(e)}")
+                    if dlg.cb_open.IsChecked():
+                        sh.start_file(str(path))
+
+
+    def new_file_from_clip(self):
+        win = self.get_active_win()
+        b = win.get_active_browser()
+        folders, files = b.get_selected_files_folders()
+        def_name = files[0].name if files else "new_file.sql"
+        with dialogs.NewFileDlg(self, b.path, def_name, validate_files=False) as dlg:
+            if dlg.show_modal() == wx.ID_OK:
+                file_names = dlg.get_new_names()
                 for f in file_names:
                     path = b.path.joinpath(f)
+                    if Path(path).exists():
+                        if self.get_question_feedback("Overwrite?") in (wx.NO, wx.CANCEL):
+                            return
                     try:
-                        sh.new_file(str(path))
+                        if not wx.TheClipboard.IsSupported(wx.DataFormat(wx.DF_TEXT)):
+                            self.show_message("No text data in clipboard")
+                            return
+                        with open(path, 'w') as file:
+                            try:
+                                text_data = wx.TextDataObject()
+                                if wx.TheClipboard.Open():
+                                    success = wx.TheClipboard.GetData(text_data)
+                                    wx.TheClipboard.Close()
+                                if success:
+                                    file.write(text_data.GetText())
+                                else:
+                                    self.show_message("Cannot get text data from clipboard")
+                            except Exception as e:
+                                self.show_message(f"Cannot write clipboard text data to file \n{path} \n{str(e)}")
                     except Exception as e:
                         self.log_error(f"Cannot create file {path.name}\n{str(e)}")
                     if dlg.cb_open.IsChecked():
@@ -626,6 +761,12 @@ class MainFrame(wx.Frame):
         folders, files = b.get_selected_files_folders()
         self.copy_text2clip([str(f) for f in folders] + [str(f) for f in files])
 
+    def copy_file_content_to_clip(self):
+        win = self.get_active_win()
+        b = win.get_active_browser()
+        folders, files = b.get_selected_files_folders()
+        b.copy_file_content_to_clip(files=files)
+
     def target_eq_source(self):
         if str(self.get_inactive_win().get_active_browser().path) != \
                 str(self.get_active_win().get_active_browser().path):
@@ -657,104 +798,31 @@ class MainFrame(wx.Frame):
         self.dir_cache.refresh()
         pub.sendMessage(cn.CN_TOPIC_REREAD)
 
+    def always_on_top(self):
+        self.app_conf.always_on_top = self.menu_bar.menu_items_id[cn.ID_ALWAYS_ON_TOP].IsChecked()
+        self.ToggleWindowStyle(flag=wx.STAY_ON_TOP)
 
-class DirCacheItem:
-    def __init__(self, frame: MainFrame, dir_name: str) -> None:
-        if not dir_name:
-            raise ValueError("Empty dir name")
-        self.frame = frame
-        self.dir_name: str = dir_name
-        self.dir_items = List[Tuple[str, float, str, str, bool, str, Path]]
-        self.file_items = List[Tuple[str, float, int, str, bool, str, Path]]
-        self.watcher = dir_watcher.DirWatcher(frame=frame, dir_name=dir_name, dir_items=self.dir_items,
-                                              file_items=self.file_items)
-        self.open_dir(dir_name)
+    def run_command_prompt(self):
+        win = self.get_active_win()
+        b = win.get_active_browser()
+        selected_path = b.path
+        if not selected_path:
+            self.show_message(f"Cannot determine selected path")
+        curr_path = os.getcwd()
+        os.chdir(selected_path)
+        subprocess.Popen(["start", "cmd"], shell=True)
+        os.chdir(curr_path)
 
-    def open_dir(self, dir_name: str):
-        # logger.debug(vars(self))
-        self.dir_items = []
-        self.file_items = []
-        if not self.watcher.is_alive():
-            self.watcher = dir_watcher.DirWatcher(frame=self.frame, dir_name=dir_name, dir_items=self.dir_items,
-                                                  file_items=self.file_items)
-        with os.scandir(dir_name) as sd:
-            sd = [item for item in sd if (not self.frame.app_conf.show_hidden and not util.is_hidden(Path(item.path)))
-                  or self.frame.app_conf.show_hidden]
-            for i in sd:
-                if i.is_dir():
-                    self.dir_items.append((i.name.lower(), i.stat().st_mtime, "", i.name, i.is_dir(), "", Path(i.path)))
-                else:
-                    self.file_items.append((i.name.lower(), i.stat().st_mtime, i.stat().st_size, i.name, i.is_dir(),
-                                            Path(i.name).suffix, Path(i.path)))
+    def history(self):
+        if not self.items_history:
+            self.items_history = history.LinkDlg(self, is_left=self.get_active_win().is_left, is_read_only=True)
+        self.items_history.refresh_lists()
+        self.items_history.show()
+        self.items_history.SetFocus()
 
+    def show_options(self, active_page):
+        with dialogs.OptionsDlg(frame=self, active_page=active_page) as dlg:
+            ret = dlg.show_modal()
+            del dlg
+            return ret
 
-class DirCache:
-    def __init__(self, frame):
-        self.frame = frame
-        self._dict = Dict[str, DirCacheItem]
-        self._dict = {}
-
-    def is_in_cache(self, dir_name: str) -> bool:
-        return dir_name in self._dict.keys()
-
-    def match(self, src, pat_lst):
-        return len(list(filter(lambda x: fnmatch.fnmatch(src, x), pat_lst))) > 0
-        # return len(list(filter(lambda x: x, map(lambda x: fnmatch.fnmatch(src, x), pat_lst)))) > 0
-
-    def read_dir(self, dir_name: str, reread_source: bool = False) -> None:
-        if not isinstance(dir_name, str):
-            raise ValueError("Incorrect key type", dir_name)
-        if dir_name not in self._dict.keys():
-            logger.debug(f"R E A D {dir_name}")
-            self._dict[dir_name] = DirCacheItem(frame=self.frame, dir_name=dir_name)
-        if reread_source:
-            # print("R E A D - refresh cache", dir_name)
-            self._dict[dir_name].open_dir(dir_name=dir_name)
-
-    def get_dir(self, dir_name: str, conf, reread_source: bool = False) -> Sequence:
-        self.read_dir(dir_name=dir_name, reread_source=reread_source)
-        pattern = conf.pattern if conf.use_pattern else ["*"]
-        return sorted([d for d in self._dict[dir_name].dir_items if self.match(d[cn.CN_COL_NAME], pattern)],
-                      key=itemgetter(conf.sort_key), reverse=conf.sort_desc) + \
-               sorted([f for f in self._dict[dir_name].file_items if self.match(f[cn.CN_COL_NAME], pattern)],
-                      key=itemgetter(conf.sort_key), reverse=conf.sort_desc)
-
-    def refresh_dir(self, dir_name: str) -> None:
-        """refresh cache for given directory"""
-        if Path(dir_name).exists():
-            self.read_dir(dir_name=dir_name, reread_source=True)
-        else:
-            self.delete_cache_item(dir_name=dir_name)
-
-    def refresh(self) -> None:
-        """refresh all the items in the cache"""
-        for dir_name in self._dict.keys():
-            self.refresh_dir(dir_name=dir_name)
-
-    def release_resources(self):
-        """release all cache resources"""
-        for item in self._dict.keys():
-            self.remove_watcher(dir=item)
-        self._dict.clear()
-        logger.debug("cache cleared")
-        #     th = self._dict[item].watcher
-        #     if th.is_alive():
-        #         th.terminate()
-        #         th.join()
-        # self._dict.clear()
-        # logger.debug("cache cleared")
-
-    def remove_watcher(self, dir: str) -> None:
-        th = self._dict[dir].watcher
-        if th.is_alive():
-            th.terminate()
-            # th.join()
-
-    def delete_cache_item(self, dir_name: str) -> None:
-        lst = list(self._dict.keys())
-        for item in lst:
-            if str(item).startswith(dir_name):
-                logger.debug(f"removing wather {item}")
-                self.remove_watcher(item)
-                del self._dict[item]
-        pub.sendMessage(cn.CN_TOPIC_DIR_DEL, dir_name=dir_name)

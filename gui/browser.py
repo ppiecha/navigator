@@ -1,17 +1,15 @@
 from __future__ import annotations
 import wx
 from pathlib import Path
-import util
-import constants as cn
-import path_pnl
+from util import util as util, constants as cn, util_file
+from gui import path_pnl
 from wx.lib.mixins.listctrl import ListCtrlAutoWidthMixin
-import filter_pnl
-import time
+from gui import filter_pnl
 import wx.aui as aui
-import config
+from gui import config
 from pubsub import pub
 import os
-import dialogs
+from gui import dialogs
 from lib4py import shell as sh
 from lib4py import logger as lg
 from typing import Sequence, List, Tuple
@@ -19,21 +17,13 @@ from datetime import datetime
 import subprocess
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:
-    import main_frame as mf
+    from gui import main_frame as mf
     import config as cfg
 import logging
 
 logger = lg.get_console_logger(name=__name__, log_level=logging.DEBUG)
 
 CN_MAX_HIST_COUNT = 20
-
-class Tit:
-    def __init__(self, text):
-        print(text)
-        self.start = time.time()
-
-    def __del__(self):
-        print("Elapsed: ", time.time() - self.start)
 
 
 class BrowserCtrl(aui.AuiNotebook):
@@ -246,10 +236,8 @@ class Browser(wx.ListCtrl, ListCtrlAutoWidthMixin):
     def get_cache_item(self, row: int, col: int):
         if not (0 <= row < len(self._dir_cache)):
             return None
-            #raise ValueError(f"Wrong row index: {row}")
         if not (0 <= col <= cn.CN_COL_FULL_PATH):
             return None
-            #raise ValueError(f"Wrong column index: {col}")
         return self._dir_cache[row][col]
 
     def on_process_dropped_files(self, x: int, y: int, file_names: List[str]) -> bool:
@@ -260,7 +248,7 @@ class Browser(wx.ListCtrl, ListCtrlAutoWidthMixin):
         if same_win:
             self.frame.move([f for f in file_names if Path(f).is_dir()],
                             [f for f in file_names if Path(f).is_file()],
-                            self.path.joinpath(self.GetItemText(item)))
+                            str(self.path.joinpath(self.GetItemText(item))))
             return True
         else:
             if src_id < 0:
@@ -274,9 +262,11 @@ class Browser(wx.ListCtrl, ListCtrlAutoWidthMixin):
         selected = self.get_selected()
         if not selected:
             return
-        files = wx.FileDataObject()
+        selected = [str(self.path.joinpath(item)) for item in selected]
+        # selected = [str(item) for item in selected if item.is_file()]
+        files = util_file.FileDataObject(nav_frame=self.frame)
         for item in selected:
-            files.AddFile(str(self.path.joinpath(item)))
+            files.add_file(item)
         self.drag_src = MyDropSource(self.win_id, files)
         result = self.drag_src.DoDragDrop()
         self.drag_src = None
@@ -351,9 +341,9 @@ class Browser(wx.ListCtrl, ListCtrlAutoWidthMixin):
 
         def gci(item, col):
             if col == cn.CN_COL_DATE:
-                return util.format_date(self.get_cache_item(row=item, col=col))
+                return util_file.format_date(self.get_cache_item(row=item, col=col))
             elif col == cn.CN_COL_SIZE:
-                return util.format_size(self.get_cache_item(row=item, col=col))
+                return util_file.format_size(self.get_cache_item(row=item, col=col))
             else:
                 return self.get_cache_item(row=item, col=col)
 
@@ -389,12 +379,12 @@ class Browser(wx.ListCtrl, ListCtrlAutoWidthMixin):
         if not (0 <= item < len(self._dir_cache)):
             return None
         try:
-            if util.is_hidden(self.get_cache_item(row=item, col=cn.CN_COL_FULL_PATH)):
+            if util_file.is_hidden(self.get_cache_item(row=item, col=cn.CN_COL_FULL_PATH)):
                 return self.hidden_attr
             else:
                 return None
-        except:
-            raise ValueError(f"Cache length {len(self._dir_cache)} item {item}")
+        except Exception as e:
+            raise ValueError(f"Cache length {len(self._dir_cache)} item {item} exception {str(e)}")
 
     def init_ui(self, conf):
         for index, name in enumerate(self.columns):
@@ -430,7 +420,6 @@ class Browser(wx.ListCtrl, ListCtrlAutoWidthMixin):
             self.history.insert(0, path)
             if len(self.history) > self.frame.app_conf.history_limit:
                 self.history.pop()
-
 
     def on_select(self, event):
         self.update_summary_lbl()
@@ -554,9 +543,7 @@ class Browser(wx.ListCtrl, ListCtrlAutoWidthMixin):
         self.set_tab_name(self.conf.tab_name)
         self.path_pnl.set_value(str(value))
         # self.add_hist_item(str(value))
-        self.frame.app_conf.hist_update_item(item_list=self.frame.app_conf.folder_hist,
-                                             full_path=str(value),
-                                             date=datetime.today())
+        wx.CallAfter(self.frame.app_conf.hist_update_folder, str(value), self.frame.refresh_lists)
         self.root = str(value) == str(value.anchor)
         self._path = value
 
@@ -568,7 +555,7 @@ class Browser(wx.ListCtrl, ListCtrlAutoWidthMixin):
             pattern = list(map(lambda x: "*" + x + "*",
                                [part.strip() for part in pattern.split(";") if part.strip()]))
         self.conf.pattern = pattern
-        self.open_dir(self.path, sel_dir=cn.CN_GO_BACK)
+        self.open_dir(str(self.path), sel_dir=cn.CN_GO_BACK)
         self.select_first_one()
 
     def sort_by_column(self, sort_key, desc, reread=True):
@@ -716,9 +703,16 @@ class Browser(wx.ListCtrl, ListCtrlAutoWidthMixin):
 
     def shell_editor(self, files):
         if len(files) > 0:
-            args = [self.frame.app_conf.text_editor]
-            args.extend([str(f) for f in files])
-            subprocess.Popen(args, shell=False)
+            args = [self.frame.app_conf.text_editor] if self.frame.app_conf.text_editor else []
+            if not args:
+                self.frame.show_options(active_page=1)
+                args = [self.frame.app_conf.text_editor] if self.frame.app_conf.text_editor else []
+            if args:
+                for file_name in files:
+                    self.frame.app_conf.hist_update_file(full_path=str(file_name),
+                                                         callback=self.frame.refresh_lists)
+                args.extend([str(f) for f in files])
+                subprocess.Popen(args, shell=False)
         else:
             self.frame.show_message(cn.CN_NO_ITEMS_SEL)
 
@@ -729,6 +723,21 @@ class Browser(wx.ListCtrl, ListCtrlAutoWidthMixin):
             subprocess.Popen(args, shell=False)
         else:
             self.frame.show_message(cn.CN_NO_ITEMS_SEL)
+
+    def copy_file_content_to_clip(self, files):
+        if len(files) != 1:
+            self.frame.show_message(cn.CN_SEL_ONE_FILE + " to copy content to clipboard")
+        else:
+            try:
+                with open(files[0], 'r') as f:
+                    if wx.TheClipboard.Open():
+                        if not wx.TheClipboard.SetData(wx.TextDataObject("".join(f.readlines()))):
+                            self.frame.show_message("Cannot copy file content to clipboard")
+                        wx.TheClipboard.Close()
+                    else:
+                        self.frame.show_message("Cannot open clipboard")
+            except (UnicodeDecodeError, PermissionError, OSError) as e:
+                self.frame.show_message(f"Cannot open file {str(files[0])} \n{str(e)}")
 
 
 class ColumnMenu(wx.Menu):

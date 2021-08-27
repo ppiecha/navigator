@@ -172,10 +172,12 @@ def delete(src, hard_delete: bool) -> bool:
 
     flags = 0  # shellcon.FOF_SILENT
 
+    logger.debug(f"deleting {src} {hard_delete}")
+
     if not hard_delete:
         flags |= shellcon.FOF_ALLOWUNDO
 
-    logger.debug(f"deleting {src}")
+
 
     result, aborted = shell.SHFileOperation((
         0,

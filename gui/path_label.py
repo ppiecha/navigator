@@ -2,7 +2,7 @@ import wx
 from pathlib import Path
 import os
 import subprocess
-import constants as cn
+from util import constants as cn
 import ctypes.wintypes
 
 
@@ -62,17 +62,21 @@ class DirLabel(wx.Panel):
 
     def on_left_down(self, event):
         self.browser_panel.browser.SetFocus()
+        x, y = event.GetPosition()
+        self.update_label(x=x, y=y)
         if self.selected and "..." not in self.selected:
             dir = self.get_selected_path()
             if dir != self.dir_path:
                 self.open_dir(dir)
                 self.dir_path = dir
                 self.suffix = ""
-                self._refresh()
-        event.Skip()
+                x, y = event.GetPosition()
+                self.update_label(x=x, y=y)
+        # event.Skip()
 
     def on_size(self, e):
         self.dir_path = self._dir_path
+        self._refresh()
 
     def on_menu(self, event):
         self.browser_panel.browser.SetFocus()
@@ -86,15 +90,16 @@ class DirLabel(wx.Panel):
 
     def on_mouse_move(self, event):
         x, y = event.GetPosition()
+        self.update_label(x=x, y=y)
+        event.Skip()
+
+    def update_label(self, x, y):
         prefix, selected, suffix = self.hit_test(x, y)
         if self.selected != selected:
             self.prefix = prefix
             self.selected = selected
             self.suffix = suffix
-            # print(prefix, selected, suffix)
             self._refresh()
-
-        event.Skip()
 
     def set_value(self, value):
         self.dir_path = value

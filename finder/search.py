@@ -35,6 +35,7 @@ class Search(threading.Thread):
         files_sum = 0
         user_continues = False
         user_limit = 100
+        # results_lst = []
         for dir_item in opt.dirs:
             pub.sendMessage(cn.CN_TOPIC_ADD_NODE, search_dir=dir_item, nodes=None)
             for root, dirs, files in os.walk(Path(dir_item)):
@@ -60,16 +61,25 @@ class Search(threading.Thread):
                                 and self.match(file, opt.dirs_pattern)]
                     file_nodes = []
                     if opt.words:
+                        _futures = {}
                         with futures.ThreadPoolExecutor(max_workers=10) as ex:
-                            results = ex.map(lambda x: self.process_file(x, opt, self.event), file_lst)
-                            file_nodes = [n for n in results if n is not None]
+                            for file in file_lst:
+                                _futures[ex.submit(self.process_file, file, opt, self.event)] = file
+                            for future in futures.as_completed(_futures):
+                                file_node = future.result()
+                                if file_node is not None:
+                                    files_found += 1
+                                    pub.sendMessage(cn.CN_TOPIC_ADD_NODE, search_dir=dir_item, nodes=[file_node])
+                            # results = ex.map(lambda x: self.process_file(x, opt, self.event), file_lst)
+                            # file_nodes = [n for n in results if n is not None]
                     else:
                         if file_lst:
                             file_nodes = [search_tree.FileNode(file_full_name=f, opt=opt)
                                           for f in file_lst]
-                    if file_nodes:
-                        files_found += len(file_nodes)
-                        pub.sendMessage(cn.CN_TOPIC_ADD_NODE, search_dir=dir_item, nodes=file_nodes)
+                    # if file_nodes:
+                    #     files_found += len(file_nodes)
+                    #     pub.sendMessage(cn.CN_TOPIC_ADD_NODE, search_dir=dir_item, nodes=file_nodes)
+                        # results_lst.append((dir_item, file_nodes))
 
                     if files_found > user_limit and not user_continues:
                         dlg = wx.MessageDialog(parent=self.frame,
@@ -88,7 +98,7 @@ class Search(threading.Thread):
                             node=search_tree.FinalNode(text="No data found"))
         self.set_status("Searched " + "{:,}".format(dirs_sum) + " folder(s) " + "{:,}".format(files_sum) + " file(s) ")
         self.event.set()
-        pub.sendMessage(cn.CN_TOPIC_SEARCH_COMPLETED)
+        pub.sendMessage(cn.CN_TOPIC_SEARCH_COMPLETED, results=[])
         return True
 
     def run(self):
@@ -120,8 +130,11 @@ class Search(threading.Thread):
 
 
     def find_first(self, text, opt):
+        flag = re.IGNORECASE if not opt.case_sensitive else 0
         for word in opt.words:
-            if re.search(pattern=word, string=text, flags=re.IGNORECASE if not opt.case_sensitive else 0):
+            esc_word = word if opt.reg_exp else re.escape(word)
+            pattern = r"\b" + esc_word + r"\b" if opt.whole_words else r"" + esc_word + r""
+            if re.search(pattern=pattern, string=text, flags=flag):
                 return True
         return False
 

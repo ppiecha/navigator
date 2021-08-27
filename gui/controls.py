@@ -4,7 +4,7 @@ import wx.lib.buttons as buttons
 import os
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:
-    import main_frame as mf
+    pass
 
 
 class FileNameEdit(wx.TextCtrl):

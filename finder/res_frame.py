@@ -18,7 +18,7 @@ class MainFrame(wx.Frame):
     def __init__(self, finder):
         super().__init__(parent=None, title=cn.CN_APP_RESULTS, size=(395, 400), style=wx.DEFAULT_FRAME_STYLE)
         self.SetDoubleBuffered(True)
-        self.SetIcon(wx.Icon(cn.CN_ICON_FILE_NAME))
+        self.SetIcon(wx.Icon(cn.CN_ICON_FILE_NAME_RES))
         self.finder = finder
         self.nav_frame = finder.nav_frame
         self.status_bar = self.CreateStatusBar(number=1, style=wx.STB_ELLIPSIZE_MIDDLE)
@@ -26,7 +26,10 @@ class MainFrame(wx.Frame):
         self.search_thread = None
         self.output = MainPanel(res_frame=self)
 
-        self.CenterOnScreen()
+        if self.nav_frame.app_conf.find_res_rect:
+            self.SetRect(self.nav_frame.app_conf.find_res_rect)
+        else:
+            self.CentreOnParent()
 
         self.entries = []
         self.entries.append(wx.AcceleratorEntry(flags=wx.ACCEL_NORMAL, keyCode=wx.WXK_ESCAPE, cmd=wx.ID_CANCEL))

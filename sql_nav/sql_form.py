@@ -1,6 +1,6 @@
 import wx
 import wx.stc
-import constants as cn
+from util import constants as cn
 import sql_nav.sql_constants as sql_cn
 import logging
 from lib4py import logger as lg

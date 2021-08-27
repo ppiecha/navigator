@@ -1,5 +1,5 @@
 import wx
-import main_frame as mf
+from gui import main_frame as mf
 import res_frame as rf
 
 
