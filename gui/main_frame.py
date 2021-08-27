@@ -311,13 +311,13 @@ class MainFrame(wx.Frame):
         self.app_conf.vim_rect = self.vim.GetRect()
         self.app_conf.find_res_rect = self.finder.res_frame.GetRect()
         self.app_conf.finder_rect = self.finder.GetRect()
-        self.app_conf.clip_view_rect = self.clip_view.GetRect()
+        # self.app_conf.clip_view_rect = self.clip_view.GetRect()
         self.vim.Destroy()
         self.finder.res_frame.Destroy()
         self.finder.Destroy()
         if hasattr(self, 'sql_nav'):
             self.sql_nav.Destroy()
-        self.clip_view.Destroy()
+        # self.clip_view.Destroy()
         if self.items_history:
             self.items_history.Destroy()
         self.write_last_conf(cn.CN_APP_CONFIG, self.app_conf)
