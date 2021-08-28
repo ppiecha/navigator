@@ -129,7 +129,7 @@ class MainFrame(wx.Frame):
         try:
             with open(conf_file, 'rb') as ac:
                 return pickle.load(ac)
-        except IOError:
+        except:
             # self.log_error("Cannot read app configuration '%s'." % conf_file)
             return app_conf
 
